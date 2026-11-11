@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+  <title id="title">Fictional Riverside Mine site plan</title>
+  <desc id="desc">Abstract open-pit site plan used only for the VESPER simulated operational map.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7f947f"/>
+      <stop offset=".48" stop-color="#485f50"/>
+      <stop offset="1" stop-color="#9b8766"/>
+    </linearGradient>
+    <filter id="grain">
+      <feTurbulence baseFrequency=".55" numOctaves="3" stitchTiles="stitch" type="fractalNoise"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 .13"/></feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1000" height="600" fill="url(#base)"/>
+  <rect width="1000" height="600" filter="url(#grain)" opacity=".45"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M60 210C175 90 355 68 455 150S420 370 278 401 40 340 60 210Z" stroke="#b7aa84" stroke-width="52"/>
+    <path d="M87 218C190 125 330 118 402 177S371 323 267 348 71 313 87 218Z" stroke="#635f4b" stroke-width="34"/>
+    <path d="M122 222C205 159 306 160 360 205S333 277 255 300 112 280 122 222Z" stroke="#ab9872" stroke-width="25"/>
+    <path d="M170 224C235 188 292 199 318 222S290 260 244 268 164 252 170 224Z" stroke="#4b4a3c" stroke-width="21"/>
+    <path d="M530 70C620 175 690 210 855 200S968 245 930 280 738 278 650 330 560 490 400 530" stroke="#d3c393" stroke-width="26"/>
+    <path d="M490 92C600 192 690 235 850 224S955 265 905 300 724 307 658 358 560 508 410 555" stroke="#536050" stroke-width="8" stroke-dasharray="17 12"/>
+    <path d="M720 50L770 170M850 300L835 530M480 385L615 430M88 420L318 500" stroke="#af9d77" stroke-width="19"/>
+    <path d="M720 50L770 170M850 300L835 530M480 385L615 430M88 420L318 500" stroke="#4c5c4f" stroke-width="5" stroke-dasharray="10 10"/>
+  </g>
+  <g fill="#24352e" opacity=".65">
+    <rect x="550" y="200" width="84" height="46" rx="7"/>
+    <rect x="650" y="390" width="115" height="64" rx="7"/>
+    <rect x="780" y="90" width="56" height="80" rx="7"/>
+  </g>
+  <g fill="#d7ddcf" opacity=".55">
+    <circle cx="911" cy="93" r="38"/>
+    <circle cx="911" cy="93" r="26" fill="#506456"/>
+    <rect x="888" y="135" width="46" height="71" rx="7"/>
+  </g>
+  <text x="22" y="575" fill="#e8efe9" font-family="system-ui, sans-serif" font-size="14" font-weight="700">RIVERSIDE MINE · FICTIONAL SITE PLAN · DEMO ONLY</text>
+</svg>
