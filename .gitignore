@@ -1,0 +1,13 @@
+node_modules/
+.pnpm-store/
+.next/
+out/
+coverage/
+test-results/
+playwright-report/
+storybook-static/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+Thumbs.db

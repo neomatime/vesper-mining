@@ -1,0 +1,303 @@
+import type {
+  DemoContext,
+  MapArea,
+  OperationalIssue,
+  ReadinessActivity,
+} from "@vesper/api-contracts";
+
+export const DEMO_NOW = "2025-04-24T08:47:00+02:00";
+
+export const defaultContext: DemoContext = {
+  persona: "John Dlamini",
+  role: "Mine Manager",
+  siteId: "site-riverside",
+  siteName: "Riverside Mine",
+  tier: "operations_single",
+  scenario: "equipment_breakdown",
+  demoNow: DEMO_NOW,
+};
+
+export const primaryIssue: OperationalIssue = {
+  id: "issue-riv-001",
+  organisationId: "org-himark-demo",
+  siteId: "site-riverside",
+  issueNumber: "RIV-2025-041",
+  title: "Crusher C-02 — Feed Interruption",
+  description:
+    "Feed interruption is constraining downstream throughput. The cause is reported and the spare-part dependency is being confirmed.",
+  equipmentId: "eq-crusher-c02",
+  areaId: "area-crusher-line",
+  priority: "high",
+  workflowState: "awaiting_dependency",
+  quality: "reported",
+  operationalStatus: "at_risk",
+  owner: "Lebo Maseko",
+  reportedAt: "2025-04-24T08:05:00+02:00",
+  updatedAt: "2025-04-24T08:43:00+02:00",
+  source: {
+    label: "Simulated field report RIV-2025-041",
+    observedAt: "2025-04-24T08:05:00+02:00",
+    quality: "reported",
+  },
+  actions: [
+    {
+      id: "act-001",
+      title: "Confirm fault assessment",
+      owner: "Lebo Maseko",
+      team: "Maintenance",
+      state: "complete",
+      dueAt: "2025-04-24T08:30:00+02:00",
+    },
+    {
+      id: "act-002",
+      title: "Verify spare-part availability",
+      owner: "Naledi Khoza",
+      team: "Stores / Procurement",
+      state: "in_progress",
+      dueAt: "2025-04-24T09:00:00+02:00",
+    },
+    {
+      id: "act-003",
+      title: "Mobilise repair team",
+      owner: "OreTech Services",
+      team: "Contractor",
+      state: "pending",
+      dueAt: "2025-04-24T09:15:00+02:00",
+    },
+    {
+      id: "act-004",
+      title: "Record restoration and independent verification",
+      owner: "Lebo Maseko",
+      team: "Maintenance",
+      state: "pending",
+      dueAt: null,
+    },
+  ],
+};
+
+export const secondaryIssue: OperationalIssue = {
+  ...primaryIssue,
+  id: "issue-riv-002",
+  issueNumber: "RIV-2025-039",
+  title: "Central Pit — Reduced Output",
+  description: "Haul-road congestion has been reported and requires shift review.",
+  equipmentId: null,
+  areaId: "area-central-pit",
+  priority: "medium",
+  workflowState: "reviewed",
+  operationalStatus: "at_risk",
+  owner: "Amina Patel",
+  reportedAt: "2025-04-24T07:30:00+02:00",
+  updatedAt: "2025-04-24T08:20:00+02:00",
+  source: {
+    label: "Simulated supervisor observation",
+    observedAt: "2025-04-24T07:30:00+02:00",
+    quality: "reported",
+  },
+  actions: [],
+};
+
+export const areas: MapArea[] = [
+  {
+    id: "area-north-pit",
+    siteId: "site-riverside",
+    name: "North Pit",
+    status: "at_risk",
+    rationale: "Crusher feed interruption may constrain North Pit throughput; area-wide blocking is not verified.",
+    source: {
+      label: "Derived demo rule MAP-RISK-02",
+      observedAt: "2025-04-24T08:43:00+02:00",
+      quality: "reported",
+    },
+  },
+  {
+    id: "area-crusher-line",
+    siteId: "site-riverside",
+    name: "Crusher Line C-02",
+    status: "blocked",
+    rationale: "Verified local feed path interruption meets the crusher-line blocking rule.",
+    source: {
+      label: "Derived demo rule MAP-BLOCK-01",
+      observedAt: "2025-04-24T08:41:00+02:00",
+      quality: "verified",
+    },
+  },
+  {
+    id: "area-central-pit",
+    siteId: "site-riverside",
+    name: "Central Pit",
+    status: "at_risk",
+    rationale: "Reduced output is reported; operational review remains open.",
+    source: {
+      label: "Simulated shift observation",
+      observedAt: "2025-04-24T08:20:00+02:00",
+      quality: "reported",
+    },
+  },
+  {
+    id: "area-rom-pad",
+    siteId: "site-riverside",
+    name: "ROM Pad",
+    status: "on_plan",
+    rationale: "Current verified demo evidence supports the configured operating criteria.",
+    source: {
+      label: "Simulated shift confirmation",
+      observedAt: "2025-04-24T08:35:00+02:00",
+      quality: "verified",
+    },
+  },
+  {
+    id: "area-south-pit",
+    siteId: "site-riverside",
+    name: "South Pit",
+    status: "unknown",
+    rationale: "The latest operating observation is older than the demo freshness threshold.",
+    source: {
+      label: "Simulated dispatch observation",
+      observedAt: "2025-04-24T05:12:00+02:00",
+      quality: "stale",
+    },
+  },
+];
+
+export const readinessActivity: ReadinessActivity = {
+  id: "readiness-ex204-1000h",
+  siteId: "site-riverside",
+  equipmentId: "eq-ex204",
+  title: "EX-204 — 1,000 hour service",
+  scheduledFor: "2025-05-14T06:00:00+02:00",
+  status: "potential_shortage",
+  quality: "reported",
+  reviewState: "not_reviewed",
+  parts: [
+    {
+      id: "part-hyd-filter-204",
+      name: "Hydraulic filter kit HF-204",
+      required: 2,
+      onHand: 1,
+      reserved: 1,
+      inbound: 0,
+      leadTimeDays: 14,
+      quality: "verified",
+    },
+    {
+      id: "part-engine-oil-204",
+      name: "OEM engine oil pack",
+      required: 1,
+      onHand: null,
+      reserved: null,
+      inbound: 1,
+      leadTimeDays: 7,
+      quality: "unknown",
+    },
+  ],
+};
+
+export const equipment = [
+  {
+    id: "eq-crusher-c02",
+    code: "C-02",
+    name: "Primary Crusher C-02",
+    area: "Crusher Line",
+    state: "Unavailable — reported",
+    quality: "Reported",
+    nextAction: "Verify spare-part availability",
+  },
+  {
+    id: "eq-ex204",
+    code: "EX-204",
+    name: "Hydraulic Excavator EX-204",
+    area: "North Pit",
+    state: "Available — service approaching",
+    quality: "Verified meter reading",
+    nextAction: "Review 1,000 hour service readiness",
+  },
+  {
+    id: "eq-dz017",
+    code: "DZ-017",
+    name: "Track Dozer DZ-017",
+    area: "Central Pit",
+    state: "Available — service due",
+    quality: "Pending planner review",
+    nextAction: "Confirm service window",
+  },
+];
+
+export const shifts = [
+  {
+    id: "shift-a-20250424",
+    name: "Shift A",
+    time: "06:00–14:00",
+    supervisor: "Amina Patel",
+    status: "In progress",
+    unresolved: 3,
+  },
+  {
+    id: "shift-b-20250424",
+    name: "Shift B",
+    time: "14:00–22:00",
+    supervisor: "Thabo Molefe",
+    status: "Upcoming",
+    unresolved: 0,
+  },
+];
+
+export const notifications = [
+  {
+    id: "not-001",
+    title: "Spare-part confirmation required",
+    detail: "Crusher C-02 · RIV-2025-041",
+    href: "/exceptions/issue-riv-001",
+    unread: true,
+    category: "Dependency",
+  },
+  {
+    id: "not-002",
+    title: "Maintenance readiness at risk",
+    detail: "EX-204 · 1,000 hour service",
+    href: "/resources/readiness-ex204-1000h",
+    unread: true,
+    category: "Readiness",
+  },
+  {
+    id: "not-003",
+    title: "Shift handover preparation",
+    detail: "Shift A closes at 14:00 demo time",
+    href: "/shifts/shift-a-20250424/handover",
+    unread: false,
+    category: "Handover",
+  },
+];
+
+export const workspaceContent = {
+  exceptions: {
+    eyebrow: "Work & Exceptions",
+    title: "Operational constraints",
+    description: "Triage issues, preserve evidence, coordinate accountable actions and keep dependencies visible.",
+  },
+  equipment: {
+    eyebrow: "Equipment & Maintenance",
+    title: "Equipment readiness",
+    description: "Review equipment identity, reported state, service requirements and evidence-linked delay stages.",
+  },
+  resources: {
+    eyebrow: "Resource Readiness",
+    title: "Upcoming work prerequisites",
+    description: "Understand parts, stock certainty, inbound supply and the next authorised review action.",
+  },
+  shifts: {
+    eyebrow: "Shift Control & Handover",
+    title: "Shift continuity",
+    description: "Keep unresolved work, owners and evidence intact as responsibility transfers between shifts.",
+  },
+  reports: {
+    eyebrow: "Reports",
+    title: "Operational intelligence",
+    description: "Explore evidence-linked operational measures with clear units, definitions and information quality.",
+  },
+  admin: {
+    eyebrow: "Administration",
+    title: "Demonstration configuration",
+    description: "Review fictional users, site access, subscriptions and future integration boundaries.",
+  },
+} as const;
