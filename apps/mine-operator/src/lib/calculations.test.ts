@@ -3,11 +3,11 @@ import type { Action } from "@vesper/api-contracts";
 import { deriveAreaStatus, potentiallyAllocable, recoverySummary } from "./calculations";
 
 const actions: Action[] = [
-  { id: "1", title: "One", owner: "A", team: "Ops", state: "complete", dueAt: null },
-  { id: "2", title: "Two", owner: "B", team: "Ops", state: "complete", dueAt: null },
-  { id: "3", title: "Three", owner: "C", team: "Ops", state: "in_progress", dueAt: null },
-  { id: "4", title: "Four", owner: "D", team: "Ops", state: "pending", dueAt: null },
-  { id: "5", title: "Five", owner: "E", team: "Ops", state: "pending", dueAt: null },
+  { id: "1", title: "One", owner: "A", team: "Ops", state: "complete", dueAt: null, completedAt: null, removedAt: null },
+  { id: "2", title: "Two", owner: "B", team: "Ops", state: "complete", dueAt: null, completedAt: null, removedAt: null },
+  { id: "3", title: "Three", owner: "C", team: "Ops", state: "in_progress", dueAt: null, completedAt: null, removedAt: null },
+  { id: "4", title: "Four", owner: "D", team: "Ops", state: "pending", dueAt: null, completedAt: null, removedAt: null },
+  { id: "5", title: "Five", owner: "E", team: "Ops", state: "pending", dueAt: null, completedAt: null, removedAt: null },
 ];
 
 describe("recoverySummary", () => {

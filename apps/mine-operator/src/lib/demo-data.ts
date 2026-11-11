@@ -47,6 +47,8 @@ export const primaryIssue: OperationalIssue = {
       team: "Maintenance",
       state: "complete",
       dueAt: "2025-04-24T08:30:00+02:00",
+      completedAt: "2025-04-24T08:28:00+02:00",
+      removedAt: null,
     },
     {
       id: "act-002",
@@ -55,6 +57,8 @@ export const primaryIssue: OperationalIssue = {
       team: "Stores / Procurement",
       state: "in_progress",
       dueAt: "2025-04-24T09:00:00+02:00",
+      completedAt: null,
+      removedAt: null,
     },
     {
       id: "act-003",
@@ -63,6 +67,8 @@ export const primaryIssue: OperationalIssue = {
       team: "Contractor",
       state: "pending",
       dueAt: "2025-04-24T09:15:00+02:00",
+      completedAt: null,
+      removedAt: null,
     },
     {
       id: "act-004",
@@ -71,7 +77,34 @@ export const primaryIssue: OperationalIssue = {
       team: "Maintenance",
       state: "pending",
       dueAt: null,
+      completedAt: null,
+      removedAt: null,
     },
+  ],
+  version: 1,
+  resolutionReportedBy: null,
+  dependencies: [
+    {
+      id: "dep-001",
+      reason: "Spare-part availability must be confirmed before the repair team is mobilised.",
+      kind: "parts",
+      blockedActionId: "act-003",
+      owner: "Naledi Khoza",
+      state: "open",
+      raisedAt: "2025-04-24T08:31:00+02:00",
+      reviewBy: "2025-04-24T09:30:00+02:00",
+      resolutionNote: null,
+    },
+  ],
+  comments: [],
+  verifications: [],
+  events: [
+    { id: "ev-001", type: "reported", summary: "Issue reported from the field", actor: "Thabo Molefe", actorRole: "Field Employee", occurredAt: "2025-04-24T08:05:00+02:00", previousState: null, nextState: "reported", note: null },
+    { id: "ev-002", type: "state_changed", summary: "Reviewed and accepted as a coordinated issue", actor: "Amina Patel", actorRole: "Shift Supervisor", occurredAt: "2025-04-24T08:12:00+02:00", previousState: "reported", nextState: "reviewed", note: null },
+    { id: "ev-003", type: "state_changed", summary: "Owner and actions assigned", actor: "Amina Patel", actorRole: "Shift Supervisor", occurredAt: "2025-04-24T08:18:00+02:00", previousState: "reviewed", nextState: "action_assigned", note: null },
+    { id: "ev-004", type: "state_changed", summary: "Fault assessment recorded and work started", actor: "Lebo Maseko", actorRole: "Maintenance Planner", occurredAt: "2025-04-24T08:22:00+02:00", previousState: "action_assigned", nextState: "in_progress", note: null },
+    { id: "ev-005", type: "dependency_added", summary: "Dependency identified: spare-part confirmation", actor: "Lebo Maseko", actorRole: "Maintenance Planner", occurredAt: "2025-04-24T08:31:00+02:00", previousState: null, nextState: null, note: null },
+    { id: "ev-006", type: "state_changed", summary: "Work is waiting on the spare-part dependency", actor: "Lebo Maseko", actorRole: "Maintenance Planner", occurredAt: "2025-04-24T08:31:00+02:00", previousState: "in_progress", nextState: "awaiting_dependency", note: null },
   ],
 };
 
@@ -95,6 +128,15 @@ export const secondaryIssue: OperationalIssue = {
     quality: "reported",
   },
   actions: [],
+  version: 1,
+  resolutionReportedBy: null,
+  dependencies: [],
+  comments: [],
+  verifications: [],
+  events: [
+    { id: "ev-101", type: "reported", summary: "Issue reported by the shift supervisor", actor: "Amina Patel", actorRole: "Shift Supervisor", occurredAt: "2025-04-24T07:30:00+02:00", previousState: null, nextState: "reported", note: null },
+    { id: "ev-102", type: "state_changed", summary: "Reviewed; owner still to be confirmed with actions", actor: "Amina Patel", actorRole: "Shift Supervisor", occurredAt: "2025-04-24T08:20:00+02:00", previousState: "reported", nextState: "reviewed", note: null },
+  ],
 };
 
 export const areas: MapArea[] = [
@@ -179,6 +221,9 @@ export const readinessActivity: ReadinessActivity = {
       inbound: 0,
       leadTimeDays: 14,
       quality: "verified",
+      confirmedBy: null,
+      confirmedAt: null,
+      sourceNote: null,
     },
     {
       id: "part-engine-oil-204",
@@ -189,8 +234,12 @@ export const readinessActivity: ReadinessActivity = {
       inbound: 1,
       leadTimeDays: 7,
       quality: "unknown",
+      confirmedBy: null,
+      confirmedAt: null,
+      sourceNote: null,
     },
   ],
+  reviews: [],
 };
 
 export const equipment = [
@@ -231,6 +280,15 @@ export const shifts = [
     supervisor: "Amina Patel",
     status: "In progress",
     unresolved: 3,
+    handover: {
+      notes: "Crusher C-02 remains awaiting spare-part confirmation. Continue the original issue and verify evidence before any restoration claim.",
+      state: "draft" as "draft" | "published" | "acknowledged",
+      notesUpdatedAt: null as string | null,
+      publishedBy: null as string | null,
+      publishedAt: null as string | null,
+      acknowledgedBy: null as string | null,
+      acknowledgedAt: null as string | null,
+    },
   },
   {
     id: "shift-b-20250424",
@@ -239,6 +297,15 @@ export const shifts = [
     supervisor: "Thabo Molefe",
     status: "Upcoming",
     unresolved: 0,
+    handover: {
+      notes: "",
+      state: "draft" as "draft" | "published" | "acknowledged",
+      notesUpdatedAt: null as string | null,
+      publishedBy: null as string | null,
+      publishedAt: null as string | null,
+      acknowledgedBy: null as string | null,
+      acknowledgedAt: null as string | null,
+    },
   },
 ];
 
@@ -249,6 +316,7 @@ export const notifications = [
     detail: "Crusher C-02 · RIV-2025-041",
     href: "/exceptions/issue-riv-001",
     unread: true,
+    dismissed: false,
     category: "Dependency",
   },
   {
@@ -257,6 +325,7 @@ export const notifications = [
     detail: "EX-204 · 1,000 hour service",
     href: "/resources/readiness-ex204-1000h",
     unread: true,
+    dismissed: false,
     category: "Readiness",
   },
   {
@@ -265,6 +334,7 @@ export const notifications = [
     detail: "Shift A closes at 14:00 demo time",
     href: "/shifts/shift-a-20250424/handover",
     unread: false,
+    dismissed: false,
     category: "Handover",
   },
 ];

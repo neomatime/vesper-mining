@@ -8,15 +8,17 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { OperationalIssue } from "@vesper/api-contracts";
-import { demoFetch } from "@/lib/api";
+import { demoSend } from "@/lib/api";
 import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
+import { useToast } from "./toast-provider";
 
 const reportSchema = z.object({
   title: z.string().min(4, "Use at least four characters."),
   description: z.string().min(12, "Describe what was observed in a little more detail."),
   equipmentId: z.string().optional(),
   areaId: z.string().optional(),
+  priority: z.enum(["low", "medium", "high", "critical"]),
 });
 
 type ReportInput = z.infer<typeof reportSchema>;
@@ -26,6 +28,7 @@ type PendingResult = { id: string; state: "pending_sync"; message: string };
 export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { connectivity, setConnectivity } = useDemoContext();
   const form = useForm<ReportInput>({
     resolver: zodResolver(reportSchema),
@@ -34,18 +37,17 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
       description: "",
       equipmentId: mobile ? "eq-crusher-c02" : "",
       areaId: mobile ? "area-crusher-line" : "",
+      priority: "medium",
     },
   });
   const mutation = useMutation({
     mutationFn: (input: ReportInput) =>
-      demoFetch<OperationalIssue | PendingResult>("/issues", {
-        method: "POST",
-        body: JSON.stringify({ ...input, pendingSync: connectivity === "offline" }),
-      }),
+      demoSend<OperationalIssue | PendingResult>("/issues", "POST", { ...input, pendingSync: connectivity === "offline" }),
     onSuccess: async (result) => {
-      if ("state" in result && result.state === "pending_sync") return;
+      if ("state" in result) return;
       await queryClient.invalidateQueries({ queryKey: ["workspace", "exceptions"] });
       await queryClient.invalidateQueries({ queryKey: ["overview"] });
+      toast.push({ title: "Issue reported", detail: `${result.issueNumber} is in the review queue. It is a report, not verification or permission to work.` });
       router.push(`/exceptions/${result.id}`);
     },
   });
@@ -103,6 +105,15 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
               <option value="area-north-pit">North Pit</option>
               <option value="area-crusher-line">Crusher Line</option>
               <option value="area-central-pit">Central Pit</option>
+            </select>
+          </label>
+          <label className="form-field">
+            <span>Priority</span>
+            <select {...form.register("priority")}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
             </select>
           </label>
           <label className="form-field form-field--wide">
