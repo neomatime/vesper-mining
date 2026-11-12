@@ -1,19 +1,26 @@
 "use client";
 
-import { Check, Lock, Minus, Pencil, Plus, Search, Settings2 } from "lucide-react";
+import { Check, Lock, Minus, Pencil, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { entitlementRows, entitlementsFor } from "@/lib/entitlements";
 import { canManageOrganisation, memberStatusLabels, roleInfo, roleNames } from "@/lib/organisation-rules";
 import { initials, tierLabel } from "@/lib/personas";
+import { categoryLabels } from "@/lib/equipment-rules";
 import { levelLabels, rightsAreas, rightsMatrix } from "@/lib/rights";
+import { approvalLabel, isApproved } from "@/lib/service-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { CompanyDialog, MemberDialog, SiteDialog, TemporaryPasswordDialog } from "./admin-dialogs";
+import { ConfirmDialog } from "./dialog";
 import { PageHeader } from "./page-header";
+import { ProviderDialog } from "./provider-dialogs";
+import { useShellData } from "./shell-data";
 import { LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { useOrganisation, useOrganisationMutations } from "./use-organisation";
+import { useProviderMutations, useProviders } from "./use-service";
+import type { ServiceProvider } from "@vesper/api-contracts";
 
 const integrations = [
   { name: "Maintenance system", detail: "Work-order references are entered by hand." },
@@ -26,6 +33,7 @@ const integrations = [
 const tabs = [
   { key: "people", label: "Employees" },
   { key: "rights", label: "User rights" },
+  { key: "providers", label: "Service providers" },
   { key: "site", label: "Site" },
   { key: "company", label: "Company" },
   { key: "plan", label: "Plan and usage" },
@@ -54,6 +62,11 @@ export function AdminScreen() {
   const [editingCompany, setEditingCompany] = useState(false);
   const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("all");
   const [query, setQuery] = useState("");
+  const providersQuery = useProviders();
+  const providerActions = useProviderMutations();
+  const { data: shell } = useShellData();
+  const [providerDialog, setProviderDialog] = useState<{ provider?: ServiceProvider } | null>(null);
+  const [providerConfirm, setProviderConfirm] = useState<{ kind: "deactivate" | "delete"; provider: ServiceProvider } | null>(null);
 
   const plan = entitlementsFor(context.tier);
   const canManage = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
@@ -97,7 +110,7 @@ export function AdminScreen() {
         title="Organisation"
         description="Employees, user rights, site and plan."
         icon={Settings2}
-        action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : undefined}
+        action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <button className="button button--primary" onClick={() => setProviderDialog({})}><Plus /> Add service provider</button> : undefined}
       />
 
       <section className="kpi-row" aria-label="Summary">
@@ -197,6 +210,46 @@ export function AdminScreen() {
         </div>
       ) : null}
 
+      {tab === "providers" ? (
+        <div role="tabpanel" id="panel-providers" aria-labelledby="tab-providers" className="admin-panel">
+          <section className="card register-card" aria-labelledby="providers-heading">
+            <header className="card__header"><div><span className="eyebrow">Maintenance</span><h2 id="providers-heading">Service providers</h2></div></header>
+            <p className="card-note card-note--top">Only providers on this list can be asked for quotes, and only when they are approved for this mine and service the equipment. Nobody outside this list is ever searched for.</p>
+            <div className="table-wrap">
+              <table className="data-table data-table--register">
+                <thead>
+                  <tr><th scope="col">Provider</th><th scope="col">Services</th><th scope="col">Approval</th><th scope="col">Contact</th><th scope="col"><span className="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                  {(providersQuery.data ?? []).length === 0 ? (
+                    <tr><td colSpan={5}><p className="empty-line">No service providers yet. Add the providers already approved to work at this mine.</p></td></tr>
+                  ) : (providersQuery.data ?? []).map((provider) => {
+                    const ok = isApproved(provider, shell?.now ?? "");
+                    return (
+                      <tr key={provider.id} className={provider.active ? "" : "row--muted"}>
+                        <td><span className="cell-main"><strong>{provider.name}</strong><small>{provider.contactName || provider.registration || "No contact recorded"}</small></span></td>
+                        <td>{provider.categories.slice(0, 3).map((category) => categoryLabels[category]).join(", ")}{provider.categories.length > 3 ? ` +${provider.categories.length - 3}` : ""}</td>
+                        <td><StatusBadge value={ok ? "complete" : provider.active ? "pending" : "unknown"} label={approvalLabel(provider, shell?.now ?? "")} /></td>
+                        <td><span className="cell-main"><strong>{provider.email || "—"}</strong><small>{provider.phone}</small></span></td>
+                        <td className="row-actions">
+                          <button className="button button--quiet button--small" aria-label={`Edit ${provider.name}`} onClick={() => setProviderDialog({ provider })}><Pencil /> Edit</button>
+                          {provider.active ? (
+                            <button className="button button--quiet button--small" aria-label={`Deactivate ${provider.name}`} onClick={() => setProviderConfirm({ kind: "deactivate", provider })}>Deactivate</button>
+                          ) : (
+                            <button className="button button--quiet button--small" aria-label={`Reactivate ${provider.name}`} disabled={providerActions.setActive.isPending} onClick={() => providerActions.setActive.mutate({ id: provider.id, active: true })}>Reactivate</button>
+                          )}
+                          <button className="icon-button icon-button--light" aria-label={`Delete ${provider.name}`} onClick={() => setProviderConfirm({ kind: "delete", provider })}><Trash2 /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {tab === "site" ? (
         <div role="tabpanel" id="panel-site" aria-labelledby="tab-site" className="admin-panel">
           <section className="card detail-card" aria-labelledby="site-heading">
@@ -284,6 +337,40 @@ export function AdminScreen() {
         </div>
       ) : null}
 
+      {providerDialog ? (
+        <ProviderDialog
+          provider={providerDialog.provider}
+          pending={providerActions.create.isPending || providerActions.update.isPending}
+          onClose={() => setProviderDialog(null)}
+          onSave={(input) =>
+            providerDialog.provider
+              ? providerActions.update.mutate({ ...input, id: providerDialog.provider.id, version: providerDialog.provider.version }, { onSuccess: () => setProviderDialog(null) })
+              : providerActions.create.mutate(input, { onSuccess: () => setProviderDialog(null) })
+          }
+        />
+      ) : null}
+      {providerConfirm?.kind === "deactivate" ? (
+        <ConfirmDialog
+          title={`Deactivate ${providerConfirm.provider.name}?`}
+          body="They will no longer be offered for new service requests. Existing requests and history stay as they are, and you can reactivate them at any time."
+          confirmLabel="Deactivate"
+          tone="danger"
+          pending={providerActions.setActive.isPending}
+          onClose={() => setProviderConfirm(null)}
+          onConfirm={() => providerActions.setActive.mutate({ id: providerConfirm.provider.id, active: false }, { onSettled: () => setProviderConfirm(null) })}
+        />
+      ) : null}
+      {providerConfirm?.kind === "delete" ? (
+        <ConfirmDialog
+          title={`Delete ${providerConfirm.provider.name}?`}
+          body="This removes the provider from the list permanently. It is only possible when no service request refers to them. If it is not possible, deactivate them instead."
+          confirmLabel="Delete provider"
+          tone="danger"
+          pending={providerActions.remove.isPending}
+          onClose={() => setProviderConfirm(null)}
+          onConfirm={() => providerActions.remove.mutate(providerConfirm.provider.id, { onSettled: () => setProviderConfirm(null) })}
+        />
+      ) : null}
       {adding ? (
         <MemberDialog
           pending={actions.addMember.isPending}

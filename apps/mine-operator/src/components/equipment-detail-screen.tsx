@@ -29,6 +29,8 @@ import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useEquipmentMutations } from "./use-equipment-mutations";
+import { useServiceRequests } from "./use-service";
+import { canRequestService, isOpenRequest, requestStatusLabels } from "@/lib/service-rules";
 
 type DialogState =
   | { kind: "edit" }
@@ -56,11 +58,13 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
   const { data: shell } = useShellData();
   const actor = { name: context.persona, role: context.role };
   const mutations = useEquipmentMutations(item);
+  const serviceRequests = useServiceRequests(item.id);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   const retired = item.retiredAt !== null;
   const canManage = !retired && canActOnEquipment("manage", actor).allowed;
   const canService = !retired && canActOnEquipment("service", actor).allowed;
+  const canRequest = !retired && canRequestService(actor).allowed;
   const canReading = !retired && canActOnEquipment("reading", actor).allowed;
   const canState = !retired && canActOnEquipment("state", actor).allowed;
   const canRetire = canActOnEquipment("manage", actor).allowed;
@@ -145,6 +149,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
                       </div>
                       <StatusBadge value={planTone[status.state]} label={status.label} />
                       <div className="row-controls">
+                        {canRequest && (status.state === "due_soon" || status.state === "overdue") ? <Link className="button button--quiet button--small" href={`/equipment/${item.id}/service/new?planId=${plan.id}`}>Request service</Link> : null}
                         {canService ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "service", planId: plan.id })}>Log service</button> : null}
                         {canManage ? (
                           <>
@@ -156,6 +161,28 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
                     </li>
                   );
                 })}
+              </ul>
+            )}
+          </article>
+
+          <article className="card detail-card" aria-labelledby="service-requests-heading">
+            <header className="card__header">
+              <div><span className="eyebrow">Service providers</span><h2 id="service-requests-heading">Service requests</h2></div>
+              {canRequest ? <Link className="button button--quiet button--small" href={`/equipment/${item.id}/service/new`}><Plus /> Request service</Link> : null}
+            </header>
+            {(serviceRequests.data ?? []).length === 0 ? (
+              <div className="empty-inline"><strong>No service requests</strong><span>{canRequest ? "Ask approved service providers to quote when this equipment needs maintenance." : "The Mine Manager or Maintenance Planner asks approved providers to quote for maintenance."}</span></div>
+            ) : (
+              <ul className="work-list">
+                {[...(serviceRequests.data ?? [])].reverse().map((request) => (
+                  <li className="work-row" key={request.id}>
+                    <Link className="work-row__copy" href={`/equipment/${item.id}/service/${request.id}`}>
+                      <strong>{request.title}</strong>
+                      <small>{request.number} · {request.invites.length} {request.invites.length === 1 ? "provider" : "providers"} asked</small>
+                    </Link>
+                    <StatusBadge value={isOpenRequest(request) ? "in_progress" : request.status === "completed" ? "complete" : "unknown"} label={requestStatusLabels[request.status]} />
+                  </li>
+                ))}
               </ul>
             )}
           </article>

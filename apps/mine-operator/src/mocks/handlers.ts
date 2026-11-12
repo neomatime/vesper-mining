@@ -269,6 +269,52 @@ export const handlers = [
     return run(() => demoDomain.updateSite(input, actorOf(request)));
   }),
 
+  // ---- Service providers and requests ----------------------------------------------------------
+  http.get(`${API}/providers`, () => envelope(demoDomain.listProviders())),
+  http.post(`${API}/providers`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createProvider(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/providers/:id`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateProvider(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/providers/:id`, ({ params, request }) => run(() => demoDomain.deleteProvider(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/providers/:id/active`, async ({ params, request }) => {
+    const input = await bodyOf<{ active?: boolean }>(request);
+    return run(() => demoDomain.setProviderActive(param(params, "id"), Boolean(input.active), actorOf(request)));
+  }),
+  http.get(`${API}/service-requests`, ({ request }) => {
+    const equipmentId = new URL(request.url).searchParams.get("equipmentId") ?? undefined;
+    return envelope(demoDomain.listServiceRequests(equipmentId));
+  }),
+  http.get(`${API}/service-requests/:id`, ({ params }) => run(() => demoDomain.getServiceRequest(param(params, "id")))),
+  http.post(`${API}/service-requests`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createServiceRequest(input, actorOf(request)), 201);
+  }),
+  http.get(`${API}/provider-response/:token`, ({ params }) => run(() => demoDomain.providerView(param(params, "token")))),
+  http.post(`${API}/provider-response/:token`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.providerRespond(param(params, "token"), input));
+  }),
+  http.post(`${API}/service-requests/:id/invites/:inviteId/award`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.awardInvite(param(params, "id"), param(params, "inviteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/schedule`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.scheduleRequest(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/complete`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.completeRequest(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.cancelRequest(param(params, "id"), input, actorOf(request)));
+  }),
+
   // ---- Notifications ------------------------------------------------------------------------
   http.get(`${API}/notifications`, ({ request }) => envelope(demoDomain.listNotifications(actorOf(request)))),
   http.post(`${API}/notifications/read-all`, ({ request }) => run(() => demoDomain.readAllNotifications(actorOf(request)))),

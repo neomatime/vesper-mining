@@ -1,6 +1,10 @@
 import type {
   Action,
   Company,
+  Quote,
+  ServiceInvite,
+  ServiceProvider,
+  ServiceRequest,
   CrewMember,
   Equipment,
   EquipmentCategory,
@@ -57,6 +61,8 @@ import {
   type EquipmentView,
 } from "./equipment-rules";
 import type { Account } from "./accounts";
+import { seedProviders, seedRequests } from "./service-data";
+import { canManageProviders, canRequestService, isApproved } from "./service-rules";
 import { seedActivity, seedCompany, seedCredentials, seedMembers, seedSite } from "./organisation-data";
 import { canManageOrganisation, homeFor, isLastManager, isValidEmail, normaliseEmail, passwordProblem, roleNames } from "./organisation-rules";
 import { deriveReadinessStatus } from "./readiness-rules";
@@ -100,27 +106,29 @@ const initialState = {
   equipment,
   shifts,
   members: seedMembers,
+  providers: seedProviders,
+  serviceRequests: seedRequests,
   credentials: seedCredentials,
   company: seedCompany,
   site: seedSite,
   activity: seedActivity,
   notifications: notifications.map((item): DemoNotification => ({ ...item, recipient: null })),
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0 },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0 },
 };
 
 export type DemoDomainState = typeof initialState;
 
-const STORAGE_KEY = "vesper-demo-state-v3";
+const STORAGE_KEY = "vesper-demo-state-v4";
 
-/** Keeps the fictional records across a page refresh in this tab. Reset clears them. */
+/** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -130,13 +138,22 @@ function loadState(): DemoDomainState | null {
 function saveState() {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Storage can be unavailable or full; the demo still works for this page view.
   }
 }
 
 let state: DemoDomainState = loadState() ?? clone(initialState);
+
+// When another tab saves, take its version so this tab never overwrites a provider's reply.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    const next = loadState();
+    if (next) state = next;
+  });
+}
 
 const now = () => demoTimeAt(state.clock);
 const tick = () => {
@@ -450,6 +467,79 @@ function presentShift(shift: Shift): ShiftView {
   };
 }
 
+// ---- Service providers and requests ---------------------------------------------------------
+function assertProviderManager(actor: Actor) {
+  const check = canManageProviders(actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "Not permitted.");
+}
+
+function assertRequester(actor: Actor) {
+  const check = canRequestService(actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "Not permitted.");
+}
+
+function findProvider(id: string) {
+  return state.providers.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This service provider could not be found.");
+}
+
+function findRequest(id: string) {
+  return state.serviceRequests.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This service request could not be found.");
+}
+
+function checkedProvider(input: Record<string, unknown>, selfId?: string) {
+  const name = requireText(input.name, "The company name", 3);
+  if (state.providers.some((item) => item.id !== selfId && item.name.toLowerCase() === name.toLowerCase())) fail(409, "DUPLICATE_NAME", "A provider with this name is already on the list.");
+  const email = text(input.email);
+  if (email && !isValidEmail(email)) fail(400, "VALIDATION_ERROR", "Enter a valid email address, or leave it blank.");
+  const chosen = Array.isArray(input.categories) ? input.categories.map(String) : [];
+  if (chosen.length === 0) fail(400, "VALIDATION_ERROR", "Choose at least one kind of equipment they service.");
+  if (chosen.some((category) => !(categories as string[]).includes(category))) fail(400, "VALIDATION_ERROR", "One of the equipment types is not recognised.");
+  const approvedUntil = text(input.approvedUntil);
+  if (approvedUntil && !/^\d{4}-\d{2}-\d{2}$/.test(approvedUntil)) fail(400, "VALIDATION_ERROR", "Enter the approval end date as a date, or leave it blank.");
+  return { name, registration: text(input.registration), contactName: text(input.contactName), email, phone: text(input.phone), categories: chosen as EquipmentCategory[], approvedUntil, notes: text(input.notes) };
+}
+
+/** A link only the provider holds. In this build it identifies the invite; real access control arrives with the backend. */
+function replyToken(n: number) {
+  return `r${n.toString(36)}${(Math.imul(n + 7, 2654435761) >>> 0).toString(36)}${(Math.imul(n + 31, 40503) >>> 0).toString(36)}`;
+}
+
+function findByToken(token: string) {
+  for (const request of state.serviceRequests) {
+    const invite = request.invites.find((item) => item.token === token);
+    if (invite) return { request, invite };
+  }
+  return fail(404, "NOT_FOUND", "This link is not valid. Ask the mine for a new one.");
+}
+
+function logRequest(request: ServiceRequest, actor: Actor, summary: string) {
+  const at = tick();
+  request.events = [...request.events, { id: nextId("requestEvent", "sre"), at, actor: actor.name, summary }];
+  request.version += 1;
+}
+
+function assertRequestVersion(request: ServiceRequest, version: number | undefined) {
+  if (version !== undefined && version !== request.version) fail(409, "VERSION_CONFLICT", "This request was changed by someone else. Reload to see the latest.");
+}
+
+function assertRequestLive(request: ServiceRequest) {
+  if (request.status === "completed" || request.status === "cancelled") fail(409, "READ_ONLY", `This request is ${request.status} and can no longer be changed.`);
+}
+
+function findInvite(request: ServiceRequest, inviteId: string): ServiceInvite {
+  return request.invites.find((item) => item.id === inviteId) ?? fail(404, "NOT_FOUND", "That provider is not part of this request.");
+}
+
+function checkedDate(value: unknown, label: string, required = false) {
+  const raw = text(value);
+  if (!raw) {
+    if (required) fail(400, "VALIDATION_ERROR", `Enter ${label}.`);
+    return null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(Date.parse(raw))) fail(400, "VALIDATION_ERROR", `Enter ${label} as a date.`);
+  return raw;
+}
+
 // ---- Organisation helpers -----------------------------------------------------------------
 function assertOrganisationManager(actor: Actor) {
   const check = canManageOrganisation(actor);
@@ -519,6 +609,23 @@ function memberHasRecords(name: string) {
   const onEquipment = state.equipment.some((item) => item.events.some((event) => event.actor === name));
   return onShift || onIssue || onEquipment;
 }
+
+export type ProviderRequestView = {
+  requestNumber: string;
+  mineName: string;
+  siteName: string;
+  providerName: string;
+  title: string;
+  description: string;
+  urgency: ServiceRequest["urgency"];
+  preferredDate: string | null;
+  equipment: { code: string; name: string; makeModel: string | null };
+  state: ServiceInvite["state"];
+  open: boolean;
+  closedReason: string | null;
+  quote: Quote | null;
+  declinedReason: string | null;
+};
 
 export type AuthResult = { account: Account | null; mustChangePassword: boolean };
 
@@ -1474,6 +1581,223 @@ export const demoDomain = {
     shift.handover.acknowledgedAt = tick();
     recordShift(shift, actor, { type: "handover_acknowledged", summary: "Handover acknowledged" });
     return presentShift(shift);
+  },
+
+  // ---- Service providers -----------------------------------------------------------------
+  listProviders: (): ServiceProvider[] => state.providers,
+
+  createProvider(input: Record<string, unknown>, actor: Actor) {
+    assertProviderManager(actor);
+    const fields = checkedProvider(input);
+    const provider: ServiceProvider = { id: nextId("provider", "prov"), ...fields, active: true, createdAt: tick(), version: 1 };
+    state.providers = [...state.providers, provider];
+    logOrganisation(actor, `Added service provider ${provider.name}`);
+    return provider;
+  },
+
+  updateProvider(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertProviderManager(actor);
+    const provider = findProvider(id);
+    assertRecordVersion(provider, input.version);
+    Object.assign(provider, checkedProvider(input, id));
+    touch(provider);
+    logOrganisation(actor, `Updated service provider ${provider.name}`);
+    return provider;
+  },
+
+  setProviderActive(id: string, active: boolean, actor: Actor) {
+    assertProviderManager(actor);
+    const provider = findProvider(id);
+    if (provider.active === active) fail(409, "READ_ONLY", active ? "This provider is already active." : "This provider is already deactivated.");
+    provider.active = active;
+    touch(provider);
+    logOrganisation(actor, `${active ? "Reactivated" : "Deactivated"} service provider ${provider.name}`);
+    return provider;
+  },
+
+  /** Deletes a provider only when no request refers to it. Otherwise deactivate, so the history stays whole. */
+  deleteProvider(id: string, actor: Actor) {
+    assertProviderManager(actor);
+    const provider = findProvider(id);
+    if (state.serviceRequests.some((request) => request.invites.some((invite) => invite.providerId === id))) {
+      fail(409, "HAS_HISTORY", `${provider.name} appears on service requests. Deactivate them instead so the history stays whole.`);
+    }
+    state.providers = state.providers.filter((item) => item.id !== id);
+    logOrganisation(actor, `Deleted service provider ${provider.name}`);
+    return { id, deleted: true };
+  },
+
+  // ---- Service requests ------------------------------------------------------------------
+  listServiceRequests: (equipmentId?: string) => state.serviceRequests.filter((item) => !equipmentId || item.equipmentId === equipmentId),
+  getServiceRequest: (id: string) => findRequest(id),
+
+  createServiceRequest(input: Record<string, unknown>, actor: Actor) {
+    assertRequester(actor);
+    const item = findEquipment(String(input.equipmentId ?? ""));
+    assertActiveEquipment(item);
+    const title = requireText(input.title, "The work required", 4);
+    const urgency = ["routine", "urgent", "critical"].includes(String(input.urgency)) ? (input.urgency as ServiceRequest["urgency"]) : "routine";
+    const preferredDate = checkedDate(input.preferredDate, "the preferred date");
+    const planId = typeof input.planId === "string" && input.planId ? input.planId : null;
+    if (planId && !item.plans.some((plan) => plan.id === planId)) fail(400, "VALIDATION_ERROR", "That maintenance plan is not on this equipment.");
+    const providerIds = Array.isArray(input.providerIds) ? Array.from(new Set(input.providerIds.map(String))) : [];
+    if (providerIds.length === 0) fail(400, "VALIDATION_ERROR", "Choose at least one service provider to ask.");
+    const today = now();
+    const at = tick();
+    const invites: ServiceInvite[] = providerIds.map((providerId) => {
+      const provider = findProvider(providerId);
+      if (!isApproved(provider, today) || !provider.categories.includes(item.category)) {
+        fail(400, "VALIDATION_ERROR", `${provider.name} is not approved to service this equipment.`);
+      }
+      const inviteId = nextId("invite", "inv");
+      return { id: inviteId, token: replyToken(state.counters.invite), providerId: provider.id, providerName: provider.name, state: "sent", sentAt: at, declinedReason: null, quote: null };
+    });
+    const request: ServiceRequest = {
+      id: nextId("request", "sr"),
+      number: `SR-2025-${String(state.counters.request).padStart(3, "0")}`,
+      equipmentId: item.id,
+      planId,
+      title,
+      description: text(input.description),
+      urgency,
+      preferredDate,
+      status: "open",
+      invites,
+      awardedInviteId: null,
+      scheduledFor: null,
+      completedAt: null,
+      cancelledReason: null,
+      createdBy: actor.name,
+      createdAt: at,
+      events: [],
+      version: 1,
+    };
+    state.serviceRequests = [...state.serviceRequests, request];
+    logRequest(request, actor, `Requested service from ${invites.map((invite) => invite.providerName).join(", ")}`);
+    return request;
+  },
+
+  /** What a provider sees when they open their reply link. Only their own invite and the job. */
+  providerView(token: string): ProviderRequestView {
+    const { request, invite } = findByToken(token);
+    const item = findEquipment(request.equipmentId);
+    const open = request.status === "open" && invite.state !== "not_selected";
+    return {
+      requestNumber: request.number,
+      mineName: state.company.name,
+      siteName: state.site.name,
+      providerName: invite.providerName,
+      title: request.title,
+      description: request.description,
+      urgency: request.urgency,
+      preferredDate: request.preferredDate,
+      equipment: { code: item.code, name: item.name, makeModel: item.makeModel },
+      state: invite.state,
+      open,
+      closedReason: open ? null : request.status === "cancelled" ? "This request was cancelled." : request.status === "open" ? "This request is no longer open." : "The mine has chosen a provider for this work.",
+      quote: invite.quote,
+      declinedReason: invite.declinedReason,
+    };
+  },
+
+  /** The provider's own reply: a quote, or a decline. The mine never writes these. */
+  providerRespond(token: string, input: Record<string, unknown>) {
+    const { request, invite } = findByToken(token);
+    if (request.status !== "open" || invite.state === "not_selected") fail(409, "READ_ONLY", "This request is no longer open for replies.");
+    const by = { name: invite.providerName, role: "Service provider" };
+    if (input.action === "decline") {
+      invite.state = "declined";
+      invite.declinedReason = text(input.reason) || "No reason given";
+      invite.quote = null;
+      logRequest(request, by, `${invite.providerName} declined`);
+      return demoDomain.providerView(token);
+    }
+    const amountRaw = text(input.amount);
+    const amount = amountRaw === "" ? null : Number(amountRaw.replace(/\s/g, ""));
+    if (amount === null || Number.isNaN(amount) || amount < 0) fail(400, "VALIDATION_ERROR", "Enter your quoted amount as a number.");
+    const quote: Quote = {
+      amount,
+      reference: text(input.reference),
+      availableFrom: checkedDate(input.availableFrom, "the date you can start"),
+      validUntil: checkedDate(input.validUntil, "the date your quote is valid until"),
+      notes: text(input.notes),
+      recordedAt: tick(),
+      recordedBy: invite.providerName,
+    };
+    invite.quote = quote;
+    invite.state = "quoted";
+    invite.declinedReason = null;
+    logRequest(request, by, `${invite.providerName} sent a quote`);
+    return demoDomain.providerView(token);
+  },
+
+  awardInvite(requestId: string, inviteId: string, input: { version?: number }, actor: Actor) {
+    assertRequester(actor);
+    const request = findRequest(requestId);
+    assertRequestVersion(request, input.version);
+    if (request.status !== "open") fail(409, "READ_ONLY", "A provider has already been chosen for this request.");
+    const invite = findInvite(request, inviteId);
+    if (invite.state !== "quoted" || !invite.quote) fail(409, "VALIDATION_ERROR", "Record this provider's quote before choosing them.");
+    for (const other of request.invites) {
+      if (other.id === invite.id) other.state = "accepted";
+      else if (other.state !== "declined") other.state = "not_selected";
+    }
+    request.awardedInviteId = invite.id;
+    request.status = "awarded";
+    logRequest(request, actor, `Chose ${invite.providerName}. This records the decision only. Nothing is ordered or paid from VESPER.`);
+    return request;
+  },
+
+  scheduleRequest(requestId: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertRequester(actor);
+    const request = findRequest(requestId);
+    assertRequestVersion(request, input.version);
+    if (request.status !== "awarded" && request.status !== "scheduled") fail(409, "READ_ONLY", "Choose a provider before scheduling the work.");
+    const date = checkedDate(input.date, "the date the work is booked for", true) as string;
+    if (date < now().slice(0, 10)) fail(400, "VALIDATION_ERROR", "The booking cannot be in the past.");
+    request.scheduledFor = date;
+    request.status = "scheduled";
+    logRequest(request, actor, `Work booked for ${date}`);
+    return request;
+  },
+
+  /** Completing the work logs a service entry on the equipment, which also resets a linked maintenance plan. */
+  completeRequest(requestId: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertRequester(actor);
+    const request = findRequest(requestId);
+    assertRequestVersion(request, input.version);
+    if (request.status !== "awarded" && request.status !== "scheduled") fail(409, "READ_ONLY", "Choose a provider before completing the work.");
+    const invite = findInvite(request, request.awardedInviteId ?? "");
+    const equipmentItem = findEquipment(request.equipmentId);
+    demoDomain.logService(
+      equipmentItem.id,
+      {
+        type: input.type === "repair" || input.type === "inspection" ? input.type : "service",
+        summary: text(input.summary) || `${request.title}, completed by ${invite.providerName}`,
+        performedAt: text(input.performedAt) || undefined,
+        hours: input.hours,
+        planId: request.planId,
+        workOrderRef: text(input.workOrderRef) || request.number,
+        version: equipmentItem.version,
+      },
+      actor,
+    );
+    request.status = "completed";
+    request.completedAt = now();
+    logRequest(request, actor, `Work completed by ${invite.providerName} and logged on the equipment`);
+    return request;
+  },
+
+  cancelRequest(requestId: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertRequester(actor);
+    const request = findRequest(requestId);
+    assertRequestVersion(request, input.version);
+    assertRequestLive(request);
+    const reason = requireText(input.reason, "The reason", 4);
+    request.status = "cancelled";
+    request.cancelledReason = reason;
+    logRequest(request, actor, `Request cancelled: ${reason}`);
+    return request;
   },
 
   // ---- Organisation ----------------------------------------------------------------------

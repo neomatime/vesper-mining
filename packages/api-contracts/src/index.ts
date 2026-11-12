@@ -245,3 +245,4 @@ export type DemoContext = z.infer<typeof demoContextSchema>;
 export * from "./equipment";
 export * from "./shift";
 export * from "./organisation";
+export * from "./service";

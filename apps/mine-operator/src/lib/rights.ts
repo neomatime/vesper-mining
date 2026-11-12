@@ -1,6 +1,7 @@
 import { canActOnEquipment } from "./equipment-rules";
 import { canAct } from "./issue-rules";
 import { canManageOrganisation, roleNames } from "./organisation-rules";
+import { canManageProviders, canRequestService } from "./service-rules";
 import { canActOnShift } from "./shift-rules";
 
 export type Level = "yes" | "own" | "no";
@@ -32,6 +33,7 @@ export const rightsMatrix: RightsRow[] = [
   { area: "Equipment & Maintenance", action: "Add, edit, retire and delete equipment", levels: derive((r) => canActOnEquipment("manage", as(r)).allowed) },
   { area: "Equipment & Maintenance", action: "Log services and inspections", levels: derive((r) => canActOnEquipment("service", as(r)).allowed) },
   { area: "Equipment & Maintenance", action: "Record meter readings", levels: derive((r) => canActOnEquipment("reading", as(r)).allowed) },
+  { area: "Equipment & Maintenance", action: "Request, compare and award service quotes", levels: derive((r) => canRequestService(as(r)).allowed) },
   { area: "Equipment & Maintenance", action: "Report availability", levels: derive((r) => canActOnEquipment("state", as(r)).allowed) },
   { area: "Resource Readiness", action: "View readiness", levels: everyone() },
   { area: "Resource Readiness", action: "Record stock and readiness decisions", levels: forRoles(["Mine Manager", "Maintenance Planner", "Stores / Inventory Controller"]) },
@@ -43,6 +45,7 @@ export const rightsMatrix: RightsRow[] = [
   { area: "Reports", action: "View reports included in the plan", levels: everyone() },
   { area: "Administration", action: "Add, edit, deactivate and delete employees", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
   { area: "Administration", action: "Reset passwords and review rights", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
+  { area: "Administration", action: "Add, edit and delete service providers", levels: derive((r) => canManageProviders(as(r)).allowed) },
   { area: "Administration", action: "Edit site and company details", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
 ];
 
