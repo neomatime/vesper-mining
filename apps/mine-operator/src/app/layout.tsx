@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { DemoProviders } from "@/components/demo-providers";
 import "leaflet/dist/leaflet.css";
@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   description: "Operational coordination for mining. Identify delays, prevent avoidable waiting, recover productive time.",
   robots: { index: false, follow: false },
 };
+
+/** On phones that support it, the page shrinks to the space above the keyboard instead of sliding under it. */
+export const viewport: Viewport = { width: "device-width", initialScale: 1, interactiveWidget: "resizes-content" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

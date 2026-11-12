@@ -2,7 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { safeNext } from "@/lib/accounts";
 import { passwordProblem } from "@/lib/organisation-rules";
@@ -25,6 +25,24 @@ export function SignInScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const emailField = useRef<HTMLInputElement>(null);
+  const freshField = useRef<HTMLInputElement>(null);
+
+  // A phone raises its keyboard the moment a field takes focus, hiding the form. So the first field is focused for
+  // you only where there is a physical keyboard; on a touch screen the person taps the field when they are ready.
+  useEffect(() => {
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    (step === "credentials" ? emailField : freshField).current?.focus();
+  }, [step]);
+
+  // When a field does take focus on a touch screen, bring it to the middle of the visible area above the keyboard.
+  const keepInView = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    setCompact(true);
+    const field = event.currentTarget;
+    window.setTimeout(() => field.scrollIntoView({ block: "center", behavior: "smooth" }), 320);
+  };
 
   useEffect(() => {
     exit.explicit = false;
@@ -82,7 +100,7 @@ export function SignInScreen() {
   };
 
   return (
-    <main className="signin">
+    <main className={`signin ${compact ? "signin--compact" : ""}`}>
       <section className="signin__brand" aria-hidden="true">
         <span className="signin__mark">VESPER</span>
         <div className="signin__statement">
@@ -101,11 +119,11 @@ export function SignInScreen() {
 
               <label className="field">
                 <span>Email address</span>
-                <input type="email" autoComplete="username" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} autoFocus />
+                <input type="email" autoComplete="username" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} ref={emailField} onFocus={keepInView} />
               </label>
               <label className="field">
                 <span>Password</span>
-                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} />
+                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} onFocus={keepInView} />
               </label>
             </>
           ) : (
@@ -114,7 +132,7 @@ export function SignInScreen() {
               <p>Your administrator gave you a temporary password. Choose one only you know to continue.</p>
               <label className="field">
                 <span>New password</span>
-                <input type="password" autoComplete="new-password" value={fresh} onChange={(event) => setFresh(event.target.value)} aria-invalid={Boolean(error)} autoFocus />
+                <input type="password" autoComplete="new-password" value={fresh} onChange={(event) => setFresh(event.target.value)} aria-invalid={Boolean(error)} ref={freshField} onFocus={keepInView} />
               </label>
               <label className="field">
                 <span>Confirm new password</span>

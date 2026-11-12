@@ -945,3 +945,18 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
   .app-shell { --active-sidebar-width: 86px; }
   .sidebar { width: 72px; padding: 12px 8px; }
 }
+
+/* Sign in on a phone: once a field is tapped the photograph steps back for good, so the whole form stays above the keyboard
+   and nothing moves under a finger while the person is typing */
+@media (max-width: 1023px) {
+  .signin { min-height: 100vh; min-height: 100dvh; }
+  .signin__brand { transition: min-height 320ms var(--ease-premium), padding 320ms var(--ease-premium); }
+  .signin__statement { max-height: 200px; transition: opacity 200ms var(--ease-premium), max-height 320ms var(--ease-premium); }
+  .signin--compact .signin__brand { min-height: 92px; padding-block: 22px 14px; }
+  .signin--compact .signin__statement { max-height: 0; overflow: hidden; opacity: 0; }
+  .signin--compact .signin__panel { padding-top: 24px; gap: 16px; }
+}
+
+@media (max-width: 1023px) { .signin { grid-template-rows: auto 1fr; } }
+
+@media (max-width: 1023px) { .signin__panel { align-content: start; } .signin--compact .signin__form { gap: 14px; } }
