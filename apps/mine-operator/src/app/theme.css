@@ -960,3 +960,48 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 @media (max-width: 1023px) { .signin { grid-template-rows: auto 1fr; } }
 
 @media (max-width: 1023px) { .signin__panel { align-content: start; } .signin--compact .signin__form { gap: 14px; } }
+
+/* ==========================================================================
+   Floating top bar: the same bar, lifted off the screen edge like the sidebar
+   ========================================================================== */
+:root {
+  --topbar-gap: 12px;
+  --topbar-inset: 16px;
+  --topbar-offset: calc(var(--topbar-height) + var(--topbar-gap));
+}
+@media (max-width: 767px) {
+  :root { --topbar-gap: 8px; --topbar-inset: 8px; }
+}
+
+.topbar {
+  inset: var(--topbar-gap) var(--topbar-inset) auto var(--topbar-inset);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(8, 14, 12, 0.22), 0 18px 40px -16px rgba(8, 14, 12, 0.55);
+}
+@media (max-width: 767px) { .topbar { border-radius: 14px; } }
+
+/* Page content slides out of sight at the top edge instead of showing in the gap around the bar */
+.app-shell::before { content: ""; position: fixed; z-index: 990; top: 0; left: 0; right: 0; height: calc(var(--topbar-offset) + 6px); pointer-events: none; background: linear-gradient(to bottom, var(--surface-canvas) 0, var(--surface-canvas) calc(100% - 14px), transparent 100%); }
+
+/* Everything that was placed below the old bar moves down by the gap */
+.main-content { padding-top: calc(var(--topbar-offset) + 18px); }
+.main-content--mobile { padding-top: calc(var(--topbar-offset) + 14px); }
+.sidebar { top: calc(var(--topbar-offset) + 10px); }
+.popover { max-height: calc(100vh - var(--topbar-offset) - 24px); }
+@media (min-width: 1024px) {
+  .main-content { padding-top: calc(var(--topbar-offset) + 24px); }
+  .sidebar { top: calc(var(--topbar-offset) + 10px); }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content { padding-top: calc(var(--topbar-offset) + 18px); }
+}
+@media (max-width: 767px) {
+  .main-content, .main-content--mobile { padding-top: calc(var(--topbar-offset) + 12px); }
+  .sidebar { top: calc(var(--topbar-offset) + 8px); }
+  .popover { top: calc(var(--topbar-offset) + 6px); }
+}
+@media (max-width: 767px) {
+  .topbar > .popover-anchor { flex: 0 1 auto; min-width: 56px; }
+  .topbar > .popover-anchor .site-selector { width: 100%; max-width: 112px; }
+}

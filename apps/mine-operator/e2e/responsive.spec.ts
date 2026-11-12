@@ -17,9 +17,9 @@ test.describe("phone layout", () => {
   test("keeps the profile picture fully inside the top bar", async ({ page }) => {
     await openAs(page, "/admin", "John Dlamini");
     const box = await page.locator(".profile-chip").boundingBox();
-    const width = page.viewportSize()?.width ?? 0;
+    const bar = await page.locator(".topbar").boundingBox();
     expect(box).not.toBeNull();
-    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual((bar?.x ?? 0) + (bar?.width ?? 0));
   });
 
   test("fades the edge of administration tabs that carry on past the screen", async ({ page }) => {
@@ -78,5 +78,29 @@ test.describe("desktop sign-in", () => {
   test("puts the cursor in the email field", async ({ page }) => {
     await page.goto("/sign-in");
     await expect(page.getByLabel("Email address")).toBeFocused();
+  });
+
+  test("floats the top bar clear of the screen edges", async ({ page }) => {
+    await openAs(page, "/overview", "John Dlamini");
+    const bar = await page.locator(".topbar").boundingBox();
+    const width = page.viewportSize()?.width ?? 0;
+    expect(bar?.y ?? 0).toBeGreaterThanOrEqual(8);
+    expect(bar?.x ?? 0).toBeGreaterThanOrEqual(8);
+    expect((bar?.x ?? 0) + (bar?.width ?? 0)).toBeLessThanOrEqual(width - 8);
+  });
+});
+
+test.describe("desktop top bar", () => {
+  test.skip(({ isMobile }) => isMobile, "The wide layout runs on the desktop project.");
+
+  test("floats clear of the screen edges and keeps the page below it", async ({ page }) => {
+    await openAs(page, "/overview", "John Dlamini");
+    const bar = await page.locator(".topbar").boundingBox();
+    const width = page.viewportSize()?.width ?? 0;
+    expect(bar?.y ?? 0).toBeGreaterThanOrEqual(8);
+    expect(bar?.x ?? 0).toBeGreaterThanOrEqual(12);
+    expect((bar?.x ?? 0) + (bar?.width ?? 0)).toBeLessThanOrEqual(width - 12);
+    const heading = await page.getByRole("heading", { level: 1 }).first().boundingBox();
+    expect(heading?.y ?? 0).toBeGreaterThan((bar?.y ?? 0) + (bar?.height ?? 0));
   });
 });
