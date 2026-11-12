@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoader } from "./brand-loader";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "./toast-provider";
@@ -73,12 +74,7 @@ export function DemoProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (state === "loading") {
-    return (
-      <main className="bootstrap-state" aria-live="polite">
-        <div className="bootstrap-mark">V</div>
-        <p>Loading VESPER…</p>
-      </main>
-    );
+    return <BrandLoader />;
   }
 
   if (state === "error") {

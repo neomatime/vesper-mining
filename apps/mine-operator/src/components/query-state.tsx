@@ -2,10 +2,11 @@ import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 
 export function LoadingState({ label = "Loading" }: { label?: string }) {
   return (
-    <div className="state-panel" aria-live="polite">
+    <div className="state-panel state-panel--loading" aria-live="polite" aria-busy="true">
       <div className="skeleton skeleton--title" />
-      <div className="skeleton" />
-      <div className="skeleton skeleton--short" />
+      <div className="skeleton skeleton--row" />
+      <div className="skeleton skeleton--row" />
+      <div className="skeleton skeleton--row skeleton--short" />
       <span className="sr-only">{label}</span>
     </div>
   );

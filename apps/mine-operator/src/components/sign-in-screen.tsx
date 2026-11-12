@@ -119,7 +119,7 @@ export function SignInScreen() {
           {error ? <p className="signin__error" role="alert">{error}</p> : null}
 
           <button className="button button--primary button--wide button--large" disabled={busy}>
-            {busy ? "Please wait…" : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
+            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
           </button>
         </form>
         <small className="signin__note">All sites, people and records in this build are fictional.</small>

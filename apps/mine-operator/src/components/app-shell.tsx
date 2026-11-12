@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { RouteProgress } from "./route-progress";
 import { useEffect, useState } from "react";
 import { entitlementsFor } from "@/lib/entitlements";
 import { useDemoContext } from "@/stores/demo-context";
@@ -190,6 +191,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
       ) : null}
 
+      <RouteProgress />
       <main className={`main-content ${isMobileExperience ? "main-content--mobile" : ""}`}>
         {mobileLocked ? <EntitlementGate capability="mobile" /> : children}
       </main>
