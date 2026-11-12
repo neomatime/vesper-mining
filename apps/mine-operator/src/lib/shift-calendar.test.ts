@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, addMonths, dayLabel, endsNextDay, isSameMonth, monthGrid, monthLabel, shiftsByDay, siteDate, startOfWeek, weekDays, weekLabel } from "./shift-calendar";
+import { addDays, addMonths, dayBlock, dayLabel, dayPosition, shiftsOnDay, endsNextDay, isSameMonth, monthGrid, monthLabel, shiftsByDay, siteDate, startOfWeek, weekDays, weekLabel } from "./shift-calendar";
 
 const shift = (name: string, startsAt: string, endsAt: string) => ({ name, startsAt, endsAt, state: "scheduled" as const });
 
@@ -50,5 +50,35 @@ describe("shift calendar", () => {
     expect(monthLabel("2025-04-24")).toMatch(/April 2025/);
     expect(dayLabel("2025-04-24")).toBe("Thursday 24 April 2025");
     expect(weekLabel("2025-04-24")).toBe("21 April – 27 April 2025");
+  });
+
+  it("finds the shifts running on a day, including one that began the evening before", () => {
+    const shifts = [
+      shift("Shift C", "2025-04-23T22:00:00+02:00", "2025-04-24T06:00:00+02:00"),
+      shift("Shift A", "2025-04-24T06:00:00+02:00", "2025-04-24T14:00:00+02:00"),
+      shift("Shift D", "2025-04-24T22:00:00+02:00", "2025-04-25T06:00:00+02:00"),
+    ];
+    expect(shiftsOnDay(shifts, "2025-04-24").map((item) => item.name)).toEqual(["Shift C", "Shift A", "Shift D"]);
+    expect(shiftsOnDay(shifts, "2025-04-25").map((item) => item.name)).toEqual(["Shift D"]);
+    expect(shiftsOnDay(shifts, "2025-04-22")).toEqual([]);
+  });
+
+  it("places a shift on a 24-hour day and marks what carries over", () => {
+    const morning = dayBlock(shift("A", "2025-04-24T06:00:00+02:00", "2025-04-24T14:00:00+02:00"), "2025-04-24");
+    expect(morning.top).toBeCloseTo(25);
+    expect(morning.height).toBeCloseTo(33.33, 1);
+    expect(morning.continuesFromPrevious || morning.continuesToNext).toBe(false);
+    const night = shift("C", "2025-04-24T22:00:00+02:00", "2025-04-25T06:00:00+02:00");
+    expect(dayBlock(night, "2025-04-24").continuesToNext).toBe(true);
+    expect(dayBlock(night, "2025-04-24").height).toBeCloseTo(8.33, 1);
+    const next = dayBlock(night, "2025-04-25");
+    expect(next.continuesFromPrevious).toBe(true);
+    expect(next.top).toBe(0);
+    expect(next.height).toBeCloseTo(25);
+  });
+
+  it("positions an instant within its day", () => {
+    expect(dayPosition("2025-04-24T12:00:00+02:00", "2025-04-24")).toBeCloseTo(50);
+    expect(dayPosition("2025-04-25T01:00:00+02:00", "2025-04-24")).toBeNull();
   });
 });

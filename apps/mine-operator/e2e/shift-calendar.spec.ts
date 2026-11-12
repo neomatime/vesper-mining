@@ -39,6 +39,39 @@ test.describe("shift calendar on the web", () => {
     await expect(page.getByRole("heading", { name: "Shift A" })).toBeVisible();
   });
 
+  test("shows a single day hour by hour, with overnight shifts carried across midnight", async ({ page }) => {
+    await openAs(page, "/shifts?view=calendar", "John Dlamini");
+    await page.getByRole("button", { name: "Day", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Thursday 24 April 2025", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Shift A, 06:00–14:00, In progress" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Shift B, 14:00–22:00, Scheduled" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Previous day" }).click();
+    await expect(page.getByRole("heading", { name: "Wednesday 23 April 2025", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Shift C, 22:00–06:00, Closed" })).toContainText("carries on tomorrow");
+
+    await page.getByRole("button", { name: "Next day" }).click();
+    await expect(page.getByRole("link", { name: "Shift C, 22:00–06:00, Closed" })).toContainText("started the day before");
+
+    await page.getByRole("button", { name: "Next day" }).click();
+    await expect(page.getByRole("heading", { name: "Friday 25 April 2025", exact: true })).toBeVisible();
+    await expect(page.getByText("Nothing planned")).toBeVisible();
+    await page.getByRole("button", { name: "Today" }).click();
+    await expect(page.getByRole("heading", { name: "Thursday 24 April 2025", exact: true })).toBeVisible();
+  });
+
+  test("keeps the chosen day when switching between month, week and day", async ({ page }) => {
+    await openAs(page, "/shifts?view=calendar", "John Dlamini");
+    await page.getByRole("button", { name: /Friday 25 April 2025.*no shifts/ }).first().click();
+    await page.getByRole("button", { name: "Day", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Friday 25 April 2025", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Week", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "21 April – 27 April 2025", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Month", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "April 2025", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Friday 25 April 2025", exact: true })).toBeVisible();
+  });
+
   test("keeps the list view one click away", async ({ page }) => {
     await openAs(page, "/shifts?view=calendar", "Amina Patel");
     await page.getByRole("link", { name: "List" }).click();
@@ -63,5 +96,27 @@ test.describe("shift calendar on mobile", () => {
     await expect(page.getByRole("heading", { name: "May 2025", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Today" }).click();
     await expect(page.getByRole("heading", { name: "April 2025", exact: true })).toBeVisible();
+  });
+
+  test("offers month, week and day, and keeps the chosen day between them", async ({ page }) => {
+    await openAs(page, "/mobile/schedule", "Amina Patel");
+    await expect(page.getByRole("heading", { name: "April 2025", exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Week", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "21 April – 27 April 2025", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Friday 25 April 2025.*no shifts/ }).click();
+    await expect(page.getByText("You are not on a shift this day.")).toBeVisible();
+    await page.getByRole("button", { name: "Next week" }).click();
+    await expect(page.getByRole("heading", { name: "28 April – 4 May 2025", exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Today" }).click();
+    await page.getByRole("button", { name: "Day", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Thursday 24 April 2025", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Shift A, 06:00–14:00, In progress" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Shift B/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "All shifts" }).click();
+    await expect(page.getByRole("link", { name: "Shift B, 14:00–22:00, Scheduled" })).toBeVisible();
+    await page.getByRole("button", { name: "Next day" }).click();
+    await expect(page.getByRole("heading", { name: "Friday 25 April 2025", exact: true })).toBeVisible();
   });
 });

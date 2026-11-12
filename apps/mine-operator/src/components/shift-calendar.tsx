@@ -3,17 +3,21 @@
 import { CalendarPlus, ChevronLeft, ChevronRight, Moon, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { formatDemoTime } from "@/lib/demo-clock";
 import { shiftTimes } from "@/lib/shift-format";
 import {
   addDays,
   addMonths,
+  dayBlock,
   dayLabel,
   dayNumber,
+  dayPosition,
   endsNextDay,
   isSameMonth,
   monthGrid,
   monthLabel,
   shiftsByDay,
+  shiftsOnDay,
   siteDate,
   weekDays,
   weekLabel,
@@ -172,51 +176,146 @@ function WeekView({ week, selected, today, byDay, onSelect }: { week: string; se
   );
 }
 
-/** The Shift Control calendar: a month or a week, with the selected day's shifts listed beneath. */
-export function ShiftCalendar({ shifts, now, onCreate }: { shifts: ShiftView[]; now: string; onCreate: ((day: string) => void) | null }) {
-  const today = siteDate(now);
-  const [view, setView] = useState<"month" | "week">("month");
-  const [selected, setSelected] = useState(today);
-  const byDay = useMemo(() => shiftsByDay(shifts), [shifts]);
+export type CalendarView = "month" | "week" | "day";
 
+/** The view, the chosen day and the movement between them, shared by the web and mobile calendars. */
+export function useCalendar(today: string) {
+  const [view, setView] = useState<CalendarView>("month");
+  const [selected, setSelected] = useState(today);
   const move = (direction: 1 | -1) => {
+    if (view === "day") return setSelected(addDays(selected, direction));
     if (view === "week") return setSelected(addDays(selected, direction * 7));
     const target = addMonths(selected, direction);
     setSelected(isSameMonth(today, target) ? today : target);
   };
-  const title = view === "month" ? monthLabel(selected) : weekLabel(selected);
+  const title = view === "month" ? monthLabel(selected) : view === "week" ? weekLabel(selected) : dayLabel(selected);
+  return { view, setView, selected, setSelected, move, title, today };
+}
+
+const viewNames: Record<CalendarView, string> = { month: "Month", week: "Week", day: "Day" };
+
+/** Previous and next, the range title, Today, and the Month / Week / Day switch. */
+export function CalendarToolbar({ calendar }: { calendar: ReturnType<typeof useCalendar> }) {
+  const { view, setView, selected, setSelected, move, title, today } = calendar;
+  return (
+    <div className="cal-toolbar">
+      <div className="cal-toolbar__nav">
+        <button type="button" className="icon-button icon-button--light" aria-label={`Previous ${view}`} onClick={() => move(-1)}><ChevronLeft /></button>
+        <h2 aria-live="polite">{title}</h2>
+        <button type="button" className="icon-button icon-button--light" aria-label={`Next ${view}`} onClick={() => move(1)}><ChevronRight /></button>
+      </div>
+      <div className="cal-toolbar__tools">
+        <button type="button" className="button button--quiet button--small" onClick={() => setSelected(today)} disabled={selected === today}>Today</button>
+        <div className="segmented" role="group" aria-label="Calendar range">
+          {(Object.keys(viewNames) as CalendarView[]).map((name) => (
+            <button key={name} type="button" className={view === name ? "active" : ""} aria-pressed={view === name} onClick={() => setView(name)}>{viewNames[name]}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Seven days in a row, for small screens. */
+export function WeekStrip({ week, selected, today, byDay, onSelect }: { week: string; selected: string; today: string; byDay: Map<string, ShiftView[]>; onSelect: (day: string) => void }) {
+  return (
+    <div className="cal-strip" role="group" aria-label={weekLabel(week)}>
+      {weekDays(week).map((day) => {
+        const shifts = byDay.get(day) ?? [];
+        return (
+          <button
+            key={day}
+            type="button"
+            className={`cal-strip__day ${day === today ? "cal__day--today" : ""} ${day === selected ? "cal__day--selected" : ""}`}
+            aria-pressed={day === selected}
+            aria-label={`${dayLabel(day)}${day === today ? ", today" : ""}, ${shifts.length === 0 ? "no shifts" : shiftCount(shifts.length)}`}
+            onClick={() => onSelect(day)}
+          >
+            <span>{weekdayLabel(day)}</span>
+            <strong>{dayNumber(day)}</strong>
+            <span className="cal__dots" aria-hidden="true">{shifts.slice(0, 3).map((shift) => <i key={shift.id} className={`cal__dot cal__dot--${shift.state}`} />)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const hours = Array.from({ length: 24 }, (_, hour) => hour);
+
+/** One day laid out hour by hour, with every shift running on it and a marker for the current time. */
+export function DayTimeline({ day, shifts, now, mine }: { day: string; shifts: ShiftView[]; now: string; mine?: string }) {
+  const running = shiftsOnDay(shifts, day);
+  const marker = dayPosition(now, day);
+  // The current-time pill sits over the nearest hour label when the two are close, so that label steps aside.
+  const nearest = marker === null ? -1 : Math.round((marker / 100) * 24);
+  const crowded = marker !== null && Math.abs((marker / 100) * 24 - nearest) < 0.45;
+  return (
+    <div className="cal-day" aria-label={`Timeline for ${dayLabel(day)}`}>
+      <ol className="cal-day__hours" aria-hidden="true">{hours.map((hour) => <li key={hour}><span style={crowded && hour === nearest ? { visibility: "hidden" } : undefined}>{String(hour).padStart(2, "0")}:00</span></li>)}</ol>
+      <div className="cal-day__lane">
+        {running.map((shift) => {
+          const block = dayBlock(shift, day);
+          const duty = mine ? shift.crew.find((member) => member.name === mine)?.duty ?? (shift.supervisor === mine ? "Supervisor" : null) : null;
+          return (
+            <Link
+              key={shift.id}
+              href={`/shifts/${shift.id}`}
+              className={`cal-day__shift cal-item--${shift.state}`}
+              style={{ top: `${block.top}%`, height: `${block.height}%` }}
+              aria-label={`${shift.name}, ${shiftTimes(shift)}, ${shiftStateLabels[shift.state]}`}
+            >
+              <span className="cal-day__shift-head">
+                <strong>{shift.name}</strong>
+                <StatusBadge value={shiftTone[shift.state]} label={shiftStateLabels[shift.state]} />
+              </span>
+              <span>{shiftTimes(shift)}{block.continuesFromPrevious ? " · started the day before" : ""}{block.continuesToNext ? " · carries on tomorrow" : ""}</span>
+              <small>{shift.supervisor ?? "No supervisor yet"} · {shift.crew.length} crew{duty ? ` · You: ${duty}` : ""}</small>
+            </Link>
+          );
+        })}
+        {marker !== null ? <div className="cal-day__now" style={{ top: `${marker}%` }}><span>{formatDemoTime(now)}</span></div> : null}
+      </div>
+    </div>
+  );
+}
+
+/** The Shift Control calendar: a month, a week or a day, with the selected day's shifts beneath. */
+export function ShiftCalendar({ shifts, now, onCreate }: { shifts: ShiftView[]; now: string; onCreate: ((day: string) => void) | null }) {
+  const calendar = useCalendar(siteDate(now));
+  const { view, selected, setSelected, today } = calendar;
+  const byDay = useMemo(() => shiftsByDay(shifts), [shifts]);
+  const create = onCreate ? <button type="button" className="button button--quiet button--small" onClick={() => onCreate(selected)}><CalendarPlus /> Create shift on this day</button> : null;
+  const running = shiftsOnDay(shifts, selected).length;
 
   return (
     <section className="card cal-card">
-      <div className="cal-toolbar">
-        <div className="cal-toolbar__nav">
-          <button type="button" className="icon-button icon-button--light" aria-label={view === "month" ? "Previous month" : "Previous week"} onClick={() => move(-1)}><ChevronLeft /></button>
-          <h2 aria-live="polite">{title}</h2>
-          <button type="button" className="icon-button icon-button--light" aria-label={view === "month" ? "Next month" : "Next week"} onClick={() => move(1)}><ChevronRight /></button>
-        </div>
-        <div className="cal-toolbar__tools">
-          <button type="button" className="button button--quiet button--small" onClick={() => setSelected(today)} disabled={selected === today}>Today</button>
-          <div className="segmented" role="group" aria-label="Calendar range">
-            <button type="button" className={view === "month" ? "active" : ""} aria-pressed={view === "month"} onClick={() => setView("month")}>Month</button>
-            <button type="button" className={view === "week" ? "active" : ""} aria-pressed={view === "week"} onClick={() => setView("week")}>Week</button>
-          </div>
-        </div>
-      </div>
+      <CalendarToolbar calendar={calendar} />
 
       {view === "month" ? (
         <>
           <div className="cal-full"><MonthGrid month={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} /></div>
           <div className="cal-small"><MonthGrid month={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} compact /></div>
         </>
-      ) : (
-        <WeekView week={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} />
-      )}
+      ) : null}
+      {view === "week" ? (
+        <>
+          <div className="cal-full"><WeekView week={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} /></div>
+          <div className="cal-small"><WeekStrip week={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} /></div>
+        </>
+      ) : null}
 
-      <DayAgenda
-        day={selected}
-        shifts={byDay.get(selected) ?? []}
-        action={onCreate ? <button type="button" className="button button--quiet button--small" onClick={() => onCreate(selected)}><CalendarPlus /> Create shift on this day</button> : null}
-      />
+      {view === "day" ? (
+        <section className="cal-agenda" aria-label={`Shifts on ${dayLabel(selected)}`}>
+          <header>
+            <p>{running === 0 ? "Nothing planned" : shiftCount(running)}</p>
+            {create}
+          </header>
+          <DayTimeline day={selected} shifts={shifts} now={now} />
+        </section>
+      ) : (
+        <DayAgenda day={selected} shifts={byDay.get(selected) ?? []} action={create} />
+      )}
     </section>
   );
 }

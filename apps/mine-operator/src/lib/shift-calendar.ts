@@ -94,3 +94,35 @@ export function weekLabel(date: string) {
   const last = days[6] as string;
   return `${shortDayLabel(first)} – ${shortDayLabel(last)} ${last.slice(0, 4)}`;
 }
+
+/** The first instant of a site-time day. */
+export function dayStart(date: string) {
+  return Date.parse(`${date}T00:00:00+02:00`);
+}
+
+/** Every shift that is running at some point on a day, including an overnight one that began the evening before. */
+export function shiftsOnDay<T extends Pick<Shift, "startsAt" | "endsAt">>(shifts: T[], date: string) {
+  const start = dayStart(date);
+  const end = start + DAY_MS;
+  return shifts.filter((shift) => Date.parse(shift.startsAt) < end && Date.parse(shift.endsAt) > start).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+}
+
+/** Where a shift sits on a 24-hour day, as percentages, and whether it carries on beyond either edge. */
+export function dayBlock(shift: Pick<Shift, "startsAt" | "endsAt">, date: string) {
+  const start = dayStart(date);
+  const end = start + DAY_MS;
+  const from = Math.max(Date.parse(shift.startsAt), start);
+  const to = Math.min(Date.parse(shift.endsAt), end);
+  return {
+    top: ((from - start) / DAY_MS) * 100,
+    height: ((to - from) / DAY_MS) * 100,
+    continuesFromPrevious: Date.parse(shift.startsAt) < start,
+    continuesToNext: Date.parse(shift.endsAt) > end,
+  };
+}
+
+/** How far through a site-time day an instant is, as a percentage, or null when it is on another day. */
+export function dayPosition(iso: string, date: string) {
+  const offset = Date.parse(iso) - dayStart(date);
+  return offset >= 0 && offset < DAY_MS ? (offset / DAY_MS) * 100 : null;
+}
