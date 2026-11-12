@@ -90,11 +90,6 @@ export function SignInScreen() {
           <p>Prevent avoidable waiting.</p>
           <p>Recover productive time.</p>
         </div>
-        <svg className="signin__contours" viewBox="0 0 600 600" fill="none" aria-hidden="true">
-          {Array.from({ length: 9 }, (_, index) => (
-            <ellipse key={index} cx="360" cy="420" rx={70 + index * 42} ry={40 + index * 26} transform="rotate(-18 360 420)" />
-          ))}
-        </svg>
       </section>
 
       <section className="signin__panel">
