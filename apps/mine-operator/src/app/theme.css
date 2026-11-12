@@ -727,7 +727,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 8%, rgba(13, 44, 46, 0.7) 12%, rgba(13, 44, 46, 0) 24%), linear-gradient(180deg, rgba(7, 40, 28, 0) 48%, rgba(7, 40, 28, 0.55) 62%, #07281c 75%, #07281c 100%); }
 
 /* Sign in: the tunnel photograph */
-.signin__brand { background: #0b1411 url("/images/sign-in-tunnel.jpg") 46% center / cover no-repeat; }
+.signin__brand { background: #0b1411 url("/images/sign-in-timbered-tunnel.jpg") 50% center / cover no-repeat; }
 .signin__brand::before { background: linear-gradient(180deg, rgba(8, 16, 13, 0.5) 0%, rgba(8, 16, 13, 0.05) 26%, rgba(7, 40, 28, 0.2) 50%, rgba(7, 40, 28, 0.88) 100%); }
 
 /* Sign in with Microsoft */
