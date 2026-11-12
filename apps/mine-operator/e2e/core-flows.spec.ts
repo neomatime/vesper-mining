@@ -55,7 +55,7 @@ test("starts each role where their work is", async ({ page, isMobile }) => {
 
 test("opens the canonical issue and preserves verification separation", async ({ page }) => {
   await openAs(page, "/overview");
-  await page.getByRole("link", { name: /View details/i }).click();
+  await page.getByRole("link", { name: /Review recovery actions/i }).click();
   await expect(page).toHaveURL(/\/exceptions\/issue-riv-001$/);
   await expect(page.getByText(/Repair completion, independent verification/)).toBeVisible();
 });

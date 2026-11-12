@@ -38,7 +38,7 @@ export function MobileFieldScreen({ kind }: { kind: Kind }) {
     return (
       <div className="mobile-task-page">
         <div className="mobile-page-header">
-          <span className="eyebrow">Role and site scoped</span>
+          <span className="eyebrow">Alerts for you</span>
           <h1>Notifications</h1>
           <p>Alerts open the record they are about.</p>
           {notifications.unread ? <button className="button button--quiet button--small" onClick={notifications.readAll} disabled={notifications.readAllPending}>Mark all read</button> : null}

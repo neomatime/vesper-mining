@@ -27,7 +27,7 @@ export function MapScreen() {
 
   return (
     <div className="workspace-page">
-      <PageHeader eyebrow="Operational Map" title="Explainable area status" description="Inspect operating areas, the evidence behind each status and related operational constraints." icon={Map} />
+      <PageHeader eyebrow="Operational Map" title="Area status" description="Inspect operating areas, the evidence behind each status and related operational constraints." icon={Map} />
       <section className="map-workspace">
         <article className="card map-workspace__canvas">
           <header className="card__header"><div><span className="eyebrow">Riverside Mine · site plan</span><h2>Current state</h2></div><span className="map-quality"><Info /> No live GPS or surveyed positioning</span></header>
