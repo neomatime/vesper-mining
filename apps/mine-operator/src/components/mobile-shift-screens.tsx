@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bell, Check, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, CalendarDays, Check, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
 import Link from "next/link";
 import { formatDemoTime, formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isOpen } from "@/lib/issue-rules";
@@ -48,6 +48,9 @@ export function MyShiftScreen() {
           <Link href="/mobile/report"><AlertTriangle /><span><strong>Report</strong><small>Record an issue</small></span></Link>
           <Link href="/mobile/notifications"><Bell /><span><strong>Track</strong><small>{notifications.unread} unread {notifications.unread === 1 ? "alert" : "alerts"}</small></span></Link>
         </section>
+        <section className="mobile-stack">
+          <Link className="mobile-card mobile-card--link" href="/mobile/schedule"><CalendarDays /><div><strong>Shift calendar</strong><p>See the shifts you are on, day by day</p></div><ArrowRight /></Link>
+        </section>
       </div>
     );
   }
@@ -80,6 +83,10 @@ export function MyShiftScreen() {
         <Link href="/mobile/report"><AlertTriangle /><span><strong>Report</strong><small>Record an issue</small></span></Link>
         <Link href="/mobile/my-work"><Wrench /><span><strong>Act</strong><small>{myOpenTasks} open {myOpenTasks === 1 ? "task" : "tasks"}</small></span></Link>
         <Link href="/mobile/notifications"><Bell /><span><strong>Track</strong><small>{notifications.unread} unread {notifications.unread === 1 ? "alert" : "alerts"}</small></span></Link>
+      </section>
+
+      <section className="mobile-stack">
+        <Link className="mobile-card mobile-card--link" href="/mobile/schedule"><CalendarDays /><div><strong>Shift calendar</strong><p>See the shifts you are on, day by day</p></div><ArrowRight /></Link>
       </section>
 
       {shift.briefing ? (

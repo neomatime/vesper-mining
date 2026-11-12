@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
-import { CirclePlus, ClipboardCheck, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
+import { CalendarDays, CirclePlus, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -12,11 +12,12 @@ import { formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isFinished, openDependencies, stateLabels } from "@/lib/issue-rules";
 import { canActOnEquipment, categoryLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
 import { formatDay, shiftTimes, suggestNextShift } from "@/lib/shift-format";
-import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@/lib/shift-rules";
+import { canActOnShift, handoverLabels, shiftStateLabels, shiftTone, type ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { indicativeOrderBy, partPosition } from "@/lib/readiness-rules";
 import { EquipmentFormDialog } from "./equipment-dialogs";
 import { ShiftFormDialog } from "./shift-dialogs";
+import { ShiftCalendar } from "./shift-calendar";
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
@@ -175,7 +176,6 @@ function resourceRegister(records: ReadinessActivity[]): Register<ReadinessActiv
   };
 }
 
-const shiftTone = { scheduled: "pending", in_progress: "in_progress", closed: "complete", cancelled: "unknown" } as const;
 
 function shiftRegister(records: ShiftView[], onAdd: (() => void) | null): Register<ShiftView> {
   const current = records.find((item) => item.state === "in_progress") ?? records.find((item) => item.state === "scheduled");
@@ -224,8 +224,21 @@ export function WorkspaceScreen({ workspace }: { workspace: WorkspaceKey }) {
   );
 }
 
+/** Switches Shift Control between its register and its calendar. */
+function ShiftViewSwitch({ view }: { view: "list" | "calendar" }) {
+  return (
+    <nav className="segmented segmented--links" aria-label="Shift Control view">
+      <Link href="/shifts" className={view === "list" ? "active" : ""} aria-current={view === "list" ? "page" : undefined}><List /> List</Link>
+      <Link href="/shifts?view=calendar" className={view === "calendar" ? "active" : ""} aria-current={view === "calendar" ? "page" : undefined}><CalendarDays /> Calendar</Link>
+    </nav>
+  );
+}
+
 function Workspace({ workspace }: { workspace: WorkspaceKey }) {
-  const requestedFilter = useSearchParams().get("filter");
+  const params = useSearchParams();
+  const requestedFilter = params.get("filter");
+  const shiftView = params.get("view") === "calendar" ? "calendar" : "list";
+  const [createDate, setCreateDate] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [addingShift, setAddingShift] = useState(false);
   const create = useCreateEquipment();
@@ -255,15 +268,43 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   }
   if (workspace === "resources") return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={resourceRegister(records as ReadinessActivity[])} />;
   const shifts = records as ShiftView[];
+  const startCreating = (day: string | null) => { setCreateDate(day); setAddingShift(true); };
   return (
     <>
-      <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={shiftRegister(shifts, canManageShifts ? () => setAddingShift(true) : null)} />
-      {addingShift ? <ShiftFormDialog suggestion={suggestNextShift(shifts)} pending={createShift.isPending} onClose={() => setAddingShift(false)} onSave={(input) => createShift.mutate(input as ShiftFormInput)} /> : null}
+      {shiftView === "calendar" ? (
+        shell ? (
+          <div className="workspace-page">
+            <PageHeader
+              eyebrow={header.eyebrow}
+              title={header.title}
+              description={header.description}
+              icon={UsersRound}
+              action={
+                <>
+                  <ShiftViewSwitch view="calendar" />
+                  {canManageShifts ? <button className="button button--primary" onClick={() => startCreating(null)}><CirclePlus /> Create shift</button> : null}
+                </>
+              }
+            />
+            <ShiftCalendar shifts={shifts} now={shell.now} onCreate={canManageShifts ? startCreating : null} />
+          </div>
+        ) : <LoadingState />
+      ) : (
+        <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} viewSwitch={<ShiftViewSwitch view="list" />} register={shiftRegister(shifts, canManageShifts ? () => startCreating(null) : null)} />
+      )}
+      {addingShift ? (
+        <ShiftFormDialog
+          suggestion={{ ...suggestNextShift(shifts), ...(createDate ? { date: createDate } : {}) }}
+          pending={createShift.isPending}
+          onClose={() => setAddingShift(false)}
+          onSave={(input) => createShift.mutate(input as ShiftFormInput)}
+        />
+      ) : null}
     </>
   );
 }
 
-function RegisterView<T extends { id: string }>({ header, register, initialFilter }: { header: Header; register: Register<T>; initialFilter: string | null }) {
+function RegisterView<T extends { id: string }>({ header, register, initialFilter, viewSwitch }: { header: Header; register: Register<T>; initialFilter: string | null; viewSwitch?: React.ReactNode }) {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState(() =>
     register.filters.some((item) => item.key === initialFilter) ? (initialFilter as string) : "all",
@@ -284,7 +325,10 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
         description={header.description}
         icon={Icon}
         action={
-          register.action ? (
+          register.action || viewSwitch ? (
+            <>
+              {viewSwitch}
+              {register.action ? (
             register.action.onClick ? (
               <button className="button button--primary" onClick={register.action.onClick}>
                 {register.action.plus ? <CirclePlus /> : <ArrowRight />}
@@ -296,6 +340,8 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
                 {register.action.label}
               </Link>
             )
+              ) : null}
+            </>
           ) : undefined
         }
       />
