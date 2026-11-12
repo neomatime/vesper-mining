@@ -129,7 +129,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X /> : <Menu />}
           </button>
           <Link href="/overview" className="wordmark" aria-label="VESPER overview">
-            VESPER
+            <span className="wordmark__name">VESPER</span>
+            <span className="wordmark__descriptor" aria-hidden="true">Operations Command</span>
           </Link>
         </div>
 
@@ -197,6 +198,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className={`main-content ${isMobileExperience ? "main-content--mobile" : ""}`}>
         {mobileLocked ? <EntitlementGate capability="mobile" /> : children}
       </main>
+
+      <p className="simulation-note">Simulated environment · Fictional operational data</p>
 
       {isMobileExperience && !mobileLocked ? (
         <nav className="mobile-bottom-nav" aria-label="Field navigation">

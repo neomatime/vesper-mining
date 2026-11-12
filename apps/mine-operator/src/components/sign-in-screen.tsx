@@ -158,7 +158,10 @@ export function SignInScreen() {
           ) : null}
 
         </form>
-        <small className="signin__note">All sites, people and records in this build are fictional.</small>
+        <small className="signin__note signin__demo-note">
+          <strong>Demo / simulated data</strong>
+          <span>All sites, people and records in this build are fictional.</span>
+        </small>
       </section>
     </main>
   );
