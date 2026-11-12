@@ -131,19 +131,19 @@ export function SignInScreen() {
 
           {error ? <p className="signin__error" role="alert">{error}</p> : null}
 
+          <button className="button button--primary button--wide button--large" disabled={busy}>
+            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
+          </button>
           {step === "credentials" ? (
             <>
+              <div className="signin__divider" aria-hidden="true"><span>or</span></div>
               <button type="button" className="button button--sso button--wide button--large" onClick={continueWithMicrosoft} disabled={busy}>
                 <svg viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect x="11" y="1" width="9" height="9" fill="#7fba00" /><rect x="1" y="11" width="9" height="9" fill="#00a4ef" /><rect x="11" y="11" width="9" height="9" fill="#ffb900" /></svg>
                 Continue with Microsoft
               </button>
-              <div className="signin__divider" aria-hidden="true"><span>or</span></div>
             </>
           ) : null}
 
-          <button className="button button--primary button--wide button--large" disabled={busy}>
-            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
-          </button>
         </form>
         <small className="signin__note">All sites, people and records in this build are fictional.</small>
       </section>
