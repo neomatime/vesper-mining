@@ -241,6 +241,10 @@ export const handlers = [
     const input = await bodyOf<{ email?: string; password?: string }>(request);
     return run(() => demoDomain.authenticate(String(input.email ?? ""), String(input.password ?? "")));
   }),
+  http.post(`${API}/session/sso`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string }>(request);
+    return run(() => demoDomain.authenticateSso(String(input.email ?? "")));
+  }),
   http.post(`${API}/session/password`, async ({ request }) => {
     const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
     return run(() => demoDomain.changePassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));

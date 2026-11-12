@@ -70,6 +70,14 @@ describe("signing in and passwords", () => {
     rejects(() => demoDomain.authenticate("nobody@riverside.example", FIXTURE_PASSWORD), 401, /do not match/);
   });
 
+  it("signs in with a Microsoft address that belongs to a VESPER person, and only then", () => {
+    expect(demoDomain.authenticateSso("John.Dlamini@riverside.example").account?.name).toBe("John Dlamini");
+    rejects(() => demoDomain.authenticateSso("nobody@riverside.example"), 401, /No VESPER account/);
+    const sipho = find("Sipho Nkosi");
+    demoDomain.setMemberAccess(sipho.id, "off", manager);
+    rejects(() => demoDomain.authenticateSso(sipho.email), 403, /turned off/);
+  });
+
   it("refuses someone whose access is off and lets them in again once restored", () => {
     const sipho = find("Sipho Nkosi");
     demoDomain.setMemberAccess(sipho.id, "off", manager);

@@ -10,6 +10,8 @@ type SessionStore = {
   account: Account | null;
   /** Checks the credentials against the organisation's people. Rejects with an ApiError when they are refused. */
   signIn: (email: string, password: string) => Promise<AuthResult>;
+  /** Signs in with a work Microsoft account. Rejects with an ApiError when the address has no VESPER access. */
+  signInWithMicrosoft: (email: string) => Promise<AuthResult>;
   /** Replaces a temporary password with one the person chose, then signs them in. */
   changePassword: (email: string, current: string, next: string) => Promise<AuthResult>;
   signOut: () => void;
@@ -24,6 +26,14 @@ export const useSession = create<SessionStore>()(
       account: null,
       signIn: async (email, password) => {
         const result = await demoSend<AuthResult>("/session", "POST", { email, password });
+        if (result.account) {
+          useDemoContext.getState().setContext({ persona: result.account.name, role: result.account.role });
+          set({ account: result.account });
+        }
+        return result;
+      },
+      signInWithMicrosoft: async (email) => {
+        const result = await demoSend<AuthResult>("/session/sso", "POST", { email });
         if (result.account) {
           useDemoContext.getState().setContext({ persona: result.account.name, role: result.account.role });
           set({ account: result.account });

@@ -729,3 +729,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 /* Sign in: the tunnel photograph */
 .signin__brand { background: #0b1411 url("/images/sign-in-tunnel.jpg") 46% center / cover no-repeat; }
 .signin__brand::before { background: linear-gradient(180deg, rgba(8, 16, 13, 0.5) 0%, rgba(8, 16, 13, 0.05) 26%, rgba(7, 40, 28, 0.2) 50%, rgba(7, 40, 28, 0.88) 100%); }
+
+/* Sign in with Microsoft */
+.signin__form .button--sso { margin-top: 6px; gap: 12px; border: 1px solid var(--border-strong); color: var(--text-primary); background: #fff; font-weight: 600; box-shadow: 0 1px 1px rgba(16, 24, 22, 0.04); }
+.signin__form .button--sso:hover:not(:disabled) { border-color: #b8c1ba; box-shadow: var(--shadow-soft); transform: translateY(-1px); }
+.signin__form .button--sso svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.signin__divider { display: flex; align-items: center; gap: 14px; margin: 0; color: #8a948d; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.signin__divider::before, .signin__divider::after { content: ""; height: 1px; flex: 1; background: var(--border-subtle); }
+.signin__form .signin__divider + .button { margin-top: 0; }
+.signin__form .button--sso { height: 52px; border-radius: 12px; font-size: 15px; }
