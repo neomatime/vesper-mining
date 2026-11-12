@@ -1,19 +1,18 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
-import { addMonths, isSameMonth, monthLabel, shiftsByDay, siteDate } from "@/lib/shift-calendar";
+import { shiftsByDay, siteDate } from "@/lib/shift-calendar";
 import { useDemoContext } from "@/stores/demo-context";
 import { LoadingState } from "./query-state";
-import { DayAgenda, MonthGrid } from "./shift-calendar";
+import { CalendarToolbar, DayAgenda, DayTimeline, MonthGrid, WeekStrip, useCalendar } from "./shift-calendar";
 import { useShellData } from "./shell-data";
 
-/** The field view of the shift calendar: a compact month, then the chosen day's shifts. */
+/** The field view of the shift calendar: a month, a week or a day, for the shifts you are on or every shift. */
 export function MobileScheduleScreen() {
   const { context } = useDemoContext();
   const { data } = useShellData();
+  const calendar = useCalendar(data ? siteDate(data.now) : "2025-04-24");
   const [scope, setScope] = useState<"mine" | "all">("mine");
-  const [selected, setSelected] = useState<string | null>(null);
   const shifts = data?.shifts;
   const visible = useMemo(
     () => (shifts ?? []).filter((shift) => scope === "all" || shift.supervisor === context.persona || shift.crew.some((member) => member.name === context.persona)),
@@ -22,12 +21,8 @@ export function MobileScheduleScreen() {
   const byDay = useMemo(() => shiftsByDay(visible), [visible]);
   if (!data) return <LoadingState />;
 
-  const today = siteDate(data.now);
-  const day = selected ?? today;
-  const move = (direction: 1 | -1) => {
-    const target = addMonths(day, direction);
-    setSelected(isSameMonth(today, target) ? today : target);
-  };
+  const { view, selected, setSelected, today } = calendar;
+  const emptyHint = scope === "mine" ? "You are not on a shift this day." : "No shifts are planned for this day.";
 
   return (
     <div className="mobile-task-page">
@@ -43,18 +38,13 @@ export function MobileScheduleScreen() {
       </div>
 
       <section className="card cal-card cal-card--mobile">
-        <div className="cal-toolbar">
-          <div className="cal-toolbar__nav">
-            <button type="button" className="icon-button icon-button--light" aria-label="Previous month" onClick={() => move(-1)}><ChevronLeft /></button>
-            <h2 aria-live="polite">{monthLabel(day)}</h2>
-            <button type="button" className="icon-button icon-button--light" aria-label="Next month" onClick={() => move(1)}><ChevronRight /></button>
-          </div>
-          <button type="button" className="button button--quiet button--small" onClick={() => setSelected(today)} disabled={day === today}>Today</button>
-        </div>
-        <MonthGrid month={day} selected={day} today={today} byDay={byDay} onSelect={setSelected} compact />
+        <CalendarToolbar calendar={calendar} />
+        {view === "month" ? <MonthGrid month={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} compact /> : null}
+        {view === "week" ? <WeekStrip week={selected} selected={selected} today={today} byDay={byDay} onSelect={setSelected} /> : null}
+        {view === "day" ? <div className="cal-card__timeline"><DayTimeline day={selected} shifts={visible} now={data.now} mine={context.persona} /></div> : null}
       </section>
 
-      <DayAgenda day={day} shifts={byDay.get(day) ?? []} mine={context.persona} emptyHint={scope === "mine" ? "You are not on a shift this day." : "No shifts are planned for this day."} />
+      {view !== "day" ? <DayAgenda day={selected} shifts={byDay.get(selected) ?? []} mine={context.persona} emptyHint={emptyHint} /> : null}
     </div>
   );
 }
