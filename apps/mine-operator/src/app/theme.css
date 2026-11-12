@@ -725,3 +725,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .signin__contours ellipse { stroke: rgba(80, 220, 160, 0.34); }
 .signin__brand { background: url("/images/sign-in-mine.webp") 0 64px / 108% auto no-repeat, linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 10%, #0a2420 50%, #07281c 76%, #06281c 100%); }
 .signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 8%, rgba(13, 44, 46, 0.7) 12%, rgba(13, 44, 46, 0) 24%), linear-gradient(180deg, rgba(7, 40, 28, 0) 48%, rgba(7, 40, 28, 0.55) 62%, #07281c 75%, #07281c 100%); }
+
+/* Sign in: the tunnel photograph */
+.signin__brand { background: #0b1411 url("/images/sign-in-tunnel.jpg") 46% center / cover no-repeat; }
+.signin__brand::before { background: linear-gradient(180deg, rgba(8, 16, 13, 0.5) 0%, rgba(8, 16, 13, 0.05) 26%, rgba(7, 40, 28, 0.2) 50%, rgba(7, 40, 28, 0.88) 100%); }
