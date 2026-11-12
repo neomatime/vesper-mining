@@ -9,6 +9,7 @@ import { isValidEmail } from "@/lib/organisation-rules";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import type { ProviderInput } from "./use-service";
+import { DateInput } from "./date-fields";
 
 const providerSchema = z.object({
   name: z.string().trim().min(3, "Enter the company name."),
@@ -66,7 +67,7 @@ export function ProviderDialog({
           <input data-autofocus aria-invalid={Boolean(errors.name)} {...form.register("name")} />
         </Field>
         <Field label="Registration number"><input {...form.register("registration")} /></Field>
-        <Field label="Approved for this mine until" error={errors.approvedUntil?.message} hint="Leave blank if the approval has no end date."><input type="date" {...form.register("approvedUntil")} /></Field>
+        <Field label="Approved for this mine until" error={errors.approvedUntil?.message} hint="Leave blank if the approval has no end date."><DateInput {...form.register("approvedUntil")} /></Field>
         <Field label="Contact person"><input {...form.register("contactName")} /></Field>
         <Field label="Phone"><input type="tel" {...form.register("phone")} /></Field>
         <Field label="Email address" error={errors.email?.message} wide><input type="email" aria-invalid={Boolean(errors.email)} {...form.register("email")} /></Field>

@@ -10,6 +10,8 @@ import { categories, categoryLabels, type EquipmentView } from "@/lib/equipment-
 import type { EquipmentFormInput, PlanInput, ServiceInput } from "./use-equipment-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { Select } from "./select";
+import { DateTimeInput } from "./date-fields";
 
 type Option = { id: string; name: string };
 
@@ -109,10 +111,10 @@ export function EquipmentFormDialog({
           <input placeholder="HT-301" aria-invalid={Boolean(errors.code)} {...form.register("code")} />
         </Field>
         <Field label="Category" error={errors.category?.message}>
-          <select aria-invalid={Boolean(errors.category)} {...form.register("category")}>
+          <Select aria-invalid={Boolean(errors.category)} {...form.register("category")}>
             <option value="">Choose a category</option>
             {categories.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Make and model">
           <input placeholder="Komatsu PC1250" {...form.register("makeModel")} />
@@ -121,10 +123,10 @@ export function EquipmentFormDialog({
           <input {...form.register("serialNumber")} />
         </Field>
         <Field label="Operating area">
-          <select {...form.register("areaId")}>
+          <Select {...form.register("areaId")}>
             <option value="">Not assigned</option>
             {areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Average hours per day" error={errors.hoursPerDay?.message} hint="Used to estimate when a service is due.">
           <input inputMode="decimal" aria-invalid={Boolean(errors.hoursPerDay)} {...form.register("hoursPerDay")} />
@@ -340,7 +342,7 @@ export function PlanDialog({
           </Field>
         ) : (
           <Field label="Date of the last service (site time)">
-            <input type="datetime-local" {...form.register("lastServiceAt")} />
+            <DateTimeInput {...form.register("lastServiceAt")} />
           </Field>
         )}
       </form>
@@ -418,11 +420,11 @@ export function ServiceDialog({
         )}
       >
         <Field label="Type">
-          <select {...form.register("type")}>
+          <Select {...form.register("type")}>
             <option value="service">Service</option>
             <option value="inspection">Inspection</option>
             <option value="repair">Repair</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Meter reading (hours)" error={errors.hours?.message}>
           <input inputMode="decimal" aria-invalid={Boolean(errors.hours)} {...form.register("hours")} />
@@ -432,14 +434,14 @@ export function ServiceDialog({
         </Field>
         {type === "service" && item.plans.length > 0 ? (
           <Field label="Completes this plan" hint="Choosing a plan restarts its countdown." wide>
-            <select {...form.register("planId")}>
+            <Select {...form.register("planId")}>
               <option value="">No plan</option>
               {item.plans.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
-            </select>
+            </Select>
           </Field>
         ) : null}
         <Field label="When (site time)" hint="Leave blank for now.">
-          <input type="datetime-local" {...form.register("performedAt")} />
+          <DateTimeInput {...form.register("performedAt")} />
         </Field>
         <Field label="Work order reference" hint="From the maintenance system, if there is one.">
           <input {...form.register("workOrderRef")} />

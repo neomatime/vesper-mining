@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { actAs, openAs } from "./support";
+import { actAs, openAs, pick } from "./support";
 
 test.describe("equipment management", () => {
   test.skip(({ isMobile }) => isMobile, "Equipment management is exercised on the desktop layout.");
@@ -10,8 +10,8 @@ test.describe("equipment management", () => {
     await page.getByRole("button", { name: "Add equipment" }).first().click();
     await dialog(page).getByLabel("Name").fill(name);
     await dialog(page).getByLabel("Asset code").fill(code);
-    await dialog(page).getByLabel("Category").selectOption("haul_truck");
-    await dialog(page).getByLabel("Operating area").selectOption({ label: "Central Pit" });
+    await pick(dialog(page).getByLabel("Category"), "Haul truck");
+    await pick(dialog(page).getByLabel("Operating area"), { label: "Central Pit" });
     await dialog(page).getByLabel("Average hours per day").fill("14");
     await dialog(page).getByLabel("Current meter reading").fill("1200");
     await dialog(page).getByRole("button", { name: "Add equipment" }).click();
@@ -39,7 +39,7 @@ test.describe("equipment management", () => {
 
     await page.getByRole("button", { name: "Log service" }).first().click();
     await dialog(page).getByLabel("What was done").fill("500 hour service done, filters and oil changed.");
-    await dialog(page).getByLabel("Completes this plan").selectOption({ label: "500 hour service" });
+    await pick(dialog(page).getByLabel("Completes this plan"), { label: "500 hour service" });
     await dialog(page).getByLabel("Meter reading (hours)").fill("1500");
     await dialog(page).getByLabel("Work order reference").fill("CMMS-WO-3001");
     await dialog(page).getByRole("button", { name: "Log entry" }).click();
@@ -52,7 +52,7 @@ test.describe("equipment management", () => {
     await openAs(page, "/equipment/eq-dz017", "Lebo Maseko");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await dialog(page).getByLabel("Name").fill("Track Dozer DZ-017 (north)");
-    await dialog(page).getByLabel("Operating area").selectOption({ label: "North Pit" });
+    await pick(dialog(page).getByLabel("Operating area"), { label: "North Pit" });
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("heading", { name: "Track Dozer DZ-017 (north)" })).toBeVisible();
     await expect(page.getByText(/Updated name, area/)).toBeVisible();
@@ -159,7 +159,7 @@ test.describe("equipment management", () => {
     await page.getByRole("button", { name: "More actions" }).click();
     await page.getByRole("group", { name: "More actions" }).getByRole("link", { name: /Report an issue/ }).click();
     await expect(page).toHaveURL(/exceptions\/new\?equipmentId=eq-ex204/);
-    await expect(page.getByLabel("Equipment")).toHaveValue("eq-ex204");
+    await expect(page.getByLabel("Equipment")).toContainText("Hydraulic Excavator EX-204");
   });
 
   test("shows new equipment in search and as a choice when reporting an issue", async ({ page }) => {
@@ -171,6 +171,7 @@ test.describe("equipment management", () => {
     await expect(page.getByRole("option", { name: /Haul Truck HT-304/ })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.goto("/exceptions/new");
-    await expect(page.getByLabel("Equipment").locator("option", { hasText: "Haul Truck HT-304" })).toHaveCount(1);
+    await page.getByLabel("Equipment").click();
+    await expect(page.getByRole("listbox").getByRole("option", { name: "Haul Truck HT-304" })).toBeVisible();
   });
 });

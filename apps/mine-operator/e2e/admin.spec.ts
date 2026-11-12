@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_PASSWORD } from "../src/lib/accounts";
-import { openAs } from "./support";
+import { openAs, pick } from "./support";
 
 test.describe("administration", () => {
   test.skip(({ isMobile }) => isMobile, "Administration is exercised on the desktop layout.");
@@ -16,7 +16,7 @@ test.describe("administration", () => {
     await dialog(page).getByLabel("Work email address").fill(email);
     await dialog(page).getByLabel("Phone number").fill("+27 82 555 0199");
     await dialog(page).getByLabel("Employee number").fill("RIV-0100");
-    await dialog(page).getByLabel("Role").selectOption(role);
+    await pick(dialog(page).getByLabel("Role"), role);
     await dialog(page).getByRole("button", { name: "Add employee" }).click();
     await expect(dialog(page).getByText("Zanele Mokoena has been added")).toBeVisible();
     const password = (await dialog(page).locator("code").innerText()).trim();
@@ -81,7 +81,7 @@ test.describe("administration", () => {
 
     await page.getByRole("button", { name: "Edit details" }).click();
     await dialog(page).getByLabel("Phone number").fill("+27 82 000 1234");
-    await dialog(page).getByLabel("Role").selectOption("Shift Supervisor");
+    await pick(dialog(page).getByLabel("Role"), "Shift Supervisor");
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText("Rights from the Shift Supervisor role")).toBeVisible();
     await expect(page.getByText("+27 82 000 1234")).toBeVisible();
@@ -151,7 +151,7 @@ test.describe("administration", () => {
     await expect(page.getByRole("button", { name: "More actions" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Reset password" })).toHaveCount(0);
     await page.getByRole("button", { name: "Edit details" }).click();
-    await dialog(page).getByLabel("Role").selectOption("Shift Supervisor");
+    await pick(dialog(page).getByLabel("Role"), "Shift Supervisor");
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText(/cannot change your own role/)).toBeVisible();
   });
@@ -161,7 +161,7 @@ test.describe("administration", () => {
     await page.getByRole("button", { name: "Add employee" }).click();
     await dialog(page).getByLabel("Full name").fill("Another Amina");
     await dialog(page).getByLabel("Work email address").fill("amina.patel@riverside.example");
-    await dialog(page).getByLabel("Role").selectOption("Field Employee");
+    await pick(dialog(page).getByLabel("Role"), "Field Employee");
     await dialog(page).getByRole("button", { name: "Add employee" }).click();
     await expect(page.getByText(/already has access/).first()).toBeVisible();
     await dialog(page).getByLabel("Work email address").fill("another.amina@riverside.example");

@@ -11,6 +11,8 @@ import { toDateTimeParts } from "@/lib/shift-format";
 import type { CrewInput, ShiftFormInput, WorkInput } from "./use-shift-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { Select } from "./select";
+import { DateInput, TimeInput } from "./date-fields";
 
 type Option = { id: string; name: string };
 
@@ -97,20 +99,20 @@ export function ShiftFormDialog({
           <input data-autofocus disabled={running} aria-invalid={Boolean(errors.name)} {...form.register("name")} />
         </Field>
         <Field label="Supervisor" hint="Needed before the shift can start.">
-          <select disabled={running} {...form.register("supervisor")}>
+          <Select disabled={running} {...form.register("supervisor")}>
             <option value="">Not assigned yet</option>
             {supervisors.map((person) => <option key={person.name} value={person.name}>{person.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Date" error={errors.date?.message}>
-          <input type="date" disabled={running} aria-invalid={Boolean(errors.date)} {...form.register("date")} />
+          <DateInput disabled={running} aria-invalid={Boolean(errors.date)} {...form.register("date")} />
         </Field>
         <div className="form-pair">
           <Field label="Starts" error={errors.start?.message}>
-            <input type="time" disabled={running} aria-invalid={Boolean(errors.start)} {...form.register("start")} />
+            <TimeInput disabled={running} aria-invalid={Boolean(errors.start)} {...form.register("start")} />
           </Field>
           <Field label="Ends" error={errors.end?.message}>
-            <input type="time" disabled={running} aria-invalid={Boolean(errors.end)} {...form.register("end")} />
+            <TimeInput disabled={running} aria-invalid={Boolean(errors.end)} {...form.register("end")} />
           </Field>
         </div>
         <p className="field-hint form-field--wide">Times are site time. If the end is before the start, the shift ends the next day.</p>
@@ -166,20 +168,20 @@ export function CrewDialog({
     >
       <form id="crew-form" className="form-grid" noValidate onSubmit={form.handleSubmit((values) => onSave({ name: values.name, duty: values.duty, equipmentId: values.equipmentId || null }))}>
         <Field label="Person" error={errors.name?.message} wide>
-          <select data-autofocus aria-invalid={Boolean(errors.name)} {...form.register("name")}>
+          <Select data-autofocus aria-invalid={Boolean(errors.name)} {...form.register("name")}>
             <option value="">Choose a person</option>
             {owners.filter((name) => !taken.has(name)).map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Duty" error={errors.duty?.message} wide>
           <input list="crew-duties" placeholder="For example, Excavator operator" aria-invalid={Boolean(errors.duty)} {...form.register("duty")} />
           <datalist id="crew-duties">{crewDuties.map((duty) => <option key={duty} value={duty} />)}</datalist>
         </Field>
         <Field label="Equipment (optional)" wide>
-          <select {...form.register("equipmentId")}>
+          <Select {...form.register("equipmentId")}>
             <option value="">None</option>
             {equipment.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </Field>
       </form>
     </Dialog>
@@ -231,7 +233,7 @@ export function WorkDialog({
     >
       <form id="work-form" className="form-grid" noValidate onSubmit={form.handleSubmit((values) => onSave({ title: values.title, owner: values.owner || null, issueId: values.issueId || null }))}>
         <Field label="Attach an open issue (optional)" hint="The task follows the issue, so it stays visible across shifts." wide>
-          <select
+          <Select
             {...form.register("issueId", {
               onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
                 const issue = available.find((item) => item.id === event.target.value);
@@ -242,16 +244,16 @@ export function WorkDialog({
           >
             <option value="">No issue</option>
             {available.map((issue) => <option key={issue.id} value={issue.id}>{issue.issueNumber} · {issue.title}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="What needs doing" error={errors.title?.message} wide>
           <input data-autofocus aria-invalid={Boolean(errors.title)} {...form.register("title")} />
         </Field>
         <Field label="Who does it" wide>
-          <select {...form.register("owner")}>
+          <Select {...form.register("owner")}>
             <option value="">Not assigned yet</option>
             {owners.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
       </form>
     </Dialog>

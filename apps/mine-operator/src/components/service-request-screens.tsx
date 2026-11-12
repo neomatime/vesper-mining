@@ -18,6 +18,8 @@ import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useCreateServiceRequest, useProviders, useRequestMutations, useServiceRequest } from "./use-service";
+import { Select } from "./select";
+import { DateInput } from "./date-fields";
 
 function useEquipment(id: string) {
   return useQuery({ queryKey: ["equipment", id], queryFn: () => demoFetch<EquipmentView>(`/equipment/${id}`) });
@@ -82,13 +84,13 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
               </Field>
               <Field label="Details for the provider" wide><textarea rows={4} {...form.register("description")} /></Field>
               <Field label="Urgency">
-                <select {...form.register("urgency")}>
+                <Select {...form.register("urgency")}>
                   <option value="routine">Routine</option>
                   <option value="urgent">Urgent</option>
                   <option value="critical">Critical</option>
-                </select>
+                </Select>
               </Field>
-              <Field label="Preferred date"><input type="date" {...form.register("preferredDate")} /></Field>
+              <Field label="Preferred date"><DateInput {...form.register("preferredDate")} /></Field>
             </div>
             {plan ? <p className="card-note">This request is linked to the maintenance plan “{plan.name}”. Completing it resets that plan.</p> : null}
           </section>

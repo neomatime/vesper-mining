@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { actAs, openAs } from "./support";
+import { actAs, openAs, pick } from "./support";
 
 test.describe("shift management", () => {
   test.skip(({ isMobile }) => isMobile, "Shift management is exercised on the desktop layout.");
@@ -10,7 +10,7 @@ test.describe("shift management", () => {
     await page.getByRole("button", { name: "Create shift" }).click();
     await expect(dialog(page).getByLabel("Shift name")).toHaveValue("Shift C");
     await expect(dialog(page).getByLabel("Date")).toHaveValue("2025-04-24");
-    await dialog(page).getByLabel("Supervisor").selectOption(supervisor);
+    await pick(dialog(page).getByLabel("Supervisor"), supervisor);
     if (briefing) await dialog(page).getByLabel(/Briefing/).fill("Heavy rain is forecast after midnight.");
     await dialog(page).getByRole("button", { name: "Create shift" }).click();
   }
@@ -23,14 +23,14 @@ test.describe("shift management", () => {
     await expect(page.getByText("Heavy rain is forecast after midnight.")).toBeVisible();
 
     await page.getByRole("button", { name: "Add crew" }).click();
-    await dialog(page).getByLabel("Person").selectOption("Thabo Molefe");
+    await pick(dialog(page).getByLabel("Person"), "Thabo Molefe");
     await dialog(page).getByLabel("Duty").fill("Drill operator");
-    await dialog(page).getByLabel("Equipment (optional)").selectOption({ label: "Track Dozer DZ-017" });
+    await pick(dialog(page).getByLabel("Equipment (optional)"), { label: "Track Dozer DZ-017" });
     await dialog(page).getByRole("button", { name: "Add to shift" }).click();
     await expect(page.getByText("Drill operator · Track Dozer DZ-017")).toBeVisible();
 
     await page.getByRole("button", { name: "Add work" }).click();
-    await dialog(page).getByLabel(/Attach an open issue/).selectOption({ index: 1 });
+    await pick(dialog(page).getByLabel(/Attach an open issue/), { index: 1 });
     await expect(dialog(page).getByLabel("What needs doing")).toHaveValue(/Follow up:/);
     await dialog(page).getByRole("button", { name: "Add work" }).click();
     await expect(page.getByText("Follow up: Crusher C-02 — Feed Interruption", { exact: true })).toBeVisible();

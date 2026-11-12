@@ -12,6 +12,8 @@ import { useOwners } from "./use-directory";
 import type { ActionInput, DependencyInput, IssueDetailsInput } from "./use-issue-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { Select } from "./select";
+import { DateTimeInput } from "./date-fields";
 
 type Option = { id: string; name: string };
 
@@ -106,27 +108,27 @@ export function EditIssueDialog({
           <textarea rows={4} aria-invalid={Boolean(errors.description)} {...form.register("description")} />
         </Field>
         <Field label="Priority">
-          <select {...form.register("priority")}>
+          <Select {...form.register("priority")}>
             {priorities.map((value) => <option key={value} value={value}>{value.charAt(0).toUpperCase() + value.slice(1)}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Accountable owner" hint={canAssign ? "One person is accountable. Contributors own separate actions." : "Only a Shift Supervisor or Mine Manager can change the owner."}>
-          <select disabled={!canAssign} {...form.register("owner")}>
+          <Select disabled={!canAssign} {...form.register("owner")}>
             <option value="">No owner yet</option>
             {owners.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Equipment">
-          <select {...form.register("equipmentId")}>
+          <Select {...form.register("equipmentId")}>
             <option value="">No equipment</option>
             {equipment.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Operating area">
-          <select {...form.register("areaId")}>
+          <Select {...form.register("areaId")}>
             <option value="">No area</option>
             {areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </Field>
       </form>
     </Dialog>
@@ -191,19 +193,19 @@ export function ActionDialog({
           <input data-autofocus placeholder="For example, confirm the filter kit is in stock" aria-invalid={Boolean(errors.title)} {...form.register("title")} />
         </Field>
         <Field label="Owner" error={errors.owner?.message}>
-          <select aria-invalid={Boolean(errors.owner)} {...form.register("owner")}>
+          <Select aria-invalid={Boolean(errors.owner)} {...form.register("owner")}>
             <option value="">Choose an owner</option>
             {owners.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Team" error={errors.team?.message}>
-          <select aria-invalid={Boolean(errors.team)} {...form.register("team")}>
+          <Select aria-invalid={Boolean(errors.team)} {...form.register("team")}>
             <option value="">Choose a team</option>
             {teams.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Deadline (site time)" hint={dueAt ? undefined : "No deadline set. This action will not count towards assignment."} wide>
-          <input type="datetime-local" {...form.register("dueAt")} />
+          <DateTimeInput {...form.register("dueAt")} />
         </Field>
       </form>
     </Dialog>
@@ -271,25 +273,25 @@ export function DependencyDialog({
           <textarea data-autofocus rows={3} aria-invalid={Boolean(errors.reason)} {...form.register("reason")} />
         </Field>
         <Field label="Kind" error={errors.kind?.message}>
-          <select aria-invalid={Boolean(errors.kind)} {...form.register("kind")}>
+          <Select aria-invalid={Boolean(errors.kind)} {...form.register("kind")}>
             <option value="">Choose a kind</option>
             {dependencyKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Who can clear it" error={errors.owner?.message}>
-          <select aria-invalid={Boolean(errors.owner)} {...form.register("owner")}>
+          <Select aria-invalid={Boolean(errors.owner)} {...form.register("owner")}>
             <option value="">Choose a person or team</option>
             {owners.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Blocks this action (optional)">
-          <select {...form.register("blockedActionId")}>
+          <Select {...form.register("blockedActionId")}>
             <option value="">The issue as a whole</option>
             {activeActions(issue).map((action) => <option key={action.id} value={action.id}>{action.title}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Review by (site time)" error={errors.reviewBy?.message}>
-          <input type="datetime-local" aria-invalid={Boolean(errors.reviewBy)} {...form.register("reviewBy")} />
+          <DateTimeInput aria-invalid={Boolean(errors.reviewBy)} {...form.register("reviewBy")} />
         </Field>
       </form>
     </Dialog>

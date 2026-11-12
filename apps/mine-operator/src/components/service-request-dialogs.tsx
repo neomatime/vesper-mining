@@ -5,6 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { DateInput } from "./date-fields";
 
 function Footer({ pending, onClose, form, label }: { pending: boolean; onClose: () => void; form: string; label: string }) {
   return (
@@ -30,7 +31,7 @@ export function ScheduleDialog({ current, pending, onSave, onClose }: { current:
       footer={<Footer pending={pending} onClose={onClose} form="schedule-form" label="Save booking" />}
     >
       <form id="schedule-form" className="form-grid" onSubmit={form.handleSubmit((values) => values.date && onSave(values.date))}>
-        <Field label="Date" wide><input data-autofocus type="date" required {...form.register("date")} /></Field>
+        <Field label="Date" wide><DateInput data-autofocus  required {...form.register("date")} /></Field>
         {!date ? <p className="form-note">Choose a date to continue.</p> : null}
       </form>
     </Dialog>

@@ -13,6 +13,7 @@ import { demoSend } from "@/lib/api";
 import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
 import { useToast } from "./toast-provider";
+import { Select } from "./select";
 
 const reportSchema = z.object({
   title: z.string().min(4, "Use at least four characters."),
@@ -95,7 +96,7 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
           </label>
           <label className="form-field">
             <span>Equipment</span>
-            <select
+            <Select
               {...form.register("equipmentId", {
                 onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
                   const chosen = equipmentOptions.find((item) => item.id === event.target.value);
@@ -105,23 +106,23 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
             >
               <option value="">No equipment selected</option>
               {equipmentOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="form-field">
             <span>Operating area</span>
-            <select {...form.register("areaId")}>
+            <Select {...form.register("areaId")}>
               <option value="">No area selected</option>
               {(shell?.areas ?? []).map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="form-field">
             <span>Priority</span>
-            <select {...form.register("priority")}>
+            <Select {...form.register("priority")}>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="critical">Critical</option>
-            </select>
+            </Select>
           </label>
           <label className="form-field form-field--wide">
             <span>Observed condition</span>

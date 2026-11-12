@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openAs } from "./support";
+import { openAs, pick } from "./support";
 
 test.describe("service providers and requests", () => {
   test.skip(({ isMobile }) => isMobile, "Service requests are exercised on the desktop layout.");
@@ -85,7 +85,7 @@ test.describe("service providers and requests", () => {
     await openAs(page, "/equipment/eq-crusher-c02", "Lebo Maseko");
     await page.getByRole("link", { name: /Request service/ }).first().click();
     await page.getByLabel("Work required").fill("500 hour inspection");
-    await page.getByLabel("Urgency").selectOption("urgent");
+    await pick(page.getByLabel("Urgency"), "Urgent");
     await page.getByRole("button", { name: "Send request" }).click();
     await expect(page.getByText(/at least one service provider/)).toBeVisible();
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();

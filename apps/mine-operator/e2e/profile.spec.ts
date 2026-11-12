@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_PASSWORD } from "../src/lib/accounts";
-import { openAs } from "./support";
+import { openAs, pick } from "./support";
 
 test.describe("profiles and rights", () => {
   test.skip(({ isMobile }) => isMobile, "Profiles are exercised on the desktop layout.");
@@ -76,7 +76,7 @@ test.describe("profiles and rights", () => {
     await expect(page.getByText("Rights from the Maintenance Planner role")).toBeVisible();
     await page.getByRole("button", { name: "Change role" }).click();
     await expect(dialog(page).getByRole("button", { name: "Change role" })).toBeDisabled();
-    await dialog(page).getByLabel("Role").selectOption("Field Employee");
+    await pick(dialog(page).getByLabel("Role"), "Field Employee");
     await expect(dialog(page).getByText(/Loses \(/)).toBeVisible();
     await expect(dialog(page).getByText("Add, edit, retire and delete equipment")).toBeVisible();
     await dialog(page).getByRole("button", { name: "Change role" }).click();

@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import { formatMoney, urgencyLabels } from "@/lib/service-rules";
 import { Field } from "./form-field";
 import { useProviderReply, useProviderRequest } from "./use-service";
+import { DateInput } from "./date-fields";
 
 type Values = { amount: string; reference: string; availableFrom: string; validUntil: string; notes: string; reason: string };
 
@@ -93,8 +94,8 @@ export function ProviderResponseScreen({ token }: { token: string }) {
           <form className="form-grid form-grid--card" noValidate onSubmit={send("quote")}>
             <Field label="Quoted amount (R)"><input inputMode="decimal" {...form.register("amount")} /></Field>
             <Field label="Your quote reference"><input {...form.register("reference")} /></Field>
-            <Field label="Can start from"><input type="date" {...form.register("availableFrom")} /></Field>
-            <Field label="Quote valid until"><input type="date" {...form.register("validUntil")} /></Field>
+            <Field label="Can start from"><DateInput {...form.register("availableFrom")} /></Field>
+            <Field label="Quote valid until"><DateInput {...form.register("validUntil")} /></Field>
             <Field label="Notes for the mine" wide><textarea rows={3} {...form.register("notes")} /></Field>
             {error ? <p className="signin__error form-field--wide" role="alert">{error}</p> : null}
             <div className="form-field--wide provider-page__actions">

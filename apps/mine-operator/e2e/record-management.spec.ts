@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { actAs, openAs } from "./support";
+import { actAs, openAs, pick } from "./support";
 
 test.describe("record management", () => {
   test.skip(({ isMobile }) => isMobile, "Record management is exercised on the desktop layout.");
@@ -30,17 +30,18 @@ test.describe("record management", () => {
     await expect(page.getByText("Select an accountable owner first.")).toBeVisible();
 
     await page.getByRole("button", { name: "Edit details" }).click();
-    await dialog(page).getByLabel(/Accountable owner/).selectOption("Lebo Maseko");
-    await dialog(page).getByLabel("Priority").selectOption("high");
+    await pick(dialog(page).getByLabel(/Accountable owner/), "Lebo Maseko");
+    await pick(dialog(page).getByLabel("Priority"), "High");
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
     await expect(dialog(page)).toBeHidden();
     await expect(page.getByText("Accountable owner set to Lebo Maseko")).toBeVisible();
 
     await page.getByRole("button", { name: "Add action" }).click();
     await dialog(page).getByLabel("What needs to happen").fill("Replace the hose and pressure test");
-    await dialog(page).getByLabel("Owner").selectOption("Lebo Maseko");
-    await dialog(page).getByLabel("Team").selectOption("Maintenance");
-    await dialog(page).getByLabel(/Deadline/).fill("2025-04-24T16:00");
+    await pick(dialog(page).getByLabel("Owner"), "Lebo Maseko");
+    await pick(dialog(page).getByLabel("Team"), "Maintenance");
+    await dialog(page).getByLabel(/Deadline/).fill("2025-04-24");
+    await dialog(page).getByLabel("Time (24-hour)").fill("16:00");
     await dialog(page).getByRole("button", { name: "Add action" }).click();
     await expect(page.getByText("Replace the hose and pressure test").first()).toBeVisible();
 

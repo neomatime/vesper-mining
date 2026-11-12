@@ -7,6 +7,7 @@ import { tiers } from "@/lib/personas";
 import { useDemoContext } from "@/stores/demo-context";
 import { useAccount } from "@/stores/session";
 import { useToast } from "./toast-provider";
+import { Select } from "./select";
 
 /** Controls for HIMARK when presenting. Not linked from the product. */
 export function DemoLauncher() {
@@ -33,9 +34,9 @@ export function DemoLauncher() {
 
         <label className="field">
           <span>Subscription shown to the client</span>
-          <select value={context.tier} onChange={(event) => setContext({ tier: event.target.value as typeof context.tier })}>
+          <Select value={context.tier} onChange={(event) => setContext({ tier: event.target.value as typeof context.tier })}>
             {tiers.map((tier) => <option key={tier.value} value={tier.value}>{tier.label}</option>)}
-          </select>
+          </Select>
         </label>
 
         <div className="console__actions">

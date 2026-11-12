@@ -10,6 +10,7 @@ import { levelLabels, rightsMatrix } from "@/lib/rights";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import type { MemberInput } from "./use-organisation";
+import { Select } from "./select";
 
 type Footer = { pending: boolean; onClose: () => void; form: string; label: string };
 
@@ -71,10 +72,10 @@ export function MemberDialog({
         <Field label="Phone number"><input type="tel" {...form.register("phone")} /></Field>
         <Field label="Employee number"><input {...form.register("employeeNumber")} /></Field>
         <Field label="Role" error={errors.role?.message} wide>
-          <select data-autofocus={nameLocked} aria-invalid={Boolean(errors.role)} {...form.register("role")}>
+          <Select data-autofocus={nameLocked} aria-invalid={Boolean(errors.role)} {...form.register("role")}>
             <option value="">Choose a role</option>
             {roleCatalogue.map((item) => <option key={item.role} value={item.role}>{item.role}</option>)}
-          </select>
+          </Select>
         </Field>
         <p className="form-note">{roleCatalogue.find((item) => item.role === chosenRole)?.scope ?? "A role decides what a person sees and what they can change."}</p>
       </form>
@@ -170,9 +171,9 @@ export function SiteDialog({ site, pending, onSave, onClose }: { site: SiteDetai
         <Field label="Commodity"><input {...form.register("commodity")} /></Field>
         <Field label="Location" wide><input {...form.register("location")} /></Field>
         <Field label="Time zone">
-          <select {...form.register("timezone")}>
+          <Select {...form.register("timezone")}>
             {(timezones.includes(site.timezone) ? timezones : [site.timezone, ...timezones]).map((zone) => <option key={zone} value={zone}>{zone}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Operating hours"><input {...form.register("operatingHours")} /></Field>
         <Field label="Site contact" wide><input {...form.register("siteContact")} /></Field>
@@ -207,9 +208,9 @@ export function ChangeRoleDialog({ member, pending, onSave, onClose }: { member:
     >
       <div className="form-grid">
         <Field label="Role" wide>
-          <select data-autofocus value={role} onChange={(event) => setRole(event.target.value)}>
+          <Select data-autofocus value={role} onChange={(event) => setRole(event.target.value)}>
             {roleCatalogue.map((item) => <option key={item.role} value={item.role}>{item.role}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
       {role === member.role ? (
