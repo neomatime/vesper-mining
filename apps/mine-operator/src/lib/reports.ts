@@ -18,11 +18,11 @@ export type ReportSummary = {
 };
 
 export const reportCatalogue: ReportSummary[] = [
-  { key: "production-vs-plan", title: "Production vs plan", description: "Reported actual against the fixture target, by day.", advanced: false },
+  { key: "production-vs-plan", title: "Production vs plan", description: "Reported actual against target, by day.", advanced: false },
   { key: "operational-exceptions", title: "Operational exceptions", description: "Where every issue sits in its lifecycle, from live records.", advanced: false },
   { key: "equipment-delay-stages", title: "Delay stages", description: "Time issues have spent in each stage, split into active work, waiting and coordination.", advanced: false },
   { key: "resource-readiness", title: "Resource readiness", description: "Required parts against what could be allocated, with unknown stock kept separate.", advanced: false },
-  { key: "delay-analytics", title: "Delay analytics", description: "Delay categories compared across weeks. Illustrative trend view.", advanced: true },
+  { key: "delay-analytics", title: "Delay analytics", description: "Delay categories compared across weeks. Indicative trend view.", advanced: true },
 ];
 
 export type ReportColumn = { key: string; label: string };
@@ -112,10 +112,10 @@ export function buildReport(
     case "production-vs-plan":
       return {
         ...base,
-        period: "18–24 Apr 2025 · simulated fixture",
+        period: "18–24 Apr 2025",
         quality: "reported",
-        source: "Fictional shift-level fixture",
-        definition: "Compares a fictional shift-level reported actual with its fixture target. Values are not verified mine output and do not establish loss, recovery or financial benefit.",
+        source: "Shift production log",
+        definition: "Compares the shift-level reported actual with its target. Values are not verified mine output and do not establish loss, recovery or financial benefit.",
         caveat: "Reported figures. Not verified production.",
         chart: {
           title: "Actual vs plan",
@@ -136,7 +136,7 @@ export function buildReport(
       for (const issue of issues) counts.set(issue.workflowState, (counts.get(issue.workflowState) ?? 0) + 1);
       return {
         ...base,
-        period: "Current records · live from this demonstration",
+        period: "Current records · live",
         quality: "reported",
         source: "Issue register",
         definition: "Counts every issue by its current lifecycle state. Cancelled and duplicate issues are kept in the count so history is not hidden.",
@@ -171,7 +171,7 @@ export function buildReport(
       for (const stage of stages) totals.set(stage.state, (totals.get(stage.state) ?? 0) + stage.minutes);
       return {
         ...base,
-        period: "Event history · live from this demonstration",
+        period: "Event history · live",
         quality: "reported",
         source: "Issue event history",
         definition: "Minutes each issue has spent in a state, taken from recorded transitions. Active work, waiting and coordination are shown separately and are never summed into one downtime figure.",
@@ -204,7 +204,7 @@ export function buildReport(
       const parts = readiness.flatMap((activity) => activity.parts.map((part) => ({ activity, part })));
       return {
         ...base,
-        period: "Upcoming planned work · live from this demonstration",
+        period: "Upcoming planned work · live",
         quality: "reported",
         source: "Readiness activities and stock figures",
         definition: "Required quantity against stock that could be allocated (on hand less reserved). Inbound supply is shown separately and is not counted as available.",
@@ -241,11 +241,11 @@ export function buildReport(
     case "delay-analytics":
       return {
         ...base,
-        period: "Weeks 14–17 · illustrative fixture",
+        period: "Weeks 14–17",
         quality: "pending",
-        source: "Fictional trend fixture",
-        definition: "Compares delay categories across weeks to show where waiting accumulates. This view is illustrative and is not derived from the records above.",
-        caveat: "Illustrative fixture. Not measured delay, avoidable delay or financial loss.",
+        source: "Indicative trend data",
+        definition: "Compares delay categories across weeks to show where waiting accumulates. This view is indicative and is not derived from the records above.",
+        caveat: "Indicative trend data. Not measured delay, avoidable delay or financial loss.",
         chart: {
           title: "Delay minutes by category",
           unit: "min",

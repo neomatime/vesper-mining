@@ -61,7 +61,7 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
       { label: "Report an issue", href: "/exceptions/new", icon: CirclePlus },
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
       { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention" },
-      { label: "Shift handover", href: "/shifts/shift-a-20250424/handover", icon: ShieldCheck },
+      { label: "Shift handover", href: "/shifts", icon: ShieldCheck },
     ],
   },
   {
@@ -91,7 +91,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { context, sidebarCollapsed, toggleSidebar } = useDemoContext();
-  const { counts } = useShellData();
+  const { counts, data: shellData } = useShellData();
+  const currentShift = shellData?.shifts.find((item) => item.state === "in_progress") ?? shellData?.shifts.find((item) => item.state === "scheduled");
   const isMobileExperience = pathname.startsWith("/mobile/");
   const mobileLocked = isMobileExperience && !entitlementsFor(context.tier).mobile;
 
@@ -128,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X /> : <Menu />}
           </button>
           <Link href="/overview" className="wordmark" aria-label="VESPER overview">
-            VESPER <span>v3.0</span>
+            VESPER
           </Link>
         </div>
 
@@ -142,9 +143,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="topbar__actions">
-          <div className="demo-pill" title="All sites, users, events and actions are fictional">
-            <span aria-hidden="true" /> DEMO / SIMULATED DATA
-          </div>
           <button className="search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search records and workspaces" aria-keyshortcuts="Control+K Meta+K">
             <Search aria-hidden="true" />
             <span>Search</span>
@@ -164,7 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <div className="sidebar__site-card">
             <div className="mine-thumbnail" aria-hidden="true"><span /></div>
-            {!sidebarCollapsed ? <div><strong>{context.siteName}</strong><small>Open Pit · Fictional</small></div> : null}
+            {!sidebarCollapsed ? <div><strong>{context.siteName}</strong><small>Open pit</small></div> : null}
           </div>
           <nav className="sidebar__nav" aria-label="Primary workspaces">
             {primaryNavigation.map((item) => {
@@ -181,7 +179,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {!sidebarCollapsed ? contextualNavigation.map((group) => (
             <div className="sidebar__group" key={group.label}>
               <p>{group.label}</p>
-              {group.items.map((item) => {
+              {group.items.map((rawItem) => {
+                const item = rawItem.label === "Shift handover" && currentShift ? { ...rawItem, href: `/shifts/${currentShift.id}/handover` } : rawItem;
                 const count = countFor(item);
                 return (
                   <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>

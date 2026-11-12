@@ -96,7 +96,7 @@ function ReadinessDetail({ activity }: { activity: ReadinessActivity }) {
       <PageHeader eyebrow="Maintenance-delay prevention" title={activity.title} description="Review required parts, information certainty, inbound supply and the next authorised human action." icon={PackageCheck} action={<StatusBadge value={activity.status} label={readinessLabels[activity.status]} />} />
       <section className="readiness-layout">
         <article className="card readiness-summary">
-          <div><span><CalendarClock /></span><small>Scheduled need</small><strong>{formatDemoDateTime(activity.scheduledFor).split(" · ")[0]} 2025</strong><p>Fixture date from the maintenance plan</p></div>
+          <div><span><CalendarClock /></span><small>Scheduled need</small><strong>{formatDemoDateTime(activity.scheduledFor).split(" · ")[0]} 2025</strong><p>From the maintenance plan</p></div>
           <div><span><Warehouse /></span><small>Readiness state</small><strong>{readinessLabels[activity.status]}</strong><p>Recalculated whenever stock figures change</p></div>
           <div><span><Truck /></span><small>Indicative order-by</small><strong>{orderBy ? formatDemoDateTime(orderBy).split(" · ")[0] + " 2025" : "Not needed"}</strong><p>{orderBy ? "Longest lead time plus a three-day buffer" : needsAttention ? "A lead time is missing, so no date can be given" : "Every part is covered"}</p></div>
         </article>
@@ -130,7 +130,7 @@ function ReadinessDetail({ activity }: { activity: ReadinessActivity }) {
               <strong>{decisions.find((item) => item.value === latest.decision)?.label}</strong>
               <p>{latest.note}</p>
               <small>{latest.reviewer} · {latest.role} · {formatDemoDateTime(latest.reviewedAt)}</small>
-              <div className="inline-success"><CheckCircle2 /> Demo review only · no order placed</div>
+              <div className="inline-success"><CheckCircle2 /> Review recorded · no order placed</div>
             </div>
           ) : (
             <p>Confirm the maintenance scope, stores evidence and supplier lead time before any external procurement process.</p>

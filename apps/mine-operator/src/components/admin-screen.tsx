@@ -1,136 +1,298 @@
 "use client";
 
-import { Check, Minus, Settings2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import type { Member } from "@vesper/api-contracts";
+import { Check, Minus, Pencil, Plus, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { formatDemoDateTime } from "@/lib/demo-clock";
 import { entitlementRows, entitlementsFor } from "@/lib/entitlements";
-import { initials, personas, tierLabel, tiers } from "@/lib/personas";
+import { canManageOrganisation, memberStatusLabels, roleInfo } from "@/lib/organisation-rules";
+import { initials, tierLabel } from "@/lib/personas";
 import { useDemoContext } from "@/stores/demo-context";
+import { CompanyDialog, MemberDialog, SiteDialog } from "./admin-dialogs";
+import { ConfirmDialog } from "./dialog";
 import { PageHeader } from "./page-header";
+import { LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
-import { useToast } from "./toast-provider";
+import { useOrganisation, useOrganisationMutations } from "./use-organisation";
 
 const integrations = [
-  { name: "Maintenance system (CMMS)", detail: "Work-order references are simulated and read-only." },
-  { name: "Stores and inventory", detail: "Stock figures are entered by hand in this demonstration." },
-  { name: "Equipment telemetry and GPS", detail: "Positions on the map are illustrative, not live." },
-  { name: "Identity and single sign-on", detail: "Personas are fictional. No customer sign-in exists." },
+  { name: "Maintenance system", detail: "Work-order references are entered by hand." },
+  { name: "Stores and inventory", detail: "Stock figures are entered by hand." },
+  { name: "Equipment telemetry and GPS", detail: "Positions on the map are indicative." },
+  { name: "Single sign-on", detail: "People sign in with a work email address and password." },
   { name: "Procurement and payments", detail: "Nothing can be ordered, approved or paid from VESPER." },
 ];
 
+const tabs = [
+  { key: "people", label: "People" },
+  { key: "site", label: "Site" },
+  { key: "company", label: "Company" },
+  { key: "plan", label: "Plan and usage" },
+  { key: "connections", label: "Connections" },
+] as const;
+
+type TabKey = (typeof tabs)[number]["key"];
+
+const statusTone = { active: "complete", invited: "pending", deactivated: "unknown" } as const;
+const statusOrder = { active: 0, invited: 1, deactivated: 2 } as const;
+
+type Pending =
+  | { kind: "off"; member: Member }
+  | { kind: "withdraw"; member: Member }
+  | null;
+
 export function AdminScreen() {
-  const router = useRouter();
-  const toast = useToast();
-  const { context, setContext } = useDemoContext();
+  const { context } = useDemoContext();
+  const { data, isPending } = useOrganisation();
+  const actions = useOrganisationMutations();
+  const [tab, setTab] = useState<TabKey>("people");
+  const [inviting, setInviting] = useState(false);
+  const [editing, setEditing] = useState<Member | null>(null);
+  const [editingSite, setEditingSite] = useState(false);
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [confirm, setConfirm] = useState<Pending>(null);
+
   const plan = entitlementsFor(context.tier);
-  const canChangePlan = context.role === "Mine Manager";
+  const canManage = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
 
-  const changeTier = (tier: (typeof tiers)[number]) => {
-    if (tier.value === context.tier) return;
-    const before = entitlementsFor(context.tier);
-    const after = entitlementsFor(tier.value);
-    const changes: string[] = [];
-    if (before.mobile !== after.mobile) changes.push(after.mobile ? "VESPER Mobile is now available" : "VESPER Mobile is no longer included");
-    if (before.advancedAnalytics !== after.advancedAnalytics) changes.push(after.advancedAnalytics ? "advanced analytics are now available" : "advanced analytics are no longer included");
-    setContext({ tier: tier.value });
-    toast.push({
-      title: `Subscription set to ${tier.label}`,
-      detail: changes.length ? `${changes.join(", ")}.` : "Features stay the same. Demonstration only.",
-    });
-  };
+  if (isPending || !data) {
+    return (
+      <div className="workspace-page">
+        <PageHeader eyebrow="Administration" title="Organisation" description="Your people, site and plan." icon={Settings2} />
+        <LoadingState />
+      </div>
+    );
+  }
 
-  const viewAs = (name: string, role: string, fieldOnly: boolean) => {
-    setContext({ persona: name, role });
-    router.push(fieldOnly ? "/mobile/my-shift" : "/overview");
-  };
+  const { members, company, site, activity } = data;
+  const people = [...members].sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.name.localeCompare(b.name));
+  const active = members.filter((member) => member.status === "active").length;
+  const invited = members.filter((member) => member.status === "invited").length;
+  const fieldUsers = members.filter((member) => member.status !== "deactivated" && roleInfo(member.role)?.fieldOnly).length;
 
   return (
     <div className="workspace-page">
-      <PageHeader eyebrow="Administration" title="Demonstration configuration" description="Review the fictional users, site access and subscription. Changing the subscription shows how features appear and disappear." icon={Settings2} />
+      <PageHeader
+        eyebrow="Administration"
+        title="Organisation"
+        description="Your people, site and plan."
+        icon={Settings2}
+        action={tab === "people" && canManage ? <button className="button button--primary" onClick={() => setInviting(true)}><Plus /> Invite person</button> : undefined}
+      />
 
-      <section className="kpi-row" aria-label="Configuration summary">
-        <article className="kpi"><span>Subscription</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
-        <article className="kpi"><span>Sites</span><strong>1 of {plan.sites.replace(/^Up to /, "").replace(" sites", "").replace(" site", "")}</strong><small>Riverside Mine is provisioned</small></article>
-        <article className="kpi"><span>Demonstration users</span><strong>{personas.length}</strong><small>All fictional</small></article>
-        <article className="kpi"><span>Live integrations</span><strong>0</strong><small>None are connected</small></article>
+      <section className="kpi-row" aria-label="Summary">
+        <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
+        <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
+        <article className="kpi"><span>People</span><strong>{active}</strong><small>{invited ? `${invited} invited` : "With access to VESPER"}</small></article>
       </section>
 
-      <section className="card detail-card" aria-labelledby="plan-heading">
-        <header className="card__header">
-          <div><span className="eyebrow">Feature access</span><h2 id="plan-heading">Subscription</h2></div>
-          <span>{canChangePlan ? "Select a plan to try it" : `Viewing as ${context.role}. The Mine Manager changes the plan.`}</span>
-        </header>
-        <div className="plan-grid" role="radiogroup" aria-label="Demonstration subscription">
-          {tiers.map((tier) => {
-            const selected = tier.value === context.tier;
-            return (
-              <button
-                key={tier.value}
-                role="radio"
-                aria-checked={selected}
-                disabled={!canChangePlan && !selected}
-                className={`plan ${selected ? "plan--selected" : ""}`}
-                onClick={() => changeTier(tier)}
-              >
-                <span className="plan__head"><strong>{tier.label}</strong>{selected ? <span className="plan__current"><Check /> Current</span> : null}</span>
-                <ul>
-                  {entitlementRows.map((row) => {
-                    const value = row.read(tier.value);
-                    const off = value === "Not included";
-                    return <li key={row.label} className={off ? "plan__off" : ""}>{off ? <Minus aria-hidden="true" /> : <Check aria-hidden="true" />}<span>{row.label}: {value}</span></li>;
-                  })}
-                </ul>
-              </button>
-            );
-          })}
-        </div>
-        <p className="card__footnote">These are demonstration entitlements for user-experience validation. They are not production billing or access control.</p>
-      </section>
+      {!canManage ? <p className="notice-line">Only the Mine Manager can change people, site and company details. You can see them here.</p> : null}
 
-      <section className="card detail-card" aria-labelledby="users-heading">
-        <header className="card__header"><div><span className="eyebrow">Fictional personas</span><h2 id="users-heading">Users and roles</h2></div></header>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th scope="col">Person</th><th scope="col">Role</th><th scope="col">Focus</th><th scope="col">Experience</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
-            <tbody>
-              {personas.map((persona) => {
-                const current = persona.name === context.persona;
-                return (
-                  <tr key={persona.name}>
-                    <td><span className="person"><span className="avatar avatar--small">{initials(persona.name)}</span><strong>{persona.name}</strong></span></td>
-                    <td>{persona.role}</td>
-                    <td>{persona.scope}</td>
-                    <td>{persona.fieldOnly ? "VESPER Mobile" : "Web and tablet"}</td>
-                    <td>{current ? <StatusBadge value="verified" label="Viewing now" /> : <button className="button button--quiet button--small" onClick={() => viewAs(persona.name, persona.role, persona.fieldOnly)}>View as {persona.name.split(" ")[0]}</button>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <div className="two-up">
-        <section className="card detail-card" aria-labelledby="site-heading">
-          <header className="card__header"><div><span className="eyebrow">Site access</span><h2 id="site-heading">Sites</h2></div></header>
-          <dl className="definition-grid definition-grid--single">
-            <div><dt>Provisioned</dt><dd>{context.siteName} · open pit · fictional</dd></div>
-            <div><dt>Allowance</dt><dd>{plan.sites} on {tierLabel(context.tier)}</dd></div>
-            <div><dt>Additional sites</dt><dd>Not provisioned in this demonstration</dd></div>
-          </dl>
-        </section>
-
-        <section className="card detail-card" aria-labelledby="integration-heading">
-          <header className="card__header"><div><span className="eyebrow">Out of scope for the prototype</span><h2 id="integration-heading">Integration boundaries</h2></div></header>
-          <ul className="work-list">
-            {integrations.map((item) => (
-              <li className="work-row" key={item.name}>
-                <div className="work-row__copy"><strong>{item.name}</strong><small>{item.detail}</small></div>
-                <StatusBadge value="unknown" label="Not connected" />
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="tabs" role="tablist" aria-label="Administration sections">
+        {tabs.map((item) => (
+          <button key={item.key} role="tab" id={`tab-${item.key}`} aria-selected={tab === item.key} aria-controls={`panel-${item.key}`} tabIndex={tab === item.key ? 0 : -1} className={tab === item.key ? "tab tab--active" : "tab"} onClick={() => setTab(item.key)}>
+            {item.label}
+          </button>
+        ))}
       </div>
+
+      {tab === "people" ? (
+        <div role="tabpanel" id="panel-people" aria-labelledby="tab-people" className="admin-panel">
+          <section className="card detail-card" aria-labelledby="people-heading">
+            <header className="card__header"><div><span className="eyebrow">Access</span><h2 id="people-heading">People and roles</h2></div></header>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr><th scope="col">Person</th><th scope="col">Role</th><th scope="col">Experience</th><th scope="col">Access</th><th scope="col">Last signed in</th>{canManage ? <th scope="col"><span className="visually-hidden">Actions</span></th> : null}</tr>
+                </thead>
+                <tbody>
+                  {people.map((member) => {
+                    const self = member.name === context.persona;
+                    return (
+                      <tr key={member.id} className={member.status === "deactivated" ? "row--muted" : ""}>
+                        <td><span className="person"><span className="avatar avatar--small">{initials(member.name)}</span><span className="cell-main"><strong>{member.name}{self ? " (you)" : ""}</strong><small>{member.email}</small></span></span></td>
+                        <td>{member.role}</td>
+                        <td>{roleInfo(member.role)?.fieldOnly ? "VESPER Mobile" : "Web and tablet"}</td>
+                        <td><StatusBadge value={statusTone[member.status]} label={memberStatusLabels[member.status]} /></td>
+                        <td>{member.lastSignInAt ? formatDemoDateTime(member.lastSignInAt) : <span className="muted">Not yet</span>}</td>
+                        {canManage ? (
+                          <td className="row-actions">
+                            <button className="button button--quiet button--small" aria-label={`Edit ${member.name}`} onClick={() => setEditing(member)}><Pencil /> Edit</button>
+                            {member.status === "invited" ? (
+                              <>
+                                <button className="button button--quiet button--small" aria-label={`Send the invitation to ${member.name} again`} disabled={actions.resend.isPending} onClick={() => actions.resend.mutate(member.id)}>Resend</button>
+                                <button className="button button--quiet button--small" aria-label={`Withdraw the invitation for ${member.name}`} onClick={() => setConfirm({ kind: "withdraw", member })}>Withdraw</button>
+                              </>
+                            ) : null}
+                            {member.status === "active" && !self ? <button className="button button--quiet button--small" aria-label={`Turn off access for ${member.name}`} onClick={() => setConfirm({ kind: "off", member })}>Turn off</button> : null}
+                            {member.status === "deactivated" ? <button className="button button--quiet button--small" aria-label={`Restore access for ${member.name}`} disabled={actions.setAccess.isPending} onClick={() => actions.setAccess.mutate({ id: member.id, access: "on" })}>Restore</button> : null}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card detail-card" aria-labelledby="activity-heading">
+            <header className="card__header"><div><span className="eyebrow">Record</span><h2 id="activity-heading">Recent changes</h2></div></header>
+            {activity.length === 0 ? (
+              <p className="empty-line">Changes to people, site and company details will be listed here.</p>
+            ) : (
+              <ul className="work-list">
+                {activity.slice(0, 8).map((event) => (
+                  <li className="work-row" key={event.id}>
+                    <div className="work-row__copy"><strong>{event.summary}</strong><small>{event.actor} · {formatDemoDateTime(event.at)}</small></div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+      {tab === "site" ? (
+        <div role="tabpanel" id="panel-site" aria-labelledby="tab-site" className="admin-panel">
+          <section className="card detail-card" aria-labelledby="site-heading">
+            <header className="card__header">
+              <div><span className="eyebrow">Site</span><h2 id="site-heading">{site.name}</h2></div>
+              {canManage ? <button className="button button--quiet" onClick={() => setEditingSite(true)}><Pencil /> Edit site</button> : null}
+            </header>
+            <dl className="definition-grid">
+              <div><dt>Mine type</dt><dd>{site.type || "—"}</dd></div>
+              <div><dt>Commodity</dt><dd>{site.commodity || "—"}</dd></div>
+              <div><dt>Location</dt><dd>{site.location || "—"}</dd></div>
+              <div><dt>Time zone</dt><dd>{site.timezone || "—"}</dd></div>
+              <div><dt>Operating hours</dt><dd>{site.operatingHours || "—"}</dd></div>
+              <div><dt>Site contact</dt><dd>{site.siteContact || "—"}</dd></div>
+            </dl>
+          </section>
+        </div>
+      ) : null}
+
+      {tab === "company" ? (
+        <div role="tabpanel" id="panel-company" aria-labelledby="tab-company" className="admin-panel">
+          <section className="card detail-card" aria-labelledby="company-heading">
+            <header className="card__header">
+              <div><span className="eyebrow">Company</span><h2 id="company-heading">{company.name}</h2></div>
+              {canManage ? <button className="button button--quiet" onClick={() => setEditingCompany(true)}><Pencil /> Edit company</button> : null}
+            </header>
+            <dl className="definition-grid">
+              <div><dt>Industry</dt><dd>{company.industry || "—"}</dd></div>
+              <div><dt>Registration number</dt><dd>{company.registration || "—"}</dd></div>
+              <div><dt>Address</dt><dd>{company.address || "—"}</dd></div>
+              <div><dt>Primary contact</dt><dd>{company.contactName || "—"}</dd></div>
+              <div><dt>Contact email</dt><dd>{company.contactEmail || "—"}</dd></div>
+              <div><dt>Contact phone</dt><dd>{company.contactPhone || "—"}</dd></div>
+            </dl>
+          </section>
+        </div>
+      ) : null}
+
+      {tab === "plan" ? (
+        <div role="tabpanel" id="panel-plan" aria-labelledby="tab-plan" className="admin-panel">
+          <div className="two-up">
+            <section className="card detail-card" aria-labelledby="plan-heading">
+              <header className="card__header"><div><span className="eyebrow">Your plan</span><h2 id="plan-heading">{tierLabel(context.tier)}</h2></div></header>
+              <ul className="plan-list">
+                {entitlementRows.map((row) => {
+                  const value = row.read(context.tier);
+                  const off = value === "Not included";
+                  return (
+                    <li key={row.label} className={off ? "plan__off" : ""}>
+                      {off ? <Minus aria-hidden="true" /> : <Check aria-hidden="true" />}
+                      <span>{row.label}</span>
+                      <strong>{value}</strong>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="card-note">To change your plan, speak to your HIMARK account manager.</p>
+            </section>
+
+            <section className="card detail-card" aria-labelledby="usage-heading">
+              <header className="card__header"><div><span className="eyebrow">Usage</span><h2 id="usage-heading">What you are using</h2></div></header>
+              <ul className="plan-list">
+                <li><Check aria-hidden="true" /><span>Sites</span><strong>1 in use · {plan.sites} included</strong></li>
+                <li><Check aria-hidden="true" /><span>People with access</span><strong>{active}{invited ? ` · ${invited} invited` : ""}</strong></li>
+                <li className={plan.mobile ? "" : "plan__off"}>{plan.mobile ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}<span>VESPER Mobile users</span><strong>{plan.mobile ? fieldUsers : "Not included"}</strong></li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "connections" ? (
+        <div role="tabpanel" id="panel-connections" aria-labelledby="tab-connections" className="admin-panel">
+          <section className="card detail-card" aria-labelledby="integration-heading">
+            <header className="card__header"><div><span className="eyebrow">Connections</span><h2 id="integration-heading">Integrations</h2></div></header>
+            <ul className="work-list">
+              {integrations.map((item) => (
+                <li className="work-row" key={item.name}>
+                  <div className="work-row__copy"><strong>{item.name}</strong><small>{item.detail}</small></div>
+                  <StatusBadge value="unknown" label="Not connected" />
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      ) : null}
+
+      {inviting ? (
+        <MemberDialog
+          pending={actions.invite.isPending}
+          onClose={() => setInviting(false)}
+          onSave={(input) => actions.invite.mutate(input as { name: string; email: string; role: string }, { onSuccess: () => setInviting(false) })}
+        />
+      ) : null}
+      {editing ? (
+        <MemberDialog
+          member={editing}
+          pending={actions.updateMember.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(input) => actions.updateMember.mutate({ id: editing.id, version: editing.version, ...input }, { onSuccess: () => setEditing(null) })}
+        />
+      ) : null}
+      {editingSite ? (
+        <SiteDialog
+          site={site}
+          pending={actions.saveSite.isPending}
+          onClose={() => setEditingSite(false)}
+          onSave={(input) => actions.saveSite.mutate({ ...input, version: site.version }, { onSuccess: () => setEditingSite(false) })}
+        />
+      ) : null}
+      {editingCompany ? (
+        <CompanyDialog
+          company={company}
+          pending={actions.saveCompany.isPending}
+          onClose={() => setEditingCompany(false)}
+          onSave={(input) => actions.saveCompany.mutate({ ...input, version: company.version }, { onSuccess: () => setEditingCompany(false) })}
+        />
+      ) : null}
+      {confirm?.kind === "off" ? (
+        <ConfirmDialog
+          title={`Turn off access for ${confirm.member.name}?`}
+          body="They will no longer be able to sign in. Their name stays on the shifts, issues and equipment records they are part of, and you can restore access at any time."
+          confirmLabel="Turn off access"
+          tone="danger"
+          pending={actions.setAccess.isPending}
+          onClose={() => setConfirm(null)}
+          onConfirm={() => actions.setAccess.mutate({ id: confirm.member.id, access: "off" }, { onSettled: () => setConfirm(null) })}
+        />
+      ) : null}
+      {confirm?.kind === "withdraw" ? (
+        <ConfirmDialog
+          title={`Withdraw the invitation for ${confirm.member.name}?`}
+          body="The invitation is removed and they will not be able to sign in. You can invite them again later."
+          confirmLabel="Withdraw invitation"
+          tone="danger"
+          pending={actions.withdraw.isPending}
+          onClose={() => setConfirm(null)}
+          onConfirm={() => actions.withdraw.mutate(confirm.member.id, { onSettled: () => setConfirm(null) })}
+        />
+      ) : null}
     </div>
   );
 }

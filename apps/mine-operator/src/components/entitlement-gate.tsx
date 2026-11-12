@@ -33,10 +33,9 @@ export function EntitlementGate({ capability }: { capability: Capability }) {
         <div><dt>Included from</dt><dd>{tierThatIncludes(capability)}</dd></div>
       </dl>
       <div className="button-row">
-        <Link className="button button--primary" href="/admin">Compare subscriptions</Link>
+        <Link className="button button--primary" href="/admin">View your plan</Link>
         <Link className="button button--quiet" href="/overview">Back to Overview</Link>
       </div>
-      <small>This is a demonstration of feature access. It is not production billing or security.</small>
     </section>
   );
 }

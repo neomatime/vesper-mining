@@ -10,6 +10,7 @@ export type Persona = {
 export const personas: Persona[] = [
   { name: "John Dlamini", role: "Mine Manager", scope: "Management visibility", fieldOnly: false },
   { name: "Amina Patel", role: "Shift Supervisor", scope: "Shift control and handover", fieldOnly: false },
+  { name: "Sipho Nkosi", role: "Shift Supervisor", scope: "Shift control and handover", fieldOnly: false },
   { name: "Lebo Maseko", role: "Maintenance Planner", scope: "Equipment and readiness", fieldOnly: false },
   { name: "Naledi Khoza", role: "Stores / Inventory Controller", scope: "Parts and stock", fieldOnly: false },
   { name: "Thabo Molefe", role: "Field Employee", scope: "Field execution", fieldOnly: true },

@@ -33,7 +33,7 @@ export async function demoFetch<T>(path: string, init?: RequestInit): Promise<T>
   const payload = (await response.json()) as ApiEnvelope<T | { message?: string; code?: string }>;
   if (!response.ok) {
     const detail = typeof payload.data === "object" && payload.data !== null ? (payload.data as { message?: string; code?: string }) : {};
-    throw new ApiError(detail.message ?? "This demo action could not be completed.", response.status, detail.code);
+    throw new ApiError(detail.message ?? "That could not be completed.", response.status, detail.code);
   }
   return payload.data as T;
 }

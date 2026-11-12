@@ -18,6 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatStatus } from "@/lib/calculations";
+import { formatDay, shiftTimes } from "@/lib/shift-format";
 import { rankRecords, type SearchKind, type SearchRecord } from "@/lib/search";
 import { useShellData } from "./shell-data";
 
@@ -63,7 +64,8 @@ export function CommandSearch({ open, onClose }: { open: boolean; onClose: () =>
       });
     }
     for (const item of data?.equipment ?? []) {
-      live.push({ id: item.id, kind: "Equipment", title: item.name, subtitle: `${item.code} · ${item.area}`, href: `/equipment/${item.id}`, keywords: item.state });
+      if (item.retiredAt) continue;
+      live.push({ id: item.id, kind: "Equipment", title: item.name, subtitle: `${item.code} · ${item.areaName ?? "No area"}`, href: `/equipment/${item.id}`, keywords: `${item.state} ${item.category} ${item.makeModel ?? ""}` });
     }
     for (const area of data?.areas ?? []) {
       live.push({ id: area.id, kind: "Operating area", title: area.name, subtitle: formatStatus(area.status), href: "/map" });
@@ -72,7 +74,7 @@ export function CommandSearch({ open, onClose }: { open: boolean; onClose: () =>
       live.push({ id: activity.id, kind: "Readiness", title: activity.title, subtitle: formatStatus(activity.status), href: `/resources/${activity.id}` });
     }
     for (const shift of data?.shifts ?? []) {
-      live.push({ id: shift.id, kind: "Shift", title: shift.name, subtitle: `${shift.time} · ${shift.supervisor}`, href: `/shifts/${shift.id}` });
+      live.push({ id: shift.id, kind: "Shift", title: shift.name, subtitle: `${formatDay(shift.startsAt)} · ${shiftTimes(shift)} · ${shift.supervisor ?? "No supervisor"}`, href: `/shifts/${shift.id}` });
     }
     return [...live, ...workspaces];
   }, [data]);

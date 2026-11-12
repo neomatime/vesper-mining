@@ -57,7 +57,7 @@ export function ReportDetailScreen({ reportKey }: { reportKey: string }) {
                 <Tooltip cursor={{ fill: "rgba(22,134,91,0.06)" }} />
                 {chart.series.length > 1 ? <Legend /> : null}
                 {chart.series.map((series) => (
-                  <Bar key={series.key} name={series.label} dataKey={series.key} fill={series.color} stackId={chart.stacked ? "stack" : undefined} radius={chart.stacked ? 0 : [5, 5, 0, 0]} />
+                  <Bar key={series.key} name={series.label} dataKey={series.key} fill={series.color} stackId={chart.stacked ? "stack" : undefined} radius={chart.stacked ? 0 : [5, 5, 0, 0]} isAnimationActive={false} />
                 ))}
               </BarChart>
             </ResponsiveContainer>

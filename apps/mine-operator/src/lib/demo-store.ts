@@ -1,14 +1,27 @@
 import type {
   Action,
+  Company,
+  CrewMember,
+  Equipment,
+  EquipmentCategory,
+  EquipmentEvent,
+  MaintenancePlan,
+  ServiceEntry,
+  SiteDetails,
   DependencyKind,
   IssueAttachment,
   IssueEvent,
   IssueEventType,
   IssueDependency,
   IssueWorkflowState,
+  Member,
   OperationalIssue,
+  OrganisationEvent,
   ReadinessActivity,
   ReadinessDecision,
+  Shift,
+  ShiftEvent,
+  ShiftWork,
 } from "@vesper/api-contracts";
 import {
   areas,
@@ -20,7 +33,7 @@ import {
   secondaryIssue,
   shifts,
 } from "./demo-data";
-import { demoTimeAt } from "./demo-clock";
+import { demoTimeAt, formatDemoTime } from "./demo-clock";
 import {
   activeActions,
   canAct,
@@ -33,7 +46,31 @@ import {
   stateLabels,
   type Actor,
 } from "./issue-rules";
+import {
+  canActOnEquipment,
+  categories,
+  isValidCode,
+  mostUrgent,
+  normaliseCode,
+  planStatus,
+  type EquipmentCapability,
+  type EquipmentView,
+} from "./equipment-rules";
+import { FIXTURE_PASSWORD, type Account } from "./accounts";
+import { seedActivity, seedCompany, seedMembers, seedSite } from "./organisation-data";
+import { canManageOrganisation, homeFor, isLastManager, isValidEmail, normaliseEmail, roleNames } from "./organisation-rules";
 import { deriveReadinessStatus } from "./readiness-rules";
+import {
+  buildShiftTimes,
+  canActOnShift,
+  isLive,
+  peopleOn,
+  shiftHours,
+  shiftStateLabels,
+  shiftsOverlap,
+  type ShiftCapability,
+  type ShiftView,
+} from "./shift-rules";
 
 export class DemoError extends Error {
   constructor(
@@ -45,12 +82,11 @@ export class DemoError extends Error {
   }
 }
 
-const fail = (status: number, code: string, message: string): never => {
+function fail(status: number, code: string, message: string): never {
   throw new DemoError(status, code, message);
-};
+}
 
 type DemoNotification = (typeof notifications)[number] & { recipient: string | null };
-type Shift = (typeof shifts)[number];
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -63,14 +99,18 @@ const initialState = {
   readiness: [readinessActivity],
   equipment,
   shifts,
+  members: seedMembers,
+  company: seedCompany,
+  site: seedSite,
+  activity: seedActivity,
   notifications: notifications.map((item): DemoNotification => ({ ...item, recipient: null })),
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3 },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0 },
 };
 
 export type DemoDomainState = typeof initialState;
 
-const STORAGE_KEY = "vesper-demo-state-v1";
+const STORAGE_KEY = "vesper-demo-state-v3";
 
 /** Keeps the fictional records across a page refresh in this tab. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -79,7 +119,8 @@ function loadState(): DemoDomainState | null {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    return Array.isArray(parsed.issues) && typeof parsed.clock === "number" ? (parsed as DemoDomainState) : null;
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Boolean(parsed.company) && Boolean(parsed.site);
+    return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
   }
@@ -190,6 +231,268 @@ function requireText(value: unknown, label: string, min = 3) {
   return result;
 }
 
+// ---- Equipment helpers ---------------------------------------------------------------------
+
+function findEquipment(id: string) {
+  return state.equipment.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This equipment could not be found.");
+}
+
+function assertEquipmentCan(capability: EquipmentCapability, actor: Actor) {
+  const check = canActOnEquipment(capability, actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
+}
+
+function assertEquipmentVersion(item: Equipment, version: number | undefined) {
+  if (version !== undefined && version !== item.version) {
+    fail(409, "VERSION_CONFLICT", "This equipment changed while you were editing. Reload to see the latest version, then try again.");
+  }
+}
+
+function assertActiveEquipment(item: Equipment) {
+  if (item.retiredAt) fail(409, "READ_ONLY", "Retired equipment is read-only. Restore it to make changes.");
+}
+
+function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: string, at: string, note?: string | null): EquipmentEvent {
+  return {
+    id: nextId("equipmentEvent", "eqev"),
+    type,
+    summary,
+    actor: actor.name,
+    actorRole: actor.role,
+    occurredAt: at,
+    note: note?.trim() || null,
+  };
+}
+
+function recordEquipment(item: Equipment, actor: Actor, event: { type: EquipmentEvent["type"]; summary: string; note?: string | null }) {
+  const at = tick();
+  item.events = [...item.events, equipmentEvent(actor, event.type, event.summary, at, event.note)];
+  item.version += 1;
+}
+
+function optionalNumber(value: unknown, label: string, bounds: { min?: number; max?: number; exclusiveMin?: boolean }) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) fail(400, "VALIDATION_ERROR", `${label} must be a number.`);
+  if (bounds.min !== undefined && (bounds.exclusiveMin ? parsed <= bounds.min : parsed < bounds.min)) {
+    fail(400, "VALIDATION_ERROR", `${label} must be ${bounds.exclusiveMin ? "more than" : "at least"} ${bounds.min}.`);
+  }
+  if (bounds.max !== undefined && parsed > bounds.max) fail(400, "VALIDATION_ERROR", `${label} must be ${bounds.max} or less.`);
+  return parsed;
+}
+
+function checkedCode(value: unknown, selfId?: string) {
+  const code = normaliseCode(text(value));
+  if (!isValidCode(code)) fail(400, "VALIDATION_ERROR", "Use 2 to 14 letters, numbers or hyphens for the asset code, for example EX-204.");
+  if (state.equipment.some((item) => item.code === code && item.id !== selfId)) {
+    fail(409, "DUPLICATE_CODE", `The code ${code} is already used by another piece of equipment.`);
+  }
+  return code;
+}
+
+function checkedCategory(value: unknown): EquipmentCategory {
+  if (!categories.includes(value as EquipmentCategory)) fail(400, "VALIDATION_ERROR", "Choose a category.");
+  return value as EquipmentCategory;
+}
+
+function checkedArea(value: unknown) {
+  const areaId = typeof value === "string" && value ? value : null;
+  if (areaId && !state.areas.some((area) => area.id === areaId)) fail(400, "VALIDATION_ERROR", "Choose an area from the site.");
+  return areaId;
+}
+
+function checkedPlan(input: Record<string, unknown>, item: Equipment): Omit<MaintenancePlan, "id"> {
+  const name = requireText(input.name, "The plan name", 3);
+  if (input.basis !== "hours" && input.basis !== "days") fail(400, "VALIDATION_ERROR", "Choose whether the plan is by operating hours or by days.");
+  const interval = optionalNumber(input.interval, "The interval", { min: 0, exclusiveMin: true });
+  if (interval === null) fail(400, "VALIDATION_ERROR", "Enter the interval between services.");
+
+  if (input.basis === "hours") {
+    const last = optionalNumber(input.lastServiceHours, "Hours at the last service", { min: 0 });
+    if (last !== null && item.hours !== null && last > item.hours) {
+      fail(400, "VALIDATION_ERROR", `The last service cannot be above the current reading of ${item.hours.toLocaleString("en-GB")} hours.`);
+    }
+    return { name, basis: "hours", interval, lastServiceHours: last, lastServiceAt: null };
+  }
+
+  const lastAt = typeof input.lastServiceAt === "string" && input.lastServiceAt ? input.lastServiceAt : null;
+  if (lastAt && (Number.isNaN(Date.parse(lastAt)) || Date.parse(lastAt) > Date.parse(now()) + 60_000)) {
+    fail(400, "VALIDATION_ERROR", "Enter a valid date for the last service, not in the future.");
+  }
+  return { name, basis: "days", interval, lastServiceHours: null, lastServiceAt: lastAt };
+}
+
+/** Why a piece of equipment cannot be retired yet. */
+function equipmentBlockers(item: Equipment) {
+  const blockers: string[] = [];
+  const open = state.issues.filter((issue) => issue.equipmentId === item.id && isOpen(issue));
+  if (open.length) blockers.push(`${open.length} open ${open.length === 1 ? "issue" : "issues"} (${open.map((issue) => issue.issueNumber).join(", ")})`);
+  const upcoming = state.readiness.filter((activity) => activity.equipmentId === item.id && activity.status !== "ready");
+  if (upcoming.length) blockers.push(`${upcoming.length} upcoming maintenance ${upcoming.length === 1 ? "activity" : "activities"} not yet ready`);
+  return blockers;
+}
+
+function presentEquipment(item: Equipment): EquipmentView {
+  const current = now();
+  const maintenance = item.plans.map((plan) => planStatus(plan, item, current));
+  return {
+    ...item,
+    services: [...item.services].sort((a, b) => Date.parse(b.performedAt) - Date.parse(a.performedAt)),
+    areaName: state.areas.find((area) => area.id === item.areaId)?.name ?? null,
+    maintenance,
+    nextService: mostUrgent(maintenance),
+    linkedIssues: state.issues
+      .filter((issue) => issue.equipmentId === item.id)
+      .map((issue) => ({ id: issue.id, issueNumber: issue.issueNumber, title: issue.title, workflowState: issue.workflowState, open: isOpen(issue) })),
+    readiness: state.readiness
+      .filter((activity) => activity.equipmentId === item.id)
+      .map((activity) => ({ id: activity.id, title: activity.title, status: activity.status, scheduledFor: activity.scheduledFor })),
+  };
+}
+
+// ---- Shift helpers -------------------------------------------------------------------------
+
+const byStart = (a: Shift, b: Shift) => Date.parse(a.startsAt) - Date.parse(b.startsAt);
+
+function findShift(id: string): Shift {
+  return state.shifts.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This shift could not be found.");
+}
+
+function assertShiftCan(capability: ShiftCapability, actor: Actor, shift?: Shift, next?: ReturnType<typeof presentShift>["next"]) {
+  const check = canActOnShift(capability, actor, shift, next);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
+}
+
+function assertShiftVersion(shift: Shift, version: number | undefined) {
+  if (version !== undefined && version !== shift.version) {
+    fail(409, "VERSION_CONFLICT", "This shift changed while you were editing. Reload to see the latest version, then try again.");
+  }
+}
+
+function assertShiftLive(shift: Shift) {
+  if (!isLive(shift)) fail(409, "READ_ONLY", `${shiftStateLabels[shift.state]} shifts are read-only history.`);
+}
+
+function shiftEvent(actor: Actor, type: ShiftEvent["type"], summary: string, at: string, note?: string | null): ShiftEvent {
+  return {
+    id: nextId("shiftEvent", "shev"),
+    type,
+    summary,
+    actor: actor.name,
+    actorRole: actor.role,
+    occurredAt: at,
+    note: note?.trim() || null,
+  };
+}
+
+function recordShift(shift: Shift, actor: Actor, event: { type: ShiftEvent["type"]; summary: string; note?: string | null }) {
+  const at = tick();
+  shift.events = [...shift.events, shiftEvent(actor, event.type, event.summary, at, event.note)];
+  shift.version += 1;
+}
+
+function checkedShiftTimes(input: Record<string, unknown>) {
+  const date = text(input.date);
+  const start = text(input.start);
+  const end = text(input.end);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(400, "VALIDATION_ERROR", "Choose the date of the shift.");
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) fail(400, "VALIDATION_ERROR", "Enter the start and end times.");
+  const times = buildShiftTimes(date, start, end);
+  if (Number.isNaN(Date.parse(times.startsAt)) || Number.isNaN(Date.parse(times.endsAt))) fail(400, "VALIDATION_ERROR", "Enter a valid date and times.");
+  const hours = shiftHours(times);
+  if (hours < 1 || hours > 16) fail(400, "VALIDATION_ERROR", "A shift runs between 1 and 16 hours.");
+  return times;
+}
+
+/** People who can own work: everyone with access, plus the contractor team. */
+function ownerNames() {
+  return [...state.members.filter((member) => member.status !== "deactivated").map((member) => member.name), "OreTech Services"];
+}
+
+function checkedSupervisor(value: unknown) {
+  const name = typeof value === "string" && value ? value : null;
+  if (name && !state.members.some((person) => person.name === name && person.status !== "deactivated" && (person.role === "Shift Supervisor" || person.role === "Mine Manager"))) {
+    fail(400, "VALIDATION_ERROR", "A supervisor must be a Shift Supervisor or the Mine Manager.");
+  }
+  return name;
+}
+
+function assertNoOverlap(times: { startsAt: string; endsAt: string }, selfId?: string) {
+  const clash = state.shifts.find((item) => item.id !== selfId && item.state !== "cancelled" && shiftsOverlap(item, times));
+  if (clash) {
+    fail(409, "OVERLAP", `This overlaps ${clash.name} (${formatDemoTime(clash.startsAt)}–${formatDemoTime(clash.endsAt)}). Shifts on the same site cannot overlap.`);
+  }
+}
+
+/** A person cannot be on two shifts at the same time. */
+function assertPeopleFree(people: string[], times: { startsAt: string; endsAt: string }, selfId?: string) {
+  for (const other of state.shifts) {
+    if (other.id === selfId || other.state === "cancelled" || !shiftsOverlap(other, times)) continue;
+    const busy = people.find((person) => peopleOn(other).includes(person));
+    if (busy) fail(409, "DOUBLE_BOOKED", `${busy} is already on ${other.name} (${formatDemoTime(other.startsAt)}–${formatDemoTime(other.endsAt)}).`);
+  }
+}
+
+function presentShift(shift: Shift): ShiftView {
+  const issues = state.issues.filter(isOpen).map(present);
+  const unresolved = issues.length + issues.reduce((total, issue) => total + openDependencies(issue).length, 0);
+  const live = [...state.shifts].filter((item) => item.state !== "cancelled").sort(byStart);
+  const index = live.findIndex((item) => item.id === shift.id);
+  const next = index >= 0 ? live[index + 1] : undefined;
+  const previous = index > 0 ? live[index - 1] : undefined;
+  return {
+    ...shift,
+    unresolved: shift.state === "cancelled" ? 0 : unresolved,
+    issues: shift.state === "cancelled" ? [] : issues,
+    next: next ? { id: next.id, name: next.name, supervisor: next.supervisor } : null,
+    previous: previous ? { id: previous.id, name: previous.name } : null,
+  };
+}
+
+// ---- Organisation helpers -----------------------------------------------------------------
+function assertOrganisationManager(actor: Actor) {
+  const check = canManageOrganisation(actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "Not permitted.");
+}
+
+function findMember(id: string) {
+  return state.members.find((member) => member.id === id) ?? fail(404, "NOT_FOUND", "This person could not be found.");
+}
+
+function assertRecordVersion(record: { version: number }, version: number | undefined) {
+  if (version !== undefined && version !== record.version) fail(409, "VERSION_CONFLICT", "This was changed by someone else. Reload to see the latest.");
+}
+
+function checkedRole(value: unknown) {
+  const role = text(value);
+  if (!roleNames.includes(role)) fail(400, "VALIDATION_ERROR", "Choose a role from the list.");
+  return role;
+}
+
+function checkedEmail(value: unknown, selfId?: string) {
+  const email = normaliseEmail(text(value));
+  if (!isValidEmail(email)) fail(400, "VALIDATION_ERROR", "Enter a valid work email address.");
+  if (state.members.some((member) => member.id !== selfId && member.email === email)) fail(409, "DUPLICATE_EMAIL", "Someone with this email address already has access.");
+  return email;
+}
+
+function logOrganisation(actor: Actor, summary: string) {
+  const entry: OrganisationEvent = { id: nextId("activity", "org"), at: tick(), actor: actor.name, summary };
+  state.activity = [entry, ...state.activity].slice(0, 50);
+}
+
+function touch<T extends { version: number }>(record: T) {
+  record.version += 1;
+  return record;
+}
+
+export type OrganisationView = {
+  members: Member[];
+  company: Company;
+  site: SiteDetails;
+  activity: OrganisationEvent[];
+};
+
 export const demoDomain = {
   get: () => state,
   now,
@@ -228,7 +531,7 @@ export const demoDomain = {
       owner: null,
       reportedAt: at,
       updatedAt: at,
-      source: { label: "Simulated VESPER issue report", observedAt: at, quality: "reported" },
+      source: { label: "VESPER issue report", observedAt: at, quality: "reported" },
       actions: [],
       version: 1,
       resolutionReportedBy: null,
@@ -615,57 +918,673 @@ export const demoDomain = {
     return activity;
   },
 
+  // ---- Equipment -------------------------------------------------------------------------
+  listEquipment: () => state.equipment.map(presentEquipment),
+  getEquipment: (id: string) => presentEquipment(findEquipment(id)),
+
+  createEquipment(input: Record<string, unknown>, actor: Actor) {
+    assertEquipmentCan("manage", actor);
+    const name = requireText(input.name, "The name", 3);
+    const code = checkedCode(input.code);
+    const category = checkedCategory(input.category);
+    const at = tick();
+    const hours = optionalNumber(input.hours, "Operating hours", { min: 0 });
+    const item: Equipment = {
+      id: `eq-${code.toLowerCase()}`,
+      siteId: "site-riverside",
+      code,
+      name,
+      category,
+      makeModel: text(input.makeModel) || null,
+      serialNumber: text(input.serialNumber) || null,
+      areaId: checkedArea(input.areaId),
+      notes: text(input.notes) || null,
+      state: "available",
+      stateNote: null,
+      stateQuality: "reported",
+      stateUpdatedAt: at,
+      hours,
+      hoursReadAt: hours === null ? null : at,
+      hoursSource: hours === null ? null : actor.name,
+      hoursPerDay: optionalNumber(input.hoursPerDay, "Average hours per day", { min: 0, exclusiveMin: true, max: 24 }),
+      plans: [],
+      services: [],
+      events: [],
+      retiredAt: null,
+      retiredReason: null,
+      version: 1,
+      createdAt: at,
+    };
+    item.events = [equipmentEvent(actor, "created", "Added to the equipment register", at)];
+    state.equipment = [...state.equipment, item];
+    return presentEquipment(item);
+  },
+
+  updateEquipment(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+
+    const changes: string[] = [];
+    if ("name" in input) {
+      const name = requireText(input.name, "The name", 3);
+      if (name !== item.name) changes.push("name");
+      item.name = name;
+    }
+    if ("code" in input) {
+      const code = checkedCode(input.code, item.id);
+      if (code !== item.code) changes.push("asset code");
+      item.code = code;
+    }
+    if ("category" in input) {
+      const category = checkedCategory(input.category);
+      if (category !== item.category) changes.push("category");
+      item.category = category;
+    }
+    if ("areaId" in input) {
+      const areaId = checkedArea(input.areaId);
+      if (areaId !== item.areaId) changes.push("area");
+      item.areaId = areaId;
+    }
+    for (const [key, label] of [["makeModel", "make and model"], ["serialNumber", "serial number"], ["notes", "notes"]] as const) {
+      if (key in input) {
+        const value = text(input[key]) || null;
+        if (value !== item[key]) changes.push(label);
+        item[key] = value;
+      }
+    }
+    if ("hoursPerDay" in input) {
+      const value = optionalNumber(input.hoursPerDay, "Average hours per day", { min: 0, exclusiveMin: true, max: 24 });
+      if (value !== item.hoursPerDay) changes.push("average hours per day");
+      item.hoursPerDay = value;
+    }
+    if (changes.length) recordEquipment(item, actor, { type: "edited", summary: `Updated ${changes.join(", ")}` });
+    return presentEquipment(item);
+  },
+
+  setEquipmentState(id: string, input: { state?: unknown; note?: unknown; version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("state", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    if (input.state !== "available" && input.state !== "unavailable") fail(400, "VALIDATION_ERROR", "Choose available or unavailable.");
+    const note = input.state === "unavailable" ? requireText(input.note, "The reason", 8) : text(input.note) || null;
+    item.state = input.state;
+    item.stateNote = note;
+    item.stateQuality = "reported";
+    item.stateUpdatedAt = tick();
+    recordEquipment(item, actor, {
+      type: "state_changed",
+      summary: input.state === "unavailable" ? "Reported unavailable" : "Reported available",
+      note,
+    });
+    return presentEquipment(item);
+  },
+
+  recordReading(id: string, input: { hours?: unknown; correction?: unknown; note?: unknown; version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("reading", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    const hours = optionalNumber(input.hours, "The reading", { min: 0 });
+    if (hours === null) fail(400, "VALIDATION_ERROR", "Enter the meter reading in hours.");
+    const correction = input.correction === true;
+    if (item.hours !== null && hours < item.hours && !correction) {
+      fail(409, "READING_LOWER", `That is lower than the last reading of ${item.hours.toLocaleString("en-GB")} hours. If the last reading was wrong, record this as a correction and say why.`);
+    }
+    const note = correction ? requireText(input.note, "The reason for the correction", 8) : null;
+    const previous = item.hours;
+    item.hours = hours;
+    item.hoursReadAt = tick();
+    item.hoursSource = actor.name;
+    recordEquipment(item, actor, {
+      type: "reading_recorded",
+      summary: correction
+        ? `Reading corrected from ${previous?.toLocaleString("en-GB") ?? "none"} to ${hours.toLocaleString("en-GB")} hours`
+        : `Meter reading ${hours.toLocaleString("en-GB")} hours`,
+      note,
+    });
+    return presentEquipment(item);
+  },
+
+  addPlan(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    const plan: MaintenancePlan = { id: nextId("plan", "plan"), ...checkedPlan(input, item) };
+    item.plans = [...item.plans, plan];
+    recordEquipment(item, actor, { type: "plan_added", summary: `Maintenance plan added: ${plan.name}` });
+    return presentEquipment(item);
+  },
+
+  updatePlan(id: string, planId: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    const plan = item.plans.find((candidate) => candidate.id === planId) ?? fail(404, "NOT_FOUND", "This maintenance plan could not be found.");
+    Object.assign(plan, checkedPlan(input, item));
+    recordEquipment(item, actor, { type: "plan_updated", summary: `Maintenance plan updated: ${plan.name}` });
+    return presentEquipment(item);
+  },
+
+  removePlan(id: string, planId: string, input: { version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    const plan = item.plans.find((candidate) => candidate.id === planId) ?? fail(404, "NOT_FOUND", "This maintenance plan could not be found.");
+    item.plans = item.plans.filter((candidate) => candidate.id !== planId);
+    recordEquipment(item, actor, { type: "plan_removed", summary: `Maintenance plan removed: ${plan.name}` });
+    return presentEquipment(item);
+  },
+
+  logService(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("service", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    if (!["service", "inspection", "repair"].includes(String(input.type))) fail(400, "VALIDATION_ERROR", "Choose service, inspection or repair.");
+    const type = input.type as ServiceEntry["type"];
+    const summary = requireText(input.summary, "The summary", 8);
+    const performedAt = typeof input.performedAt === "string" && input.performedAt ? input.performedAt : now();
+    if (Number.isNaN(Date.parse(performedAt))) fail(400, "VALIDATION_ERROR", "Enter a valid date and time.");
+    if (Date.parse(performedAt) > Date.parse(now()) + 60_000) fail(400, "VALIDATION_ERROR", "A service cannot be logged for a future time.");
+    const hours = optionalNumber(input.hours, "The meter reading", { min: 0 });
+    const planId = typeof input.planId === "string" && input.planId ? input.planId : null;
+    const plan = planId ? item.plans.find((candidate) => candidate.id === planId) ?? fail(400, "VALIDATION_ERROR", "That maintenance plan is not on this equipment.") : null;
+    if (plan && type !== "service") fail(400, "VALIDATION_ERROR", "Only a service resets a maintenance plan. Choose service, or clear the plan.");
+    if (plan?.basis === "hours" && hours === null && item.hours === null) {
+      fail(400, "VALIDATION_ERROR", "Enter the meter reading at the time of the service, so the next due date can be worked out.");
+    }
+
+    const entry: ServiceEntry = {
+      id: nextId("service", "svc"),
+      type,
+      performedAt,
+      hours,
+      summary,
+      performedBy: actor.name,
+      workOrderRef: text(input.workOrderRef) || null,
+      planId,
+    };
+    item.services = [...item.services, entry];
+    if (hours !== null && (item.hours === null || hours > item.hours)) {
+      item.hours = hours;
+      item.hoursReadAt = tick();
+      item.hoursSource = actor.name;
+    }
+    if (plan) {
+      plan.lastServiceHours = hours ?? item.hours;
+      plan.lastServiceAt = performedAt;
+    }
+    recordEquipment(item, actor, {
+      type: "service_logged",
+      summary: `${type === "service" ? "Service" : type === "inspection" ? "Inspection" : "Repair"} logged${plan ? ` for ${plan.name}` : ""}`,
+      note: summary,
+    });
+    return presentEquipment(item);
+  },
+
+  retireEquipment(id: string, input: { reason?: unknown; version?: number }, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    assertEquipmentVersion(item, input.version);
+    assertActiveEquipment(item);
+    const reason = requireText(input.reason, "The reason", 8);
+    const blockers = equipmentBlockers(item);
+    if (blockers.length) fail(409, "IN_USE", `Resolve this first: ${blockers.join("; ")}.`);
+    item.retiredAt = tick();
+    item.retiredReason = reason;
+    recordEquipment(item, actor, { type: "retired", summary: "Retired from service", note: reason });
+    return presentEquipment(item);
+  },
+
+  restoreEquipment(id: string, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    if (!item.retiredAt) fail(409, "READ_ONLY", "This equipment is already active.");
+    item.retiredAt = null;
+    item.retiredReason = null;
+    recordEquipment(item, actor, { type: "restored", summary: "Returned to service" });
+    return presentEquipment(item);
+  },
+
+  /** Removes a record made in error. Anything with history is retired instead, so history is never lost. */
+  deleteEquipment(id: string, actor: Actor) {
+    const item = findEquipment(id);
+    assertEquipmentCan("manage", actor);
+    const history: string[] = [];
+    if (item.services.length) history.push(`${item.services.length} service ${item.services.length === 1 ? "entry" : "entries"}`);
+    const issues = state.issues.filter((issue) => issue.equipmentId === item.id).length;
+    if (issues) history.push(`${issues} linked ${issues === 1 ? "issue" : "issues"}`);
+    const activities = state.readiness.filter((activity) => activity.equipmentId === item.id).length;
+    if (activities) history.push(`${activities} readiness ${activities === 1 ? "activity" : "activities"}`);
+    if (item.events.some((event) => event.type !== "created" && event.type !== "edited")) history.push("recorded activity");
+    if (history.length) fail(409, "HAS_HISTORY", `This equipment has ${history.join(", ")}. Retire it instead so the history is kept.`);
+    state.equipment = state.equipment.filter((candidate) => candidate.id !== item.id);
+    return { id: item.id, deleted: true };
+  },
+
   // ---- Shifts and handover ---------------------------------------------------------------
-  shiftView(id: string) {
-    const shift = state.shifts.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This shift could not be found.");
-    const issues = state.issues.filter(isOpen).map(present);
-    const unresolved = shift.id === "shift-a-20250424" ? issues.length + issues.reduce((total, issue) => total + openDependencies(issue).length, 0) : 0;
-    return { ...shift, unresolved, issues: shift.id === "shift-a-20250424" ? issues : [] };
+  listShifts: () => [...state.shifts].sort(byStart).map(presentShift),
+  shiftView: (id: string) => presentShift(findShift(id)),
+
+  createShift(input: Record<string, unknown>, actor: Actor) {
+    assertShiftCan("manage", actor);
+    const name = requireText(input.name, "The shift name", 3);
+    const times = checkedShiftTimes(input);
+    const supervisor = checkedSupervisor(input.supervisor);
+    assertNoOverlap(times);
+    if (supervisor) assertPeopleFree([supervisor], times);
+    const at = tick();
+    const shift: Shift = {
+      id: nextId("shift", "shift"),
+      siteId: "site-riverside",
+      name,
+      ...times,
+      state: "scheduled",
+      supervisor,
+      briefing: text(input.briefing) || null,
+      crew: [],
+      work: [],
+      handover: { notes: "", state: "draft", notesUpdatedAt: null, publishedBy: null, publishedAt: null, acknowledgedBy: null, acknowledgedAt: null },
+      events: [],
+      startedAt: null,
+      closedAt: null,
+      cancelledReason: null,
+      version: 1,
+      createdAt: at,
+    };
+    shift.events = [shiftEvent(actor, "created", "Shift scheduled", at)];
+    state.shifts = [...state.shifts, shift];
+    return presentShift(shift);
+  },
+
+  updateShift(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+
+    const changes: string[] = [];
+    const timesChanged = ["date", "start", "end"].some((key) => key in input);
+    if (shift.state === "in_progress" && (timesChanged || "supervisor" in input || "name" in input)) {
+      fail(409, "READ_ONLY", "A shift that is running can only have its briefing and its crew and work changed.");
+    }
+    if ("name" in input) {
+      const name = requireText(input.name, "The shift name", 3);
+      if (name !== shift.name) changes.push("name");
+      shift.name = name;
+    }
+    if (timesChanged) {
+      const times = checkedShiftTimes(input);
+      assertNoOverlap(times, shift.id);
+      assertPeopleFree(peopleOn(shift), times, shift.id);
+      if (times.startsAt !== shift.startsAt || times.endsAt !== shift.endsAt) changes.push("times");
+      shift.startsAt = times.startsAt;
+      shift.endsAt = times.endsAt;
+    }
+    if ("supervisor" in input) {
+      const supervisor = checkedSupervisor(input.supervisor);
+      if (supervisor !== shift.supervisor) {
+        if (supervisor) assertPeopleFree([supervisor], shift, shift.id);
+        changes.push("supervisor");
+      }
+      shift.supervisor = supervisor;
+    }
+    if ("briefing" in input) {
+      const briefing = text(input.briefing) || null;
+      if (briefing !== shift.briefing) changes.push("briefing");
+      shift.briefing = briefing;
+    }
+    if (changes.length) recordShift(shift, actor, { type: "edited", summary: `Updated ${changes.join(", ")}` });
+    return presentShift(shift);
+  },
+
+  startShift(id: string, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("run", actor, shift);
+    if (shift.state !== "scheduled") fail(409, "READ_ONLY", `Only a scheduled shift can be started. This one is ${shiftStateLabels[shift.state].toLowerCase()}.`);
+    if (!shift.supervisor) fail(409, "NO_SUPERVISOR", "Assign a supervisor before starting the shift.");
+    const running = state.shifts.find((item) => item.state === "in_progress");
+    if (running) fail(409, "ALREADY_RUNNING", `${running.name} is still running. Close it before starting ${shift.name}.`);
+    shift.startedAt = tick();
+    shift.state = "in_progress";
+    recordShift(shift, actor, { type: "started", summary: "Shift started" });
+    return presentShift(shift);
+  },
+
+  closeShift(id: string, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("run", actor, shift);
+    if (shift.state !== "in_progress") fail(409, "READ_ONLY", "Only a running shift can be closed.");
+    const open = presentShift(shift).unresolved;
+    if (open > 0 && shift.handover.state === "draft") {
+      fail(409, "HANDOVER_REQUIRED", `Publish the handover before closing. ${open} ${open === 1 ? "item is" : "items are"} still open and will carry into the next shift.`);
+    }
+    const unfinished = shift.work.filter((item) => !item.done).length;
+    shift.closedAt = tick();
+    shift.state = "closed";
+    recordShift(shift, actor, {
+      type: "closed",
+      summary: "Shift closed",
+      note: unfinished ? `${unfinished} ${unfinished === 1 ? "task was" : "tasks were"} not finished.` : null,
+    });
+    return presentShift(shift);
+  },
+
+  cancelShift(id: string, input: { reason?: unknown; version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    if (shift.state !== "scheduled") fail(409, "READ_ONLY", "Only a scheduled shift can be cancelled. A running shift is closed instead.");
+    const reason = requireText(input.reason, "The reason", 8);
+    shift.state = "cancelled";
+    shift.cancelledReason = reason;
+    recordShift(shift, actor, { type: "cancelled", summary: "Shift cancelled", note: reason });
+    return presentShift(shift);
+  },
+
+  /** Removes a shift made in error. Anything with people, work or notes is cancelled instead, so the record is kept. */
+  deleteShift(id: string, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    if (shift.state !== "scheduled" && shift.state !== "cancelled") fail(409, "HAS_HISTORY", "A shift that has run is kept as a record.");
+    const filled: string[] = [];
+    if (shift.crew.length) filled.push("crew");
+    if (shift.work.length) filled.push("work");
+    if (shift.briefing) filled.push("a briefing");
+    if (shift.handover.notes) filled.push("handover notes");
+    if (shift.events.some((event) => event.type !== "created" && event.type !== "edited")) filled.push("recorded activity");
+    if (filled.length) fail(409, "HAS_HISTORY", `This shift has ${filled.join(", ")}. Cancel it instead so the record is kept.`);
+    state.shifts = state.shifts.filter((item) => item.id !== shift.id);
+    return { id: shift.id, deleted: true };
+  },
+
+  addCrew(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+    const name = requireText(input.name, "The person", 2);
+    if (!ownerNames().includes(name)) fail(400, "VALIDATION_ERROR", "Choose a person from your team.");
+    if (peopleOn(shift).includes(name)) fail(409, "DUPLICATE", `${name} is already on this shift.`);
+    assertPeopleFree([name], shift, shift.id);
+    const equipmentId = typeof input.equipmentId === "string" && input.equipmentId ? input.equipmentId : null;
+    if (equipmentId) {
+      const unit = state.equipment.find((item) => item.id === equipmentId);
+      if (!unit || unit.retiredAt) fail(400, "VALIDATION_ERROR", "Choose equipment that is on the active register.");
+    }
+    const member: CrewMember = { id: nextId("crew", "crew"), name, duty: requireText(input.duty, "The duty", 3), equipmentId };
+    shift.crew = [...shift.crew, member];
+    recordShift(shift, actor, { type: "crew_added", summary: `${name} added as ${member.duty.toLowerCase()}` });
+    return presentShift(shift);
+  },
+
+  removeCrew(id: string, crewId: string, input: { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+    const member = shift.crew.find((item) => item.id === crewId) ?? fail(404, "NOT_FOUND", "This crew member could not be found.");
+    shift.crew = shift.crew.filter((item) => item.id !== crewId);
+    recordShift(shift, actor, { type: "crew_removed", summary: `${member.name} removed from the shift` });
+    return presentShift(shift);
+  },
+
+  addWork(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+    const issueId = typeof input.issueId === "string" && input.issueId ? input.issueId : null;
+    if (issueId) {
+      const issue = state.issues.find((item) => item.id === issueId);
+      if (!issue || !isOpen(issue)) fail(400, "VALIDATION_ERROR", "Choose an issue that is still open.");
+      if (shift.work.some((item) => item.issueId === issueId)) fail(409, "DUPLICATE", "That issue is already on this shift.");
+    }
+    const owner = typeof input.owner === "string" && input.owner ? input.owner : null;
+    if (owner && !ownerNames().includes(owner)) fail(400, "VALIDATION_ERROR", "Choose an owner from your team.");
+    const item: ShiftWork = { id: nextId("work", "work"), title: requireText(input.title, "The task", 4), owner, issueId, done: false, doneAt: null };
+    shift.work = [...shift.work, item];
+    recordShift(shift, actor, { type: "work_added", summary: `Work added: ${item.title}` });
+    return presentShift(shift);
+  },
+
+  updateWork(id: string, workId: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+    const item = shift.work.find((candidate) => candidate.id === workId) ?? fail(404, "NOT_FOUND", "This task could not be found.");
+    if ("title" in input || "owner" in input) assertShiftCan("manage", actor);
+    if ("title" in input) item.title = requireText(input.title, "The task", 4);
+    if ("owner" in input) {
+      const owner = typeof input.owner === "string" && input.owner ? input.owner : null;
+      if (owner && !ownerNames().includes(owner)) fail(400, "VALIDATION_ERROR", "Choose an owner from your team.");
+      item.owner = owner;
+    }
+    if ("done" in input) {
+      assertShiftCan("work", actor, { ...shift, work: [item] });
+      const done = input.done === true;
+      if (done !== item.done) {
+        item.done = done;
+        item.doneAt = done ? tick() : null;
+        recordShift(shift, actor, { type: "work_updated", summary: done ? `Work finished: ${item.title}` : `Work reopened: ${item.title}` });
+        return presentShift(shift);
+      }
+    } else {
+      recordShift(shift, actor, { type: "work_updated", summary: `Work updated: ${item.title}` });
+    }
+    return presentShift(shift);
+  },
+
+  removeWork(id: string, workId: string, input: { version?: number }, actor: Actor) {
+    const shift = findShift(id);
+    assertShiftCan("manage", actor);
+    assertShiftVersion(shift, input.version);
+    assertShiftLive(shift);
+    const item = shift.work.find((candidate) => candidate.id === workId) ?? fail(404, "NOT_FOUND", "This task could not be found.");
+    shift.work = shift.work.filter((candidate) => candidate.id !== workId);
+    recordShift(shift, actor, { type: "work_removed", summary: `Work removed: ${item.title}` });
+    return presentShift(shift);
   },
 
   saveHandoverNotes(shiftId: string, notes: unknown, actor: Actor) {
     const shift = findShift(shiftId);
-    assertHandoverRole(actor);
+    assertShiftCan("handover", actor, shift);
+    if (shift.state === "cancelled") fail(409, "READ_ONLY", "A cancelled shift has no handover.");
     if (shift.handover.state !== "draft") fail(409, "READ_ONLY", "Withdraw the published handover before editing the notes.");
     shift.handover.notes = text(notes);
     shift.handover.notesUpdatedAt = tick();
-    return shift;
+    return presentShift(shift);
   },
 
   publishHandover(shiftId: string, actor: Actor) {
     const shift = findShift(shiftId);
-    assertHandoverRole(actor);
+    assertShiftCan("handover", actor, shift);
+    if (shift.state !== "in_progress" && shift.state !== "closed") fail(409, "READ_ONLY", "A handover can be published once the shift has started.");
     if (shift.handover.state !== "draft") fail(409, "READ_ONLY", "This handover is already published.");
     if (shift.handover.notes.length < 20) fail(400, "VALIDATION_ERROR", "Write handover notes of at least twenty characters before publishing.");
     shift.handover.state = "published";
     shift.handover.publishedBy = actor.name;
     shift.handover.publishedAt = tick();
-    return shift;
+    recordShift(shift, actor, { type: "handover_published", summary: "Handover published" });
+    return presentShift(shift);
   },
 
   withdrawHandover(shiftId: string, actor: Actor) {
     const shift = findShift(shiftId);
-    assertHandoverRole(actor);
+    assertShiftCan("handover", actor, shift);
     if (shift.handover.state !== "published") fail(409, "READ_ONLY", "Only a published, unacknowledged handover can be withdrawn.");
-    if (shift.handover.publishedBy !== actor.name && actor.role !== "Mine Manager") {
-      fail(403, "FORBIDDEN", "Only the publishing supervisor or the Mine Manager can withdraw this handover.");
-    }
     shift.handover.state = "draft";
     shift.handover.publishedBy = null;
     shift.handover.publishedAt = null;
-    return shift;
+    recordShift(shift, actor, { type: "handover_withdrawn", summary: "Handover withdrawn" });
+    return presentShift(shift);
   },
 
   acknowledgeHandover(shiftId: string, actor: Actor) {
     const shift = findShift(shiftId);
-    assertHandoverRole(actor);
+    const next = presentShift(shift).next;
+    assertShiftCan("acknowledge", actor, shift, next);
     if (shift.handover.state === "acknowledged") fail(409, "READ_ONLY", "This handover is already acknowledged.");
     if (shift.handover.state !== "published") fail(409, "READ_ONLY", "The outgoing supervisor must publish the handover first.");
     if (shift.handover.publishedBy === actor.name) fail(403, "FORBIDDEN", "The incoming supervisor acknowledges the handover, not the person who published it.");
     shift.handover.state = "acknowledged";
     shift.handover.acknowledgedBy = actor.name;
     shift.handover.acknowledgedAt = tick();
-    return shift;
+    recordShift(shift, actor, { type: "handover_acknowledged", summary: "Handover acknowledged" });
+    return presentShift(shift);
+  },
+
+  // ---- Organisation ----------------------------------------------------------------------
+  organisation: (): OrganisationView => ({ members: state.members, company: state.company, site: state.site, activity: state.activity }),
+
+  /** Checks a sign-in. The first sign-in by an invited person accepts the invitation. */
+  authenticate(email: string, password: string): Account {
+    const member = state.members.find((item) => item.email === normaliseEmail(email));
+    if (!member || password !== FIXTURE_PASSWORD) fail(401, "INVALID_CREDENTIALS", "That email and password do not match. Check them and try again.");
+    if (member.status === "deactivated") fail(403, "ACCESS_OFF", "Your access to VESPER has been turned off. Ask your Mine Manager to restore it.");
+    const at = tick();
+    if (member.status === "invited") {
+      member.status = "active";
+      member.joinedAt = at;
+      logOrganisation({ name: member.name, role: member.role }, `${member.name} accepted the invitation`);
+    }
+    member.lastSignInAt = at;
+    return { email: member.email, name: member.name, role: member.role, home: homeFor(member.role) };
+  },
+
+  inviteMember(input: Record<string, unknown>, actor: Actor) {
+    assertOrganisationManager(actor);
+    const name = requireText(input.name, "The name", 2);
+    const email = checkedEmail(input.email);
+    const role = checkedRole(input.role);
+    if (state.members.some((member) => member.name.toLowerCase() === name.toLowerCase() && member.status !== "deactivated")) {
+      fail(409, "DUPLICATE_NAME", "Someone with this name already has access. Use a distinguishing name.");
+    }
+    const at = tick();
+    const member: Member = { id: nextId("member", "member"), name, email, role, status: "invited", invitedAt: at, joinedAt: null, lastSignInAt: null, deactivatedAt: null, version: 1 };
+    state.members = [...state.members, member];
+    logOrganisation(actor, `Invited ${name} as ${role}`);
+    return member;
+  },
+
+  updateMember(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertOrganisationManager(actor);
+    const member = findMember(id);
+    assertRecordVersion(member, input.version);
+    const changes: string[] = [];
+    if (input.name !== undefined) {
+      const name = requireText(input.name, "The name", 2);
+      if (name !== member.name) {
+        if (state.members.some((other) => other.id !== id && other.name.toLowerCase() === name.toLowerCase() && other.status !== "deactivated")) fail(409, "DUPLICATE_NAME", "Someone with this name already has access.");
+        if (member.status !== "invited") fail(409, "HAS_HISTORY", "A person who has signed in keeps the name on their records.");
+        changes.push(`name to ${name}`);
+        member.name = name;
+      }
+    }
+    if (input.email !== undefined) {
+      const email = checkedEmail(input.email, id);
+      if (email !== member.email) {
+        if (member.status !== "invited") fail(409, "HAS_HISTORY", "The email address can only be changed before the invitation is accepted.");
+        changes.push("email address");
+        member.email = email;
+      }
+    }
+    if (input.role !== undefined) {
+      const role = checkedRole(input.role);
+      if (role !== member.role) {
+        if (member.name === actor.name) fail(409, "OWN_ACCOUNT", "You cannot change your own role. Ask another Mine Manager.");
+        if (isLastManager(state.members, member)) fail(409, "LAST_MANAGER", "VESPER needs at least one active Mine Manager. Promote someone else first.");
+        changes.push(`role to ${role}`);
+        member.role = role;
+      }
+    }
+    if (changes.length === 0) fail(400, "VALIDATION_ERROR", "Nothing was changed.");
+    touch(member);
+    logOrganisation(actor, `Changed ${member.name}: ${changes.join(", ")}`);
+    return member;
+  },
+
+  setMemberAccess(id: string, access: "on" | "off", actor: Actor) {
+    assertOrganisationManager(actor);
+    const member = findMember(id);
+    if (access === "off") {
+      if (member.status === "deactivated") fail(409, "READ_ONLY", "This person's access is already off.");
+      if (member.name === actor.name) fail(409, "OWN_ACCOUNT", "You cannot turn off your own access.");
+      if (isLastManager(state.members, member)) fail(409, "LAST_MANAGER", "VESPER needs at least one active Mine Manager. Promote someone else first.");
+      member.status = "deactivated";
+      member.deactivatedAt = tick();
+      logOrganisation(actor, `Turned off access for ${member.name}`);
+    } else {
+      if (member.status !== "deactivated") fail(409, "READ_ONLY", "This person already has access.");
+      member.status = member.joinedAt ? "active" : "invited";
+      member.deactivatedAt = null;
+      logOrganisation(actor, `Restored access for ${member.name}`);
+    }
+    return touch(member);
+  },
+
+  resendInvitation(id: string, actor: Actor) {
+    assertOrganisationManager(actor);
+    const member = findMember(id);
+    if (member.status !== "invited") fail(409, "READ_ONLY", "Only a pending invitation can be sent again.");
+    member.invitedAt = tick();
+    logOrganisation(actor, `Sent the invitation to ${member.name} again`);
+    return touch(member);
+  },
+
+  /** Only an invitation nobody has accepted can be removed. Everyone else is deactivated so their records stay. */
+  removeInvitation(id: string, actor: Actor) {
+    assertOrganisationManager(actor);
+    const member = findMember(id);
+    if (member.status !== "invited" || member.joinedAt) fail(409, "HAS_HISTORY", "Only a pending invitation can be removed. Turn off access for anyone who has signed in.");
+    state.members = state.members.filter((item) => item.id !== id);
+    logOrganisation(actor, `Withdrew the invitation for ${member.name}`);
+    return { id, deleted: true };
+  },
+
+  updateCompany(input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertOrganisationManager(actor);
+    assertRecordVersion(state.company, input.version);
+    const name = requireText(input.name, "The company name", 2);
+    const contactEmail = text(input.contactEmail);
+    if (contactEmail && !isValidEmail(contactEmail)) fail(400, "VALIDATION_ERROR", "Enter a valid contact email address.");
+    state.company = touch({
+      ...state.company,
+      name,
+      industry: text(input.industry),
+      registration: text(input.registration),
+      address: text(input.address),
+      contactName: text(input.contactName),
+      contactEmail,
+      contactPhone: text(input.contactPhone),
+    });
+    logOrganisation(actor, "Updated company details");
+    return state.company;
+  },
+
+  updateSite(input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    assertOrganisationManager(actor);
+    assertRecordVersion(state.site, input.version);
+    const name = requireText(input.name, "The site name", 2);
+    state.site = touch({
+      ...state.site,
+      name,
+      type: text(input.type),
+      commodity: text(input.commodity),
+      location: text(input.location),
+      timezone: text(input.timezone),
+      operatingHours: text(input.operatingHours),
+      siteContact: text(input.siteContact),
+    });
+    state.context.siteName = name;
+    logOrganisation(actor, "Updated site details");
+    return state.site;
   },
 
   // ---- Notifications ---------------------------------------------------------------------
@@ -686,13 +1605,3 @@ export const demoDomain = {
     return demoDomain.listNotifications(actor);
   },
 };
-
-function findShift(id: string): Shift {
-  return state.shifts.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This shift could not be found.");
-}
-
-function assertHandoverRole(actor: Actor) {
-  if (!["Shift Supervisor", "Mine Manager"].includes(actor.role)) {
-    fail(403, "FORBIDDEN", "Handover is managed by a Shift Supervisor or the Mine Manager.");
-  }
-}

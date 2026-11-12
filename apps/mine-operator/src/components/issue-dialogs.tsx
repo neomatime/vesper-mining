@@ -7,7 +7,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { fromLocalInput, toLocalInput } from "@/lib/demo-clock";
 import { activeActions, type TransitionOption } from "@/lib/issue-rules";
-import { owners, teams } from "@/lib/personas";
+import { teams } from "@/lib/personas";
+import { useOwners } from "./use-directory";
 import type { ActionInput, DependencyInput, IssueDetailsInput } from "./use-issue-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
@@ -58,6 +59,7 @@ export function EditIssueDialog({
   onSave: (changes: Partial<IssueDetailsInput>) => void;
   onClose: () => void;
 }) {
+  const owners = useOwners();
   const form = useForm<DetailsValues>({
     resolver: zodResolver(detailsSchema),
     defaultValues: {
@@ -153,6 +155,7 @@ export function ActionDialog({
   onSave: (input: ActionInput) => void;
   onClose: () => void;
 }) {
+  const owners = useOwners();
   const form = useForm<ActionValues>({
     resolver: zodResolver(actionSchema),
     defaultValues: {
@@ -230,6 +233,7 @@ export function DependencyDialog({
   onSave: (input: DependencyInput) => void;
   onClose: () => void;
 }) {
+  const owners = useOwners();
   const form = useForm<DependencyValues>({
     resolver: zodResolver(dependencySchema),
     defaultValues: { reason: "", kind: "", owner: "", blockedActionId: "", reviewBy: "" },

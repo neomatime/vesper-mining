@@ -65,9 +65,11 @@ export const handlers = [
       priorityIssue: priority,
       issues,
       areas: state.areas,
-      equipment: state.equipment,
+      equipment: demoDomain.listEquipment(),
       readiness: state.readiness,
-      shifts: state.shifts.map((shift) => demoDomain.shiftView(shift.id)),
+      shifts: demoDomain.listShifts(),
+      members: state.members,
+      now: demoDomain.now(),
     });
   }),
 
@@ -80,7 +82,7 @@ export const handlers = [
       return envelope({
         id: "local-pending-001",
         state: "pending_sync",
-        message: "Saved in this demonstration. This report has not been received centrally.",
+        message: "Saved on this device. This report has not been received centrally.",
       });
     }
     return run(() => demoDomain.createIssue(input, actorOf(request)), 201);
@@ -126,10 +128,45 @@ export const handlers = [
 
   // ---- Areas, equipment ---------------------------------------------------------------------
   http.get(`${API}/areas`, () => envelope(demoDomain.get().areas)),
-  http.get(`${API}/equipment`, () => envelope(demoDomain.get().equipment)),
-  http.get(`${API}/equipment/:id`, ({ params }) => {
-    const equipment = demoDomain.get().equipment.find((item) => item.id === params.id);
-    return equipment ? envelope(equipment) : envelope({ code: "NOT_FOUND", message: "This equipment could not be found." }, 404);
+  http.get(`${API}/equipment`, () => envelope(demoDomain.listEquipment())),
+  http.get(`${API}/equipment/:id`, ({ params }) => run(() => demoDomain.getEquipment(param(params, "id")))),
+  http.post(`${API}/equipment`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createEquipment(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/equipment/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateEquipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/equipment/:id`, ({ params, request }) => run(() => demoDomain.deleteEquipment(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/equipment/:id/retire`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.retireEquipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/restore`, ({ params, request }) => run(() => demoDomain.restoreEquipment(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/equipment/:id/state`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setEquipmentState(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/readings`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordReading(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/equipment/:id/plans`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addPlan(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/equipment/:id/plans/:planId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updatePlan(param(params, "id"), param(params, "planId"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/equipment/:id/plans/:planId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removePlan(param(params, "id"), param(params, "planId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/services`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.logService(param(params, "id"), input, actorOf(request)), 201);
   }),
 
   // ---- Readiness ------------------------------------------------------------------------------
@@ -148,8 +185,43 @@ export const handlers = [
   }),
 
   // ---- Shifts and handover ------------------------------------------------------------------
-  http.get(`${API}/shifts`, () => envelope(demoDomain.get().shifts.map((shift) => demoDomain.shiftView(shift.id)))),
+  http.get(`${API}/shifts`, () => envelope(demoDomain.listShifts())),
   http.get(`${API}/shifts/:id`, ({ params }) => run(() => demoDomain.shiftView(param(params, "id")))),
+  http.post(`${API}/shifts`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createShift(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shifts/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateShift(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/shifts/:id`, ({ params, request }) => run(() => demoDomain.deleteShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/start`, ({ params, request }) => run(() => demoDomain.startShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/close`, ({ params, request }) => run(() => demoDomain.closeShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.cancelShift(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shifts/:id/crew`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addCrew(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.delete(`${API}/shifts/:id/crew/:crewId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removeCrew(param(params, "id"), param(params, "crewId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shifts/:id/work`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addWork(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shifts/:id/work/:workId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateWork(param(params, "id"), param(params, "workId"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/shifts/:id/work/:workId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removeWork(param(params, "id"), param(params, "workId"), input, actorOf(request)));
+  }),
   http.put(`${API}/shifts/:id/handover`, async ({ params, request }) => {
     const input = await bodyOf<{ notes?: string }>(request);
     return run(() => demoDomain.saveHandoverNotes(param(params, "id"), input.notes, actorOf(request)));
@@ -163,6 +235,35 @@ export const handlers = [
   http.post(`${API}/shifts/:id/acknowledgement`, ({ params, request }) =>
     run(() => demoDomain.acknowledgeHandover(param(params, "id"), actorOf(request))),
   ),
+
+  // ---- Sign-in and organisation ---------------------------------------------------------------
+  http.post(`${API}/session`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; password?: string }>(request);
+    return run(() => demoDomain.authenticate(String(input.email ?? ""), String(input.password ?? "")));
+  }),
+  http.get(`${API}/organisation`, () => envelope(demoDomain.organisation())),
+  http.post(`${API}/members`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.inviteMember(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/members/:id`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateMember(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/members/:id`, ({ params, request }) => run(() => demoDomain.removeInvitation(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/members/:id/access`, async ({ params, request }) => {
+    const input = await bodyOf<{ access?: string }>(request);
+    return run(() => demoDomain.setMemberAccess(param(params, "id"), input.access === "on" ? "on" : "off", actorOf(request)));
+  }),
+  http.post(`${API}/members/:id/invitation`, ({ params, request }) => run(() => demoDomain.resendInvitation(param(params, "id"), actorOf(request)))),
+  http.patch(`${API}/organisation/company`, async ({ request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateCompany(input, actorOf(request)));
+  }),
+  http.patch(`${API}/organisation/site`, async ({ request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateSite(input, actorOf(request)));
+  }),
 
   // ---- Notifications ------------------------------------------------------------------------
   http.get(`${API}/notifications`, ({ request }) => envelope(demoDomain.listNotifications(actorOf(request)))),
@@ -193,20 +294,20 @@ export const handlers = [
       key === "exceptions"
         ? demoDomain.listIssues()
         : key === "equipment"
-          ? state.equipment
+          ? demoDomain.listEquipment()
           : key === "resources"
             ? state.readiness
             : key === "shifts"
-              ? state.shifts.map((shift) => demoDomain.shiftView(shift.id))
+              ? demoDomain.listShifts()
               : key === "admin"
                 ? [
-                    { id: "cfg-site", title: "Site configuration", detail: "Riverside Mine · display-only fictional site" },
-                    { id: "cfg-users", title: "Users & roles", detail: "5 fictional demo personas" },
+                    { id: "cfg-site", title: "Site configuration", detail: "Riverside Mine · Open pit" },
+                    { id: "cfg-users", title: "Users & roles", detail: "People and roles" },
                     { id: "cfg-entitlements", title: "Subscription", detail: "Operations — Single Site" },
                     { id: "cfg-integrations", title: "Integration boundaries", detail: "No live systems connected" },
                   ]
                 : [
-                    { id: "rep-production", title: "Production vs plan", detail: "Fictional shift comparison" },
+                    { id: "rep-production", title: "Production vs plan", detail: "Reported shift comparison" },
                     { id: "rep-exceptions", title: "Operational exceptions", detail: "Evidence-linked issue summary" },
                     { id: "rep-downtime", title: "Equipment delay stages", detail: "Reported events, not financial loss" },
                     { id: "rep-readiness", title: "Resource readiness", detail: "Upcoming work and uncertain inputs" },

@@ -55,7 +55,7 @@ export function DemoProviders({ children }: { children: React.ReactNode }) {
     return (
       <main className="bootstrap-state" aria-live="polite">
         <div className="bootstrap-mark">V</div>
-        <p>Preparing deterministic VESPER demo data…</p>
+        <p>Loading VESPER…</p>
       </main>
     );
   }
@@ -64,10 +64,10 @@ export function DemoProviders({ children }: { children: React.ReactNode }) {
     return (
       <main className="bootstrap-state" role="alert">
         <div className="bootstrap-mark bootstrap-mark--error">!</div>
-        <h1>Demo unavailable</h1>
-        <p>The mock service could not start. No real endpoint was contacted.</p>
+        <h1>VESPER could not start</h1>
+        <p>Reload the page. If it keeps happening, let your administrator know.</p>
         <button className="button button--primary" onClick={() => window.location.reload()}>
-          Retry demo setup
+          Reload
         </button>
       </main>
     );

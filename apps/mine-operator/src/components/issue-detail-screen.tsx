@@ -166,7 +166,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
               <div><dt>Accountable owner</dt><dd><UserRound /> {issue.owner ?? <span className="muted">Not assigned yet</span>}</dd></div>
               <div><dt>Workflow state</dt><dd>{stateLabels[issue.workflowState]}</dd></div>
               <div><dt>Priority</dt><dd><span className={`priority priority--${issue.priority}`}>{formatStatus(issue.priority)}</span></dd></div>
-              <div><dt>Reported</dt><dd><Clock3 /> {formatDemoDateTime(issue.reportedAt)} demo time</dd></div>
+              <div><dt>Reported</dt><dd><Clock3 /> {formatDemoDateTime(issue.reportedAt)}</dd></div>
               <div><dt>Equipment</dt><dd>{issue.equipmentId ? <Link href={`/equipment/${issue.equipmentId}`}>{equipmentName ?? issue.equipmentId}</Link> : <span className="muted">None linked</span>}</dd></div>
               <div><dt>Operating area</dt><dd>{issue.areaId ? <Link href="/map">{areaName ?? issue.areaId}</Link> : <span className="muted">None linked</span>}</dd></div>
             </dl>
@@ -318,7 +318,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
                 ))}
               </div>
             ) : null}
-            <p className="confirmation-note">Viewing as {actor.name}, {actor.role}. Demo steps only. No real equipment status or safety authorisation changes.</p>
+            <p className="confirmation-note">Viewing as {actor.name}, {actor.role}. Steps recorded here do not change equipment status or grant safety authorisation.</p>
           </article>
 
           {lastVerification ? (
@@ -352,7 +352,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
       {dialog?.kind === "edit" ? (
         <EditIssueDialog
           issue={issue}
-          equipment={shell?.equipment ?? []}
+          equipment={(shell?.equipment ?? []).filter((item) => !item.retiredAt)}
           areas={shell?.areas ?? []}
           canAssign={canAssign}
           pending={mutations.update.isPending}
@@ -441,7 +441,7 @@ function NotesCard({
           <div>
             <input ref={input} id={`files-${issue.id}`} className="sr-only" type="file" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 5))} />
             <label htmlFor={`files-${issue.id}`} className="button button--quiet button--small"><Paperclip /> Attach evidence</label>
-            <small className="field-hint">Files are not uploaded in this demonstration. Only names and sizes are recorded.</small>
+            <small className="field-hint">Evidence is recorded by file name and size.</small>
           </div>
           <button className="button button--primary button--small" disabled={pending || tooShort}>{pending ? "Adding…" : "Add note"}</button>
         </div>

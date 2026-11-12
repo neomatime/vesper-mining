@@ -1,16 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { MapArea, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
+import type { MapArea, Member, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { demoFetch } from "@/lib/api";
+import type { EquipmentView } from "@/lib/equipment-rules";
+import type { ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
 
 export type ShellOverview = {
   issues: OperationalIssue[];
   areas: MapArea[];
-  equipment: { id: string; code: string; name: string; area: string; state: string }[];
+  equipment: EquipmentView[];
   readiness: ReadinessActivity[];
-  shifts: { id: string; name: string; time: string; supervisor: string; status: string; unresolved: number }[];
+  shifts: ShiftView[];
+  members: Member[];
+  now: string;
 };
 
 const finishedStates = new Set(["verified", "closed", "cancelled", "duplicate"]);

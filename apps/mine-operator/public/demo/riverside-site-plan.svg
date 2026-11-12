@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
-  <title id="title">Fictional Riverside Mine site plan</title>
+  <title id="title">Riverside Mine site plan</title>
   <desc id="desc">Abstract open-pit site plan used only for the VESPER simulated operational map.</desc>
   <defs>
     <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
@@ -35,5 +35,5 @@
     <circle cx="911" cy="93" r="26" fill="#506456"/>
     <rect x="888" y="135" width="46" height="71" rx="7"/>
   </g>
-  <text x="22" y="575" fill="#e8efe9" font-family="system-ui, sans-serif" font-size="14" font-weight="700">RIVERSIDE MINE · FICTIONAL SITE PLAN · DEMO ONLY</text>
+  <text x="22" y="575" fill="#e8efe9" font-family="system-ui, sans-serif" font-size="14" font-weight="700">RIVERSIDE MINE · SITE PLAN</text>
 </svg>

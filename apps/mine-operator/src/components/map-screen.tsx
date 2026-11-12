@@ -22,15 +22,15 @@ export function MapScreen() {
     queryKey: ["areas", "site-riverside"],
     queryFn: () => demoFetch<MapArea[]>("/areas"),
   });
-  if (query.isPending) return <LoadingState label="Loading fictional operational map" />;
+  if (query.isPending) return <LoadingState label="Loading the operational map" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
 
   return (
     <div className="workspace-page">
-      <PageHeader eyebrow="Operational Map" title="Explainable area status" description="Inspect fictional operating areas, the evidence behind each status and related operational constraints." icon={Map} />
+      <PageHeader eyebrow="Operational Map" title="Explainable area status" description="Inspect operating areas, the evidence behind each status and related operational constraints." icon={Map} />
       <section className="map-workspace">
         <article className="card map-workspace__canvas">
-          <header className="card__header"><div><span className="eyebrow">Riverside Mine · fictional site plan</span><h2>Current demonstration state</h2></div><span className="map-quality"><Info /> No live GPS or surveyed positioning</span></header>
+          <header className="card__header"><div><span className="eyebrow">Riverside Mine · site plan</span><h2>Current state</h2></div><span className="map-quality"><Info /> No live GPS or surveyed positioning</span></header>
           <OperationalMapClient areas={query.data} />
           <ul className="map-legend" aria-label="Status legend">
             {legend.map((item) => (
@@ -45,11 +45,11 @@ export function MapScreen() {
               <article key={area.id} className="area-list__item">
                 <div className="area-list__title"><span><MapPin /></span><div><strong>{area.name}</strong><small>{area.source.label}</small></div><StatusBadge value={area.status} /></div>
                 <p>{area.rationale}</p>
-                <small className="area-list__meta"><Clock3 /> Last evidence: {formatDemoTime(area.source.observedAt)} demo time · <StatusBadge value={area.source.quality} /></small>
+                <small className="area-list__meta"><Clock3 /> Last evidence: {formatDemoTime(area.source.observedAt)} · <StatusBadge value={area.source.quality} /></small>
               </article>
             ))}
           </div>
-          <div className="evidence-callout"><ShieldAlert /><div><strong>Operational status is not safety clearance</strong><p>Map colours describe a fictional operating condition only.</p></div></div>
+          <div className="evidence-callout"><ShieldAlert /><div><strong>Operational status is not safety clearance</strong><p>Map colours describe operating condition only.</p></div></div>
         </aside>
       </section>
     </div>

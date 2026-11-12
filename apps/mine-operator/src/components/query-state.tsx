@@ -1,6 +1,6 @@
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 
-export function LoadingState({ label = "Loading simulated records" }: { label?: string }) {
+export function LoadingState({ label = "Loading" }: { label?: string }) {
   return (
     <div className="state-panel" aria-live="polite">
       <div className="skeleton skeleton--title" />
@@ -16,8 +16,8 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
     <div className="state-panel state-panel--error" role="alert">
       <AlertTriangle size={22} aria-hidden="true" />
       <div>
-        <h2>This demo view could not be loaded</h2>
-        <p>{message ?? "Your context is preserved. Retry the simulated request."}</p>
+        <h2>This view could not be loaded</h2>
+        <p>{message ?? "Your work is saved. Try again."}</p>
       </div>
       {onRetry ? (
         <button className="button button--quiet" onClick={onRetry}>

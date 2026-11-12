@@ -10,27 +10,24 @@ import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isFinished, openDependencies, stateLabels } from "@/lib/issue-rules";
+import { canActOnEquipment, categoryLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
+import { formatDay, shiftTimes, suggestNextShift } from "@/lib/shift-format";
+import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@/lib/shift-rules";
+import { useDemoContext } from "@/stores/demo-context";
 import { indicativeOrderBy, partPosition } from "@/lib/readiness-rules";
+import { EquipmentFormDialog } from "./equipment-dialogs";
+import { ShiftFormDialog } from "./shift-dialogs";
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
+import { useCreateEquipment } from "./use-equipment-mutations";
+import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
 
 export type WorkspaceKey = "exceptions" | "equipment" | "resources" | "shifts";
 
 type Header = { eyebrow: string; title: string; description: string };
 type WorkspaceResponse<T> = Header & { records: T[] };
-
-type EquipmentRecord = { id: string; code: string; name: string; area: string; state: string; quality: string; nextAction: string };
-type ShiftRecord = {
-  id: string;
-  name: string;
-  time: string;
-  supervisor: string;
-  status: string;
-  unresolved: number;
-  handover: { state: "draft" | "published" | "acknowledged" };
-};
 
 type Tile = { label: string; value: string | number; hint: string; attention?: boolean };
 type Column<T> = { key: string; label: string; render: (row: T) => React.ReactNode };
@@ -44,13 +41,12 @@ type Register<T extends { id: string }> = {
   href: (row: T) => string;
   text: (row: T) => string;
   rows: T[];
-  action?: { label: string; href: string; plus?: boolean };
+  action?: { label: string; href?: string; onClick?: () => void; plus?: boolean };
   emptyTitle: string;
   emptyBody: string;
 };
 
 const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
-const handoverLabel = { draft: "Draft", published: "Published", acknowledged: "Acknowledged" } as const;
 
 function issueRegister(records: OperationalIssue[]): Register<OperationalIssue> {
   const open = records.filter((issue) => !isFinished(issue.workflowState) && issue.workflowState !== "verified");
@@ -102,33 +98,41 @@ function issueRegister(records: OperationalIssue[]): Register<OperationalIssue> 
   };
 }
 
-function equipmentRegister(records: EquipmentRecord[], issues: OperationalIssue[]): Register<EquipmentRecord> {
+function equipmentRegister(records: EquipmentView[], issues: OperationalIssue[], onAdd: (() => void) | null): Register<EquipmentView> {
+  const active = records.filter((item) => !item.retiredAt);
+  const needsService = (item: EquipmentView) => item.nextService?.state === "overdue" || item.nextService?.state === "due_soon";
+  const unavailable = active.filter((item) => item.state === "unavailable").length;
+  const dueCount = active.filter(needsService).length;
   const linked = issues.filter((issue) => issue.equipmentId && !isFinished(issue.workflowState)).length;
+
   return {
     icon: Wrench,
     tiles: [
-      { label: "Equipment", value: records.length, hint: "On the register" },
-      { label: "Reported unavailable", value: records.filter((item) => item.state.startsWith("Unavailable")).length, hint: "Reported, not verified" },
-      { label: "Service approaching", value: records.filter((item) => item.state.toLowerCase().includes("service")).length, hint: "Approaching or due" },
+      { label: "Equipment", value: active.length, hint: "On the active register" },
+      { label: "Unavailable", value: unavailable, hint: "Reported, not verified", attention: unavailable > 0 },
+      { label: "Service due", value: dueCount, hint: dueCount ? "Due soon or overdue" : "Nothing due soon", attention: dueCount > 0 },
       { label: "Open linked issues", value: linked, hint: "Across all equipment" },
     ],
     columns: [
-      { key: "name", label: "Equipment", render: (item) => <span className="cell-main"><strong>{item.name}</strong><small>{item.code}</small></span> },
-      { key: "area", label: "Area", render: (item) => item.area },
-      { key: "state", label: "Reported state", render: (item) => item.state },
-      { key: "next", label: "Next action", render: (item) => item.nextAction },
-      { key: "quality", label: "Information", render: (item) => <StatusBadge value={item.quality.toLowerCase().includes("verified") ? "verified" : item.quality.toLowerCase().includes("pending") ? "pending" : "reported"} label={item.quality} /> },
+      { key: "name", label: "Equipment", render: (item) => <span className="cell-main"><strong>{item.name}</strong><small>{item.code} · {categoryLabels[item.category]}</small></span> },
+      { key: "area", label: "Area", render: (item) => item.areaName ?? <span className="muted">Not assigned</span> },
+      { key: "state", label: "Availability", render: (item) => (item.retiredAt ? <StatusBadge value="unknown" label="Retired" /> : <StatusBadge value={item.state === "available" ? "complete" : "blocked"} label={item.state === "available" ? "Available" : "Unavailable"} />) },
+      { key: "service", label: "Next service", render: (item) => (item.retiredAt ? <span className="muted">—</span> : item.nextService ? <StatusBadge value={planTone[item.nextService.state]} label={item.nextService.label} /> : <span className="muted">No plan</span>) },
+      { key: "hours", label: "Hours", render: (item) => (item.hours !== null ? item.hours.toLocaleString("en-GB") : <span className="muted">—</span>) },
     ],
     filters: [
-      { key: "all", label: "All", test: () => true },
-      { key: "unavailable", label: "Unavailable", test: (item) => item.state.startsWith("Unavailable") },
-      { key: "service", label: "Service due", test: (item) => item.state.toLowerCase().includes("service") },
+      { key: "all", label: "All", test: (item) => !item.retiredAt },
+      { key: "available", label: "Available", test: (item) => !item.retiredAt && item.state === "available" },
+      { key: "unavailable", label: "Unavailable", test: (item) => !item.retiredAt && item.state === "unavailable" },
+      { key: "service", label: "Service due", test: (item) => !item.retiredAt && needsService(item) },
+      { key: "retired", label: "Retired", test: (item) => Boolean(item.retiredAt) },
     ],
     href: (item) => `/equipment/${item.id}`,
-    text: (item) => [item.name, item.code, item.area, item.state, item.nextAction].join(" "),
+    text: (item) => [item.name, item.code, item.areaName, item.makeModel, item.serialNumber, categoryLabels[item.category], item.state].join(" "),
     rows: records,
-    emptyTitle: "No equipment on the register",
-    emptyBody: "Equipment appears here once it is added to the site.",
+    action: onAdd ? { label: "Add equipment", onClick: onAdd, plus: true } : undefined,
+    emptyTitle: "No equipment yet",
+    emptyBody: "Add your first machine, vehicle or plant item to start tracking its availability and maintenance.",
   };
 }
 
@@ -171,30 +175,44 @@ function resourceRegister(records: ReadinessActivity[]): Register<ReadinessActiv
   };
 }
 
-function shiftRegister(records: ShiftRecord[]): Register<ShiftRecord> {
-  const current = records[0];
+const shiftTone = { scheduled: "pending", in_progress: "in_progress", closed: "complete", cancelled: "unknown" } as const;
+
+function shiftRegister(records: ShiftView[], onAdd: (() => void) | null): Register<ShiftView> {
+  const current = records.find((item) => item.state === "in_progress") ?? records.find((item) => item.state === "scheduled");
+  const next = current ? records.find((item) => item.id === current.next?.id) : undefined;
+  const order = (item: ShiftView) => (item.state === "in_progress" ? 0 : item.state === "scheduled" ? 1 : item.state === "closed" ? 2 : 3);
+  const sorted = [...records].sort((a, b) => order(a) - order(b) || (order(a) < 2 ? Date.parse(a.startsAt) - Date.parse(b.startsAt) : Date.parse(b.startsAt) - Date.parse(a.startsAt)));
+
   return {
     icon: UsersRound,
     tiles: [
-      { label: "Carried forward", value: current?.unresolved ?? 0, hint: "Open issues and dependencies" },
-      { label: "Handover", value: current ? handoverLabel[current.handover.state] : "None", hint: current?.name ?? "No shift" },
-      { label: "Current supervisor", value: current?.supervisor ?? "None", hint: current?.time ?? "" },
-      { label: "Next supervisor", value: records[1]?.supervisor ?? "None", hint: records[1]?.time ?? "" },
+      { label: "Current shift", value: current?.name ?? "None", hint: current ? `${formatDay(current.startsAt)} · ${shiftTimes(current)}` : "Nothing is scheduled" },
+      { label: "Carried forward", value: current?.unresolved ?? 0, hint: "Open issues and dependencies", attention: (current?.unresolved ?? 0) > 0 },
+      { label: "Handover", value: current ? handoverLabels[current.handover.state] : "None", hint: current ? `From ${current.name}` : "No shift to hand over" },
+      { label: "Next shift", value: next?.name ?? "None", hint: next ? `${formatDay(next.startsAt)} · ${next.supervisor ?? "No supervisor yet"}` : "Schedule the next shift" },
     ],
     columns: [
-      { key: "shift", label: "Shift", render: (shift) => <span className="cell-main"><strong>{shift.name}</strong><small>{shift.time}</small></span> },
-      { key: "supervisor", label: "Supervisor", render: (shift) => shift.supervisor },
-      { key: "status", label: "Status", render: (shift) => <StatusBadge value={shift.status === "In progress" ? "in_progress" : "pending"} label={shift.status} /> },
-      { key: "carried", label: "Carried forward", render: (shift) => (shift.unresolved ? `${shift.unresolved} open` : <span className="muted">Nothing</span>) },
-      { key: "handover", label: "Handover", render: (shift) => <StatusBadge value={shift.handover.state === "acknowledged" ? "verified" : shift.handover.state === "published" ? "reported" : "pending"} label={handoverLabel[shift.handover.state]} /> },
+      { key: "shift", label: "Shift", render: (item) => <span className="cell-main"><strong>{item.name}</strong><small>{formatDay(item.startsAt)}</small></span> },
+      { key: "time", label: "Time", render: (item) => shiftTimes(item) },
+      { key: "supervisor", label: "Supervisor", render: (item) => item.supervisor ?? <span className="muted">Not assigned</span> },
+      { key: "crew", label: "Crew", render: (item) => (item.crew.length ? `${item.crew.length} ${item.crew.length === 1 ? "person" : "people"}` : <span className="muted">None yet</span>) },
+      { key: "work", label: "Work", render: (item) => (item.work.length ? `${item.work.filter((entry) => entry.done).length} of ${item.work.length} done` : <span className="muted">None yet</span>) },
+      { key: "status", label: "Status", render: (item) => <StatusBadge value={shiftTone[item.state]} label={shiftStateLabels[item.state]} /> },
+      { key: "handover", label: "Handover", render: (item) => (item.state === "scheduled" || item.state === "cancelled" ? <span className="muted">—</span> : <StatusBadge value={item.handover.state === "acknowledged" ? "verified" : item.handover.state === "published" ? "reported" : "pending"} label={handoverLabels[item.handover.state]} />) },
     ],
-    filters: [],
-    href: (shift) => `/shifts/${shift.id}`,
-    text: (shift) => [shift.name, shift.supervisor, shift.status].join(" "),
-    rows: records,
-    action: { label: "Prepare handover", href: `/shifts/${current?.id ?? "shift-a-20250424"}/handover` },
-    emptyTitle: "No shifts scheduled",
-    emptyBody: "Shifts appear here once a roster is set up.",
+    filters: [
+      { key: "all", label: "All", test: (item) => item.state !== "cancelled" },
+      { key: "scheduled", label: "Scheduled", test: (item) => item.state === "scheduled" },
+      { key: "in_progress", label: "In progress", test: (item) => item.state === "in_progress" },
+      { key: "closed", label: "Closed", test: (item) => item.state === "closed" },
+      { key: "cancelled", label: "Cancelled", test: (item) => item.state === "cancelled" },
+    ],
+    href: (item) => `/shifts/${item.id}`,
+    text: (item) => [item.name, item.supervisor, shiftStateLabels[item.state], ...item.crew.map((member) => member.name)].join(" "),
+    rows: sorted,
+    action: onAdd ? { label: "Create shift", onClick: onAdd, plus: true } : undefined,
+    emptyTitle: "No shifts yet",
+    emptyBody: "Create the first shift to plan who is on site, what they are working on and how the work hands over.",
   };
 }
 
@@ -208,6 +226,13 @@ export function WorkspaceScreen({ workspace }: { workspace: WorkspaceKey }) {
 
 function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   const requestedFilter = useSearchParams().get("filter");
+  const [adding, setAdding] = useState(false);
+  const [addingShift, setAddingShift] = useState(false);
+  const create = useCreateEquipment();
+  const createShift = useCreateShift();
+  const { context } = useDemoContext();
+  const canManageShifts = canActOnShift("manage", { name: context.persona, role: context.role }).allowed;
+  const canManageEquipment = canActOnEquipment("manage", { name: context.persona, role: context.role }).allowed;
   const query = useQuery({
     queryKey: ["workspace", workspace],
     queryFn: () => demoFetch<WorkspaceResponse<never>>(`/workspaces/${workspace}`),
@@ -220,9 +245,22 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   const records = query.data.records as unknown[];
 
   if (workspace === "exceptions") return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={issueRegister(records as OperationalIssue[])} />;
-  if (workspace === "equipment") return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={equipmentRegister(records as EquipmentRecord[], shell?.issues ?? [])} />;
+  if (workspace === "equipment") {
+    return (
+      <>
+        <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={equipmentRegister(records as EquipmentView[], shell?.issues ?? [], canManageEquipment ? () => setAdding(true) : null)} />
+        {adding ? <EquipmentFormDialog areas={shell?.areas ?? []} pending={create.isPending} onClose={() => setAdding(false)} onSave={(input) => create.mutate(input)} /> : null}
+      </>
+    );
+  }
   if (workspace === "resources") return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={resourceRegister(records as ReadinessActivity[])} />;
-  return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={shiftRegister(records as ShiftRecord[])} />;
+  const shifts = records as ShiftView[];
+  return (
+    <>
+      <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={shiftRegister(shifts, canManageShifts ? () => setAddingShift(true) : null)} />
+      {addingShift ? <ShiftFormDialog suggestion={suggestNextShift(shifts)} pending={createShift.isPending} onClose={() => setAddingShift(false)} onSave={(input) => createShift.mutate(input as ShiftFormInput)} /> : null}
+    </>
+  );
 }
 
 function RegisterView<T extends { id: string }>({ header, register, initialFilter }: { header: Header; register: Register<T>; initialFilter: string | null }) {
@@ -247,10 +285,17 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
         icon={Icon}
         action={
           register.action ? (
-            <Link className="button button--primary" href={register.action.href}>
-              {register.action.plus ? <CirclePlus /> : <ArrowRight />}
-              {register.action.label}
-            </Link>
+            register.action.onClick ? (
+              <button className="button button--primary" onClick={register.action.onClick}>
+                {register.action.plus ? <CirclePlus /> : <ArrowRight />}
+                {register.action.label}
+              </button>
+            ) : (
+              <Link className="button button--primary" href={register.action.href ?? "#"}>
+                {register.action.plus ? <CirclePlus /> : <ArrowRight />}
+                {register.action.label}
+              </Link>
+            )
           ) : undefined
         }
       />
@@ -286,6 +331,7 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
             <strong>{filtering ? "No records match these filters" : register.emptyTitle}</strong>
             <span>{filtering ? "Try a different filter or clear the search." : register.emptyBody}</span>
             {filtering ? <button className="button button--quiet button--small" onClick={() => { setSearch(""); setActiveFilter("all"); }}>Clear filters</button> : null}
+            {!filtering && register.action?.onClick ? <button className="button button--primary button--small" onClick={register.action.onClick}>{register.action.label}</button> : null}
           </div>
         ) : (
           <div className="table-wrap">
@@ -310,7 +356,7 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
             </table>
           </div>
         )}
-        <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}Demonstration records. Reported and verified information stay separate.</p>
+        <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}Reported and verified information stay separate.</p>
       </section>
     </div>
   );

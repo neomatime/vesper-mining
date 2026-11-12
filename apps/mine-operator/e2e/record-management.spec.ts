@@ -1,18 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { actAs, openAs } from "./support";
 
 test.describe("record management", () => {
   test.skip(({ isMobile }) => isMobile, "Record management is exercised on the desktop layout.");
 
-  async function openApp(page: Page, path: string) {
-    await page.goto(path);
-    await expect(page.getByRole("button", { name: /Account menu/ })).toBeVisible();
-  }
-
-  async function actAs(page: Page, name: string) {
-    await page.getByRole("button", { name: /Account menu/ }).click();
-    await page.getByRole("button", { name: new RegExp(name) }).click();
-    await expect(page.getByRole("button", { name: new RegExp(`Account menu for ${name}`) })).toBeVisible();
-  }
+  const openApp = (page: Page, path: string) => openAs(page, path);
 
   const dialog = (page: Page) => page.getByRole("dialog");
 
@@ -27,7 +19,7 @@ test.describe("record management", () => {
     await openApp(page, "/exceptions/new");
     await page.getByLabel("Issue title").fill("Hydraulic hose leak on EX-204");
     await page.getByLabel("Observed condition").fill("A hose leak was seen at the boom cylinder during the pre-start check.");
-    await page.getByRole("button", { name: "Record demo issue" }).click();
+    await page.getByRole("button", { name: "Record issue" }).click();
     await expect(page.getByRole("heading", { name: "Hydraulic hose leak on EX-204" })).toBeVisible();
 
     await step(page, "Mark reviewed");
@@ -77,7 +69,7 @@ test.describe("record management", () => {
     await openApp(page, "/exceptions/new");
     await page.getByLabel("Issue title").fill("Conveyor belt mistracking");
     await page.getByLabel("Observed condition").fill("The feed conveyor belt is mistracking to the left side.");
-    await page.getByRole("button", { name: "Record demo issue" }).click();
+    await page.getByRole("button", { name: "Record issue" }).click();
     await expect(page.getByRole("heading", { name: "Conveyor belt mistracking" })).toBeVisible();
 
     await step(page, "Cancel issue", "Raised in error, the belt was already realigned.");
@@ -113,7 +105,7 @@ test.describe("record management", () => {
     await openApp(page, "/exceptions/new");
     await page.getByLabel("Issue title").fill("Water pump pressure drop");
     await page.getByLabel("Observed condition").fill("The dewatering pump pressure dropped during the morning shift.");
-    await page.getByRole("button", { name: "Record demo issue" }).click();
+    await page.getByRole("button", { name: "Record issue" }).click();
     await expect(page.getByRole("heading", { name: "Water pump pressure drop" })).toBeVisible();
     await actAs(page, "Amina Patel");
     await page.goto("/exceptions");

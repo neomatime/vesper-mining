@@ -1,18 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { openAs, setPlan, signIn } from "./support";
 
 test.describe("workspaces and subscriptions", () => {
   test.skip(({ isMobile }) => isMobile, "Exercised on the desktop layout.");
 
-  async function openApp(page: Page, path: string) {
-    await page.goto(path);
-    await expect(page.getByRole("button", { name: /Account menu/ })).toBeVisible();
-  }
-
-  async function choosePlan(page: Page, name: "Enterprise" | "Operations") {
-    await page.goto("/admin");
-    await page.getByRole("radio", { name: new RegExp(`^${name} (Sites|Current)`) }).click();
-    await expect(page.getByText(`Subscription set to ${name}`, { exact: true })).toBeVisible();
-  }
+  const openApp = openAs;
 
   test("shows live registers with their own summaries and filters", async ({ page }) => {
     await openApp(page, "/exceptions");
@@ -28,7 +20,7 @@ test.describe("workspaces and subscriptions", () => {
 
   test("opens a record from anywhere in its table row", async ({ page }) => {
     await openApp(page, "/equipment");
-    await page.getByRole("cell", { name: "Verify spare-part availability" }).click();
+    await page.getByRole("cell", { name: "Crusher Line" }).click();
     await expect(page).toHaveURL(/\/equipment\/eq-crusher-c02$/);
   });
 
@@ -54,17 +46,15 @@ test.describe("workspaces and subscriptions", () => {
     await page.getByRole("link", { name: /Delay analytics/ }).click();
     await expect(page.getByRole("heading", { name: /Advanced analytics are part of Enterprise and Group/ })).toBeVisible();
 
-    await choosePlan(page, "Enterprise");
+    await setPlan(page, "Enterprise");
     await page.goto("/reports/delay-analytics");
     await expect(page.getByRole("heading", { name: "Delay analytics", level: 1 })).toBeVisible();
-    await expect(page.getByText("Illustrative fixture. Not measured delay")).toBeVisible();
+    await expect(page.getByText("Indicative trend data. Not measured delay")).toBeVisible();
   });
 
   test("keeps VESPER Mobile out of Core and brings it back on Operations", async ({ page }) => {
-    await openApp(page, "/admin");
-    await page.getByRole("radio", { name: "Core" }).click();
-    await expect(page.getByText(/VESPER Mobile is no longer included/)).toBeVisible();
-
+    await setPlan(page, "Core");
+    await signIn(page);
     await page.getByRole("button", { name: /Account menu/ }).click();
     await expect(page.getByText(/Not included in Core/)).toBeVisible();
     await page.keyboard.press("Escape");
@@ -73,19 +63,19 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByRole("heading", { name: /VESPER Mobile is not part of this subscription/ })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Field navigation" })).toHaveCount(0);
 
-    await choosePlan(page, "Operations");
+    await setPlan(page, "Operations");
     await page.goto("/mobile/my-shift");
     await expect(page.getByRole("heading", { name: /Good morning/ })).toBeVisible();
   });
 
-  test("lets only the Mine Manager change the plan, and lists integrations as not connected", async ({ page }) => {
+  test("shows the client their own plan, people and connections, not every tier", async ({ page }) => {
     await openApp(page, "/admin");
-    await expect(page.getByText("Maintenance system (CMMS)")).toBeVisible();
+    await expect(page.getByRole("cell", { name: /Amina Patel amina\.patel@/ })).toBeVisible();
+    await expect(page.getByRole("radio")).toHaveCount(0);
+    await page.getByRole("tab", { name: "Plan and usage" }).click();
+    await expect(page.getByRole("heading", { name: "Operations — Single Site" })).toBeVisible();
+    await page.getByRole("tab", { name: "Connections" }).click();
+    await expect(page.getByText("Maintenance system")).toBeVisible();
     await expect(page.getByText("Not connected").first()).toBeVisible();
-
-    await page.getByRole("button", { name: "View as Amina" }).click();
-    await page.goto("/admin");
-    await expect(page.getByRole("radio", { name: "Core" })).toBeDisabled();
-    await expect(page.getByText(/The Mine Manager changes the plan/)).toBeVisible();
   });
 });
