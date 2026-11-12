@@ -113,7 +113,7 @@ export function AdminScreen() {
         action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <button className="button button--primary" onClick={() => setProviderDialog({})}><Plus /> Add service provider</button> : undefined}
       />
 
-      <section className="kpi-row" aria-label="Summary">
+      <section className="kpi-row kpi-row--lead-wide" aria-label="Summary">
         <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
         <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
         <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
@@ -134,7 +134,7 @@ export function AdminScreen() {
             <div className="register-toolbar">
               <label className="register-search">
                 <Search aria-hidden="true" />
-                <input type="search" placeholder="Search by name, email, role or number" aria-label="Search employees" value={query} onChange={(event) => setQuery(event.target.value)} />
+                <input type="search" placeholder="Search employees" aria-label="Search employees" value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
               <div className="filter-chips" role="group" aria-label="Filter employees">
                 {filters.map((item) => (

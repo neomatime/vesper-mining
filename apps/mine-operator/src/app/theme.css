@@ -879,3 +879,69 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .cal-card--mobile .segmented button { flex: 1; }
 .cal-card--mobile .cal-day { --hour: 40px; }
 .cal-card__timeline { padding: 0 14px 18px; }
+
+/* ==========================================================================
+   Phone and tablet polish
+   ========================================================================== */
+
+/* Edges of rows that scroll sideways fade out while there is more to see */
+[data-fade-right]:not([data-fade-left]) { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+[data-fade-left]:not([data-fade-right]) { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+[data-fade-left][data-fade-right] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+
+/* Sign in on small screens: the photograph fills its band, with room for the wordmark and the statements */
+@media (max-width: 1023px) {
+  .signin__brand { min-height: 360px; padding: 32px 28px 36px; background: #0a100f url("/images/sign-in-sunset-plant.jpg") 52% 62% / cover no-repeat; }
+  .signin__brand::before { background: linear-gradient(180deg, rgba(8, 12, 12, 0.55) 0%, rgba(8, 12, 12, 0) 32%, rgba(8, 12, 12, 0.35) 62%, rgba(8, 12, 12, 0.9) 100%); }
+  .signin__statement { gap: 6px; }
+  .signin__statement p { font-size: clamp(21px, 5.6vw, 30px); }
+}
+@media (max-width: 480px) {
+  .signin__brand { min-height: 320px; padding: 28px 22px 32px; }
+  .signin__statement p { font-size: clamp(20px, 5.8vw, 24px); }
+}
+
+/* Top bar on phones: the site name gives way before the profile picture does */
+@media (max-width: 767px) {
+  .topbar > * { flex-shrink: 0; }
+  .topbar__actions { flex: none; }
+  .site-selector { flex: 0 1 150px; min-width: 56px; flex-shrink: 1; }
+  .profile-chip { flex: none; }
+}
+@media (max-width: 480px) { .site-selector { max-width: 112px; } }
+@media (max-width: 380px) { .site-selector { max-width: 92px; } .wordmark { letter-spacing: 0.06em; } }
+
+/* Touch-sized targets on phones and tablets */
+@media (max-width: 1023px), (pointer: coarse) {
+  .filter-chips button { min-height: 40px; padding-inline: 14px; }
+  .segmented button, .segmented a { min-height: 40px; }
+  .button--small { min-height: 40px; }
+  .icon-button--light, .cal-toolbar .icon-button--light { width: 44px; height: 44px; }
+  .card__header > a { min-height: 44px; }
+  .back-link { min-height: 44px; margin-bottom: 4px; }
+  .connection-toggle { min-height: 44px; }
+  .sidebar__nav a, .sidebar__collapse { min-height: 44px; }
+  .metric-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .cal__chip { padding: 2px 5px; font-size: 11px; }
+  .cal-card--mobile .cal-toolbar__nav h2 { font-size: 16px; }
+}
+
+/* Administration summary: the plan name gets the full width on phones */
+@media (max-width: 767px) {
+  .kpi-row--lead-wide > .kpi:first-child { grid-column: 1 / -1; }
+}
+
+/* The compact site plan keeps the plan's own proportions, so it fills its frame at any width */
+.leaflet-shell--compact { height: auto; aspect-ratio: 5 / 3; max-height: 440px; }
+@media (max-width: 767px) { .leaflet-shell--compact { height: auto; } }
+
+/* Larger hit areas: the wordmark, the week days and the tablet rail */
+@media (max-width: 1023px), (pointer: coarse) {
+  .topbar .wordmark { display: inline-flex; align-items: center; min-height: 44px; }
+  .cal-week__head { min-height: 44px; align-items: center; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --sidebar-width: 86px; }
+  .app-shell { --active-sidebar-width: 86px; }
+  .sidebar { width: 72px; padding: 12px 8px; }
+}
