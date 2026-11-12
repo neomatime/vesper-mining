@@ -103,5 +103,20 @@ export function useOrganisationMutations() {
     onError,
   });
 
-  return { addMember, updateMember, setAccess, resetPassword, deleteMember, saveCompany, saveSite };
+  const updateOwn = useMutation({
+    mutationFn: (input: { phone: string }) => demoSend<Member>("/me", "PATCH", input),
+    onSuccess: async () => {
+      await refresh();
+      toast.push({ title: "Your details were saved" });
+    },
+    onError,
+  });
+
+  const changeOwnPassword = useMutation({
+    mutationFn: (input: { email: string; current: string; next: string }) => demoSend<{ changed: true }>("/session/change-password", "POST", input),
+    onSuccess: () => toast.push({ title: "Password changed", detail: "Use the new password next time you sign in." }),
+    onError,
+  });
+
+  return { updateOwn, changeOwnPassword, addMember, updateMember, setAccess, resetPassword, deleteMember, saveCompany, saveSite };
 }

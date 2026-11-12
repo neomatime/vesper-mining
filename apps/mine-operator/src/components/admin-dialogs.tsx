@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { isValidEmail, roleCatalogue, timezones } from "@/lib/organisation-rules";
+import { levelLabels, rightsMatrix } from "@/lib/rights";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import type { MemberInput } from "./use-organisation";
@@ -176,6 +177,55 @@ export function SiteDialog({ site, pending, onSave, onClose }: { site: SiteDetai
         <Field label="Operating hours"><input {...form.register("operatingHours")} /></Field>
         <Field label="Site contact" wide><input {...form.register("siteContact")} /></Field>
       </form>
+    </Dialog>
+  );
+}
+
+// ---- Change role, with a preview of what changes --------------------------------------------------
+
+export function ChangeRoleDialog({ member, pending, onSave, onClose }: { member: Member; pending: boolean; onSave: (role: string) => void; onClose: () => void }) {
+  const [role, setRole] = useState(member.role);
+  const changes = rightsMatrix
+    .map((row) => ({ area: row.area, action: row.action, from: row.levels[member.role] ?? "no", to: row.levels[role] ?? "no" }))
+    .filter((row) => row.from !== row.to);
+  const gained = changes.filter((row) => row.to !== "no" && (row.from === "no" || row.to === "yes"));
+  const lost = changes.filter((row) => !gained.includes(row));
+
+  return (
+    <Dialog
+      title={`Change the role for ${member.name}`}
+      description="A person's rights come from their role. Choosing a different role changes what they can do everywhere in VESPER."
+      size="wide"
+      onClose={onClose}
+      locked={pending}
+      footer={
+        <>
+          <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button>
+          <button className="button button--primary" disabled={pending || role === member.role} onClick={() => onSave(role)}>{pending ? "Saving…" : "Change role"}</button>
+        </>
+      }
+    >
+      <div className="form-grid">
+        <Field label="Role" wide>
+          <select data-autofocus value={role} onChange={(event) => setRole(event.target.value)}>
+            {roleCatalogue.map((item) => <option key={item.role} value={item.role}>{item.role}</option>)}
+          </select>
+        </Field>
+      </div>
+      {role === member.role ? (
+        <p className="form-note">Choose a different role to see what changes.</p>
+      ) : (
+        <div className="role-diff" aria-live="polite">
+          <div>
+            <h3>Gains ({gained.length})</h3>
+            {gained.length === 0 ? <p className="muted">Nothing new.</p> : <ul>{gained.map((row) => <li key={row.action}><span>{row.action}</span><small>{row.area} · {levelLabels[row.to]}</small></li>)}</ul>}
+          </div>
+          <div>
+            <h3>Loses ({lost.length})</h3>
+            {lost.length === 0 ? <p className="muted">Nothing is taken away.</p> : <ul>{lost.map((row) => <li key={row.action}><span>{row.action}</span><small>{row.area} · {levelLabels[row.to]}</small></li>)}</ul>}
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

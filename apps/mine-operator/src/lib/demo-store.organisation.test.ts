@@ -164,3 +164,22 @@ describe("site and company", () => {
     expect(demoDomain.updateCompany({ ...company, name: "Riverside Resources Holdings" }, manager).name).toBe("Riverside Resources Holdings");
   });
 });
+
+describe("my own profile", () => {
+  it("lets someone change their own password when they know the current one", () => {
+    const lebo = find("Lebo Maseko");
+    rejects(() => demoDomain.changeOwnPassword(lebo.email, "wrong", "Quarry-Face-2025"), 401, /current password/);
+    rejects(() => demoDomain.changeOwnPassword(lebo.email, FIXTURE_PASSWORD, "short"), 400, /at least 10/);
+    rejects(() => demoDomain.changeOwnPassword(lebo.email, FIXTURE_PASSWORD, FIXTURE_PASSWORD), 400, /not used before/);
+    demoDomain.changeOwnPassword(lebo.email, FIXTURE_PASSWORD, "Quarry-Face-2025");
+    expect(demoDomain.authenticate(lebo.email, "Quarry-Face-2025").account?.name).toBe("Lebo Maseko");
+    rejects(() => demoDomain.authenticate(lebo.email, FIXTURE_PASSWORD), 401);
+    expect(demoDomain.organisation().activity[0].summary).toMatch(/Lebo Maseko changed their password/);
+  });
+
+  it("lets someone update only their own phone number", () => {
+    const saved = demoDomain.updateOwnDetails({ phone: "+27 82 111 2222", role: "Mine Manager", name: "Someone Else" }, amina);
+    expect(saved).toMatchObject({ name: "Amina Patel", phone: "+27 82 111 2222", role: "Shift Supervisor" });
+  });
+});
+

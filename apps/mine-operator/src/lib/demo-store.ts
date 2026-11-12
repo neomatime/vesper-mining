@@ -1827,6 +1827,30 @@ export const demoDomain = {
     return { account: startSession(member), mustChangePassword: false };
   },
 
+  /** A signed-in person changing their own password. They must know the current one. */
+  changeOwnPassword(email: string, current: string, next: string) {
+    const member = state.members.find((item) => item.email === normaliseEmail(email));
+    const credential = member ? state.credentials[member.id] : undefined;
+    if (!member || !credential || credential.password !== current) fail(401, "INVALID_CREDENTIALS", "Your current password is not correct.");
+    const problem = passwordProblem(next, current);
+    if (problem) fail(400, "VALIDATION_ERROR", problem);
+    state.credentials[member.id] = { password: next, temporary: false };
+    member.mustChangePassword = false;
+    touch(member);
+    logOrganisation({ name: member.name, role: member.role }, `${member.name} changed their password`);
+    return { changed: true };
+  },
+
+  /** Someone updating their own contact number. Name, email and role stay with the administrator. */
+  updateOwnDetails(input: Record<string, unknown>, actor: Actor) {
+    const member = state.members.find((item) => item.name === actor.name) ?? fail(404, "NOT_FOUND", "Your account could not be found.");
+    const phone = text(input.phone);
+    if (phone.length > 40) fail(400, "VALIDATION_ERROR", "That phone number is too long.");
+    member.phone = phone;
+    touch(member);
+    return member;
+  },
+
   addMember(input: Record<string, unknown>, actor: Actor) {
     assertOrganisationManager(actor);
     const name = requireText(input.name, "The name", 2);

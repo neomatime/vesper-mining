@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Check, ChevronDown, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronRight, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -136,13 +136,14 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
       </button>
       {open ? (
         <div className="popover popover--menu" role="group" aria-label="Account menu">
-          <div className="profile-card">
+          <Link className="profile-card profile-card--link" href="/profile" onClick={close} aria-label={`Open the profile for ${context.persona}`}>
             <span className="avatar avatar--medium">{initials(context.persona)}</span>
             <div>
               <strong>{context.persona}</strong>
               <small>{context.role} · {context.siteName}</small>
             </div>
-          </div>
+            <ChevronRight size={16} aria-hidden="true" className="profile-card__chevron" />
+          </Link>
 
           <div className="menu-section">
             {inField ? (

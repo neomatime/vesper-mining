@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, KeyRound, Lock, Minus, Pencil } from "lucide-react";
+import { ArrowLeft, Check, KeyRound, Lock, Minus, Pencil, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import { canManageOrganisation, memberStatusLabels, roleInfo } from "@/lib/organ
 import { initials } from "@/lib/personas";
 import { levelLabels, rightsForRole } from "@/lib/rights";
 import { useDemoContext } from "@/stores/demo-context";
-import { MemberDialog, TemporaryPasswordDialog } from "./admin-dialogs";
+import { ChangeRoleDialog, MemberDialog, TemporaryPasswordDialog } from "./admin-dialogs";
 import { ConfirmDialog } from "./dialog";
 import { MoreMenu } from "./more-menu";
 import { LoadingState } from "./query-state";
@@ -26,6 +26,7 @@ export function EmployeeProfileScreen({ id }: { id: string }) {
   const { data, isPending } = useOrganisation();
   const actions = useOrganisationMutations();
   const [editing, setEditing] = useState(false);
+  const [changingRole, setChangingRole] = useState(false);
   const [confirm, setConfirm] = useState<Pending>(null);
   const [reset, setReset] = useState<{ password: string } | null>(null);
 
@@ -121,8 +122,11 @@ export function EmployeeProfileScreen({ id }: { id: string }) {
           </section>
 
           <section className="card detail-card" aria-labelledby="rights-heading">
-            <header className="card__header"><div><span className="eyebrow">Access control</span><h2 id="rights-heading">Rights from the {member.role} role</h2></div></header>
-            <p className="card-note card-note--top">Rights follow the role. Change the role to change what this person can do.</p>
+            <header className="card__header">
+              <div><span className="eyebrow">Access control</span><h2 id="rights-heading">Rights from the {member.role} role</h2></div>
+              {!self ? <button className="button button--primary" onClick={() => setChangingRole(true)}><ShieldCheck /> Change role</button> : null}
+            </header>
+            <p className="card-note card-note--top">{self ? "You cannot change your own role. Ask another Mine Manager." : "Rights follow the role. Change the role to change what this person can do. You will see exactly what they gain and lose first."}</p>
             <div className="profile-rights">
               {rights.map((group) => (
                 <div key={group.area} className="profile-rights__group">
@@ -160,6 +164,14 @@ export function EmployeeProfileScreen({ id }: { id: string }) {
         </aside>
       </div>
 
+      {changingRole ? (
+        <ChangeRoleDialog
+          member={member}
+          pending={actions.updateMember.isPending}
+          onClose={() => setChangingRole(false)}
+          onSave={(role) => actions.updateMember.mutate({ id: member.id, version: member.version, role }, { onSuccess: () => setChangingRole(false) })}
+        />
+      ) : null}
       {editing ? (
         <MemberDialog
           member={member}

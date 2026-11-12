@@ -245,6 +245,14 @@ export const handlers = [
     const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
     return run(() => demoDomain.changePassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));
   }),
+  http.post(`${API}/session/change-password`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
+    return run(() => demoDomain.changeOwnPassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));
+  }),
+  http.patch(`${API}/me`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateOwnDetails(input, actorOf(request)));
+  }),
   http.get(`${API}/organisation`, () => envelope(demoDomain.organisation())),
   http.post(`${API}/members`, async ({ request }) => {
     const input = await bodyOf(request);
