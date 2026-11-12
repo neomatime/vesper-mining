@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Company, Member, SiteDetails } from "@vesper/api-contracts";
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { isValidEmail, roleCatalogue, timezones } from "@/lib/organisation-rules";
@@ -20,12 +21,14 @@ function DialogFooter({ pending, onClose, form, label }: Footer) {
   );
 }
 
-// ---- Invite or edit a person -----------------------------------------------------------------------
+// ---- Add or edit an employee -----------------------------------------------------------------------
 
 const memberSchema = z.object({
   name: z.string().trim().min(2, "Enter the person's full name."),
   email: z.string().trim().refine(isValidEmail, "Enter a valid work email address."),
   role: z.string().min(1, "Choose a role."),
+  phone: z.string(),
+  employeeNumber: z.string(),
 });
 
 export function MemberDialog({
@@ -41,41 +44,68 @@ export function MemberDialog({
 }) {
   const form = useForm<z.infer<typeof memberSchema>>({
     resolver: zodResolver(memberSchema),
-    defaultValues: { name: member?.name ?? "", email: member?.email ?? "", role: member?.role ?? "" },
+    defaultValues: { name: member?.name ?? "", email: member?.email ?? "", role: member?.role ?? "", phone: member?.phone ?? "", employeeNumber: member?.employeeNumber ?? "" },
   });
   const { errors } = form.formState;
   const chosenRole = useWatch({ control: form.control, name: "role" });
-  // A person who has signed in keeps the name and email on their records. Only the role can change.
-  const identityLocked = Boolean(member && member.status !== "invited");
+  // A person who has signed in keeps the name on their records.
+  const nameLocked = Boolean(member?.lastSignInAt);
 
   return (
     <Dialog
-      title={member ? `Edit ${member.name}` : "Invite a person"}
-      description={member ? "Role changes take effect the next time they open VESPER." : "They receive an invitation and can sign in with their work email address."}
+      title={member ? `Edit ${member.name}` : "Add an employee"}
+      description={member ? "Role changes apply the next time they open VESPER." : "You will get a temporary password to share with them. They choose their own at first sign-in."}
+      size="wide"
       onClose={onClose}
       locked={pending}
-      footer={<DialogFooter pending={pending} onClose={onClose} form="member-form" label={member ? "Save changes" : "Send invitation"} />}
+      footer={<DialogFooter pending={pending} onClose={onClose} form="member-form" label={member ? "Save changes" : "Add employee"} />}
     >
-      <form
-        id="member-form"
-        className="form-grid"
-        noValidate
-        onSubmit={form.handleSubmit((values) => onSave(member ? { ...(identityLocked ? {} : { name: values.name, email: values.email }), role: values.role } : values))}
-      >
-        <Field label="Full name" error={errors.name?.message} wide>
-          <input data-autofocus={!identityLocked} disabled={identityLocked} aria-invalid={Boolean(errors.name)} {...form.register("name")} />
+      <form id="member-form" className="form-grid" noValidate onSubmit={form.handleSubmit((values) => onSave(member ? { ...values, ...(nameLocked ? { name: member.name } : {}) } : values))}>
+        <Field label="Full name" error={errors.name?.message} hint={nameLocked ? "Fixed once someone has signed in, because it appears on their records." : undefined} wide>
+          <input data-autofocus={!nameLocked} disabled={nameLocked} aria-invalid={Boolean(errors.name)} {...form.register("name")} />
         </Field>
-        <Field label="Work email address" error={errors.email?.message} hint={identityLocked ? "This cannot change after the person has signed in." : undefined} wide>
-          <input type="email" inputMode="email" disabled={identityLocked} aria-invalid={Boolean(errors.email)} {...form.register("email")} />
+        <Field label="Work email address" error={errors.email?.message} wide>
+          <input type="email" inputMode="email" aria-invalid={Boolean(errors.email)} {...form.register("email")} />
         </Field>
+        <Field label="Phone number"><input type="tel" {...form.register("phone")} /></Field>
+        <Field label="Employee number"><input {...form.register("employeeNumber")} /></Field>
         <Field label="Role" error={errors.role?.message} wide>
-          <select data-autofocus={identityLocked} aria-invalid={Boolean(errors.role)} {...form.register("role")}>
+          <select data-autofocus={nameLocked} aria-invalid={Boolean(errors.role)} {...form.register("role")}>
             <option value="">Choose a role</option>
             {roleCatalogue.map((item) => <option key={item.role} value={item.role}>{item.role}</option>)}
           </select>
         </Field>
         <p className="form-note">{roleCatalogue.find((item) => item.role === chosenRole)?.scope ?? "A role decides what a person sees and what they can change."}</p>
       </form>
+    </Dialog>
+  );
+}
+
+// ---- Temporary password ----------------------------------------------------------------------------
+
+export function TemporaryPasswordDialog({ name, email, password, reason, onClose }: { name: string; email: string; password: string; reason: "added" | "reset"; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <Dialog
+      title={reason === "added" ? `${name} has been added` : `Password reset for ${name}`}
+      description="Share these sign-in details with them. This is the only time the temporary password is shown."
+      size="narrow"
+      onClose={onClose}
+      footer={<button className="button button--primary" onClick={onClose} data-autofocus>Done</button>}
+    >
+      <dl className="credential-card">
+        <div><dt>Email address</dt><dd>{email}</dd></div>
+        <div><dt>Temporary password</dt><dd><code>{password}</code><button className="button button--quiet button--small" type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></dd></div>
+      </dl>
+      <p className="form-note">They will be asked to choose their own password the first time they sign in. You cannot see it afterwards.</p>
     </Dialog>
   );
 }

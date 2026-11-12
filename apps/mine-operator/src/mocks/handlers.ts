@@ -241,21 +241,25 @@ export const handlers = [
     const input = await bodyOf<{ email?: string; password?: string }>(request);
     return run(() => demoDomain.authenticate(String(input.email ?? ""), String(input.password ?? "")));
   }),
+  http.post(`${API}/session/password`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
+    return run(() => demoDomain.changePassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));
+  }),
   http.get(`${API}/organisation`, () => envelope(demoDomain.organisation())),
   http.post(`${API}/members`, async ({ request }) => {
     const input = await bodyOf(request);
-    return run(() => demoDomain.inviteMember(input, actorOf(request)), 201);
+    return run(() => demoDomain.addMember(input, actorOf(request)), 201);
   }),
   http.patch(`${API}/members/:id`, async ({ params, request }) => {
     const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
     return run(() => demoDomain.updateMember(param(params, "id"), input, actorOf(request)));
   }),
-  http.delete(`${API}/members/:id`, ({ params, request }) => run(() => demoDomain.removeInvitation(param(params, "id"), actorOf(request)))),
+  http.delete(`${API}/members/:id`, ({ params, request }) => run(() => demoDomain.deleteMember(param(params, "id"), actorOf(request)))),
   http.post(`${API}/members/:id/access`, async ({ params, request }) => {
     const input = await bodyOf<{ access?: string }>(request);
     return run(() => demoDomain.setMemberAccess(param(params, "id"), input.access === "on" ? "on" : "off", actorOf(request)));
   }),
-  http.post(`${API}/members/:id/invitation`, ({ params, request }) => run(() => demoDomain.resendInvitation(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/members/:id/password-reset`, ({ params, request }) => run(() => demoDomain.resetPassword(param(params, "id"), actorOf(request)))),
   http.patch(`${API}/organisation/company`, async ({ request }) => {
     const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
     return run(() => demoDomain.updateCompany(input, actorOf(request)));

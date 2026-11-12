@@ -56,9 +56,9 @@ import {
   type EquipmentCapability,
   type EquipmentView,
 } from "./equipment-rules";
-import { FIXTURE_PASSWORD, type Account } from "./accounts";
-import { seedActivity, seedCompany, seedMembers, seedSite } from "./organisation-data";
-import { canManageOrganisation, homeFor, isLastManager, isValidEmail, normaliseEmail, roleNames } from "./organisation-rules";
+import type { Account } from "./accounts";
+import { seedActivity, seedCompany, seedCredentials, seedMembers, seedSite } from "./organisation-data";
+import { canManageOrganisation, homeFor, isLastManager, isValidEmail, normaliseEmail, passwordProblem, roleNames } from "./organisation-rules";
 import { deriveReadinessStatus } from "./readiness-rules";
 import {
   buildShiftTimes,
@@ -100,12 +100,13 @@ const initialState = {
   equipment,
   shifts,
   members: seedMembers,
+  credentials: seedCredentials,
   company: seedCompany,
   site: seedSite,
   activity: seedActivity,
   notifications: notifications.map((item): DemoNotification => ({ ...item, recipient: null })),
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0 },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0 },
 };
 
 export type DemoDomainState = typeof initialState;
@@ -119,7 +120,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Boolean(parsed.company) && Boolean(parsed.site);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -476,6 +477,25 @@ function checkedEmail(value: unknown, selfId?: string) {
   return email;
 }
 
+function checkedEmployeeNumber(value: unknown, selfId?: string) {
+  const number = text(value);
+  if (number && state.members.some((member) => member.id !== selfId && member.employeeNumber.toLowerCase() === number.toLowerCase())) {
+    fail(409, "DUPLICATE_NUMBER", "Another employee already has this employee number.");
+  }
+  return number;
+}
+
+function startSession(member: Member): Account {
+  const at = tick();
+  if (member.status === "invited") {
+    member.status = "active";
+    member.joinedAt = at;
+    logOrganisation({ name: member.name, role: member.role }, `${member.name} signed in for the first time`);
+  }
+  member.lastSignInAt = at;
+  return { email: member.email, name: member.name, role: member.role, home: homeFor(member.role) };
+}
+
 function logOrganisation(actor: Actor, summary: string) {
   const entry: OrganisationEvent = { id: nextId("activity", "org"), at: tick(), actor: actor.name, summary };
   state.activity = [entry, ...state.activity].slice(0, 50);
@@ -485,6 +505,22 @@ function touch<T extends { version: number }>(record: T) {
   record.version += 1;
   return record;
 }
+
+function newTemporaryPassword() {
+  state.counters.credential += 1;
+  const n = state.counters.credential;
+  return `Vesper-${String((n * 7919) % 9000 + 1000)}-${"KQWXZM"[n % 6]}${"tbrnfd"[(n * 3) % 6]}`;
+}
+
+/** True when a person appears on shifts, issues, actions or equipment history, so they must be kept. */
+function memberHasRecords(name: string) {
+  const onShift = state.shifts.some((shift) => shift.supervisor === name || shift.crew.some((member) => member.name === name) || shift.work.some((item) => item.owner === name) || shift.events.some((event) => event.actor === name));
+  const onIssue = state.issues.some((issue) => issue.owner === name || issue.actions.some((action) => action.owner === name) || issue.events.some((event) => event.actor === name) || issue.comments.some((comment) => comment.author === name));
+  const onEquipment = state.equipment.some((item) => item.events.some((event) => event.actor === name));
+  return onShift || onIssue || onEquipment;
+}
+
+export type AuthResult = { account: Account | null; mustChangePassword: boolean };
 
 export type OrganisationView = {
   members: Member[];
@@ -1443,34 +1479,46 @@ export const demoDomain = {
   // ---- Organisation ----------------------------------------------------------------------
   organisation: (): OrganisationView => ({ members: state.members, company: state.company, site: state.site, activity: state.activity }),
 
-  /** Checks a sign-in. The first sign-in by an invited person accepts the invitation. */
-  authenticate(email: string, password: string): Account {
+  /** Checks a sign-in. A temporary password must be replaced before a session starts. */
+  authenticate(email: string, password: string): AuthResult {
     const member = state.members.find((item) => item.email === normaliseEmail(email));
-    if (!member || password !== FIXTURE_PASSWORD) fail(401, "INVALID_CREDENTIALS", "That email and password do not match. Check them and try again.");
+    const credential = member ? state.credentials[member.id] : undefined;
+    if (!member || !credential || credential.password !== password) fail(401, "INVALID_CREDENTIALS", "That email and password do not match. Check them and try again.");
     if (member.status === "deactivated") fail(403, "ACCESS_OFF", "Your access to VESPER has been turned off. Ask your Mine Manager to restore it.");
-    const at = tick();
-    if (member.status === "invited") {
-      member.status = "active";
-      member.joinedAt = at;
-      logOrganisation({ name: member.name, role: member.role }, `${member.name} accepted the invitation`);
-    }
-    member.lastSignInAt = at;
-    return { email: member.email, name: member.name, role: member.role, home: homeFor(member.role) };
+    if (credential.temporary) return { account: null, mustChangePassword: true };
+    return { account: startSession(member), mustChangePassword: false };
   },
 
-  inviteMember(input: Record<string, unknown>, actor: Actor) {
+  /** Replaces a temporary password with one the person chose, then signs them in. */
+  changePassword(email: string, current: string, next: string): AuthResult {
+    const member = state.members.find((item) => item.email === normaliseEmail(email));
+    const credential = member ? state.credentials[member.id] : undefined;
+    if (!member || !credential || credential.password !== current) fail(401, "INVALID_CREDENTIALS", "That email and password do not match. Check them and try again.");
+    if (member.status === "deactivated") fail(403, "ACCESS_OFF", "Your access to VESPER has been turned off. Ask your Mine Manager to restore it.");
+    const problem = passwordProblem(next, current);
+    if (problem) fail(400, "VALIDATION_ERROR", problem);
+    state.credentials[member.id] = { password: next, temporary: false };
+    member.mustChangePassword = false;
+    touch(member);
+    return { account: startSession(member), mustChangePassword: false };
+  },
+
+  addMember(input: Record<string, unknown>, actor: Actor) {
     assertOrganisationManager(actor);
     const name = requireText(input.name, "The name", 2);
     const email = checkedEmail(input.email);
     const role = checkedRole(input.role);
+    const employeeNumber = checkedEmployeeNumber(input.employeeNumber);
     if (state.members.some((member) => member.name.toLowerCase() === name.toLowerCase() && member.status !== "deactivated")) {
       fail(409, "DUPLICATE_NAME", "Someone with this name already has access. Use a distinguishing name.");
     }
     const at = tick();
-    const member: Member = { id: nextId("member", "member"), name, email, role, status: "invited", invitedAt: at, joinedAt: null, lastSignInAt: null, deactivatedAt: null, version: 1 };
+    const member: Member = { id: nextId("member", "member"), name, email, role, phone: text(input.phone), employeeNumber, mustChangePassword: true, status: "invited", invitedAt: at, joinedAt: null, lastSignInAt: null, deactivatedAt: null, version: 1 };
+    const temporaryPassword = newTemporaryPassword();
     state.members = [...state.members, member];
-    logOrganisation(actor, `Invited ${name} as ${role}`);
-    return member;
+    state.credentials[member.id] = { password: temporaryPassword, temporary: true };
+    logOrganisation(actor, `Added ${name} as ${role}`);
+    return { member, temporaryPassword };
   },
 
   updateMember(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
@@ -1482,7 +1530,7 @@ export const demoDomain = {
       const name = requireText(input.name, "The name", 2);
       if (name !== member.name) {
         if (state.members.some((other) => other.id !== id && other.name.toLowerCase() === name.toLowerCase() && other.status !== "deactivated")) fail(409, "DUPLICATE_NAME", "Someone with this name already has access.");
-        if (member.status !== "invited") fail(409, "HAS_HISTORY", "A person who has signed in keeps the name on their records.");
+        if (member.joinedAt && member.lastSignInAt) fail(409, "HAS_HISTORY", "A person who has signed in keeps the name on their records.");
         changes.push(`name to ${name}`);
         member.name = name;
       }
@@ -1490,9 +1538,19 @@ export const demoDomain = {
     if (input.email !== undefined) {
       const email = checkedEmail(input.email, id);
       if (email !== member.email) {
-        if (member.status !== "invited") fail(409, "HAS_HISTORY", "The email address can only be changed before the invitation is accepted.");
         changes.push("email address");
         member.email = email;
+      }
+    }
+    if (input.phone !== undefined && text(input.phone) !== member.phone) {
+      member.phone = text(input.phone);
+      changes.push("phone number");
+    }
+    if (input.employeeNumber !== undefined) {
+      const employeeNumber = checkedEmployeeNumber(input.employeeNumber, id);
+      if (employeeNumber !== member.employeeNumber) {
+        member.employeeNumber = employeeNumber;
+        changes.push("employee number");
       }
     }
     if (input.role !== undefined) {
@@ -1529,22 +1587,30 @@ export const demoDomain = {
     return touch(member);
   },
 
-  resendInvitation(id: string, actor: Actor) {
+  /** Issues a temporary password. Nobody can read an existing password, so a reset is the only way in. */
+  resetPassword(id: string, actor: Actor) {
     assertOrganisationManager(actor);
     const member = findMember(id);
-    if (member.status !== "invited") fail(409, "READ_ONLY", "Only a pending invitation can be sent again.");
-    member.invitedAt = tick();
-    logOrganisation(actor, `Sent the invitation to ${member.name} again`);
-    return touch(member);
+    if (member.status === "deactivated") fail(409, "READ_ONLY", "Restore this person's access before resetting their password.");
+    if (member.name === actor.name) fail(409, "OWN_ACCOUNT", "You cannot reset your own password here.");
+    const temporaryPassword = newTemporaryPassword();
+    state.credentials[member.id] = { password: temporaryPassword, temporary: true };
+    member.mustChangePassword = true;
+    touch(member);
+    logOrganisation(actor, `Reset the password for ${member.name}`);
+    return { member, temporaryPassword };
   },
 
-  /** Only an invitation nobody has accepted can be removed. Everyone else is deactivated so their records stay. */
-  removeInvitation(id: string, actor: Actor) {
+  /** Deletes an employee only when nothing in VESPER refers to them. Otherwise they are deactivated so records stay whole. */
+  deleteMember(id: string, actor: Actor) {
     assertOrganisationManager(actor);
     const member = findMember(id);
-    if (member.status !== "invited" || member.joinedAt) fail(409, "HAS_HISTORY", "Only a pending invitation can be removed. Turn off access for anyone who has signed in.");
+    if (member.name === actor.name) fail(409, "OWN_ACCOUNT", "You cannot delete your own account.");
+    if (isLastManager(state.members, member)) fail(409, "LAST_MANAGER", "VESPER needs at least one active Mine Manager. Promote someone else first.");
+    if (member.lastSignInAt || memberHasRecords(member.name)) fail(409, "HAS_HISTORY", `${member.name} appears in shifts, issues or equipment records. Turn off access instead so the records stay whole.`);
     state.members = state.members.filter((item) => item.id !== id);
-    logOrganisation(actor, `Withdrew the invitation for ${member.name}`);
+    delete state.credentials[id];
+    logOrganisation(actor, `Deleted ${member.name}`);
     return { id, deleted: true };
   },
 

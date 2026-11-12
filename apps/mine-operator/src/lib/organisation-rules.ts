@@ -49,3 +49,12 @@ export function isLastManager(members: Member[], target: Member) {
 export const memberStatusLabels = { active: "Active", invited: "Invited", deactivated: "Deactivated" } as const;
 
 export const timezones = ["Africa/Johannesburg", "Africa/Harare", "Africa/Windhoek", "Africa/Gaborone", "Africa/Maputo", "Africa/Lusaka", "Africa/Accra", "Australia/Perth", "UTC"];
+
+/** Password policy for people choosing their own password. */
+export function passwordProblem(value: string, current?: string): string | null {
+  if (value.length < 10) return "Use at least 10 characters.";
+  if (!/[a-z]/.test(value) || !/[A-Z]/.test(value)) return "Use both upper and lower case letters.";
+  if (!/\d/.test(value)) return "Include at least one number.";
+  if (current !== undefined && value === current) return "Choose a password you have not used before.";
+  return null;
+}

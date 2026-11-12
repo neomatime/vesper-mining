@@ -1,15 +1,15 @@
 "use client";
 
-import type { Member } from "@vesper/api-contracts";
-import { Check, Minus, Pencil, Plus, Settings2 } from "lucide-react";
+import { Check, Lock, Minus, Pencil, Plus, Search, Settings2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { entitlementRows, entitlementsFor } from "@/lib/entitlements";
-import { canManageOrganisation, memberStatusLabels, roleInfo } from "@/lib/organisation-rules";
+import { canManageOrganisation, memberStatusLabels, roleInfo, roleNames } from "@/lib/organisation-rules";
 import { initials, tierLabel } from "@/lib/personas";
+import { levelLabels, rightsAreas, rightsMatrix } from "@/lib/rights";
 import { useDemoContext } from "@/stores/demo-context";
-import { CompanyDialog, MemberDialog, SiteDialog } from "./admin-dialogs";
-import { ConfirmDialog } from "./dialog";
+import { CompanyDialog, MemberDialog, SiteDialog, TemporaryPasswordDialog } from "./admin-dialogs";
 import { PageHeader } from "./page-header";
 import { LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
@@ -24,7 +24,8 @@ const integrations = [
 ];
 
 const tabs = [
-  { key: "people", label: "People" },
+  { key: "people", label: "Employees" },
+  { key: "rights", label: "User rights" },
   { key: "site", label: "Site" },
   { key: "company", label: "Company" },
   { key: "plan", label: "Plan and usage" },
@@ -35,58 +36,75 @@ type TabKey = (typeof tabs)[number]["key"];
 
 const statusTone = { active: "complete", invited: "pending", deactivated: "unknown" } as const;
 const statusOrder = { active: 0, invited: 1, deactivated: 2 } as const;
-
-type Pending =
-  | { kind: "off"; member: Member }
-  | { kind: "withdraw"; member: Member }
-  | null;
+const filters = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "invited", label: "Awaiting first sign-in" },
+  { key: "deactivated", label: "Deactivated" },
+] as const;
 
 export function AdminScreen() {
   const { context } = useDemoContext();
   const { data, isPending } = useOrganisation();
   const actions = useOrganisationMutations();
   const [tab, setTab] = useState<TabKey>("people");
-  const [inviting, setInviting] = useState(false);
-  const [editing, setEditing] = useState<Member | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
   const [editingSite, setEditingSite] = useState(false);
   const [editingCompany, setEditingCompany] = useState(false);
-  const [confirm, setConfirm] = useState<Pending>(null);
+  const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("all");
+  const [query, setQuery] = useState("");
 
   const plan = entitlementsFor(context.tier);
   const canManage = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
 
+  if (!canManage) {
+    return (
+      <div className="workspace-page">
+        <PageHeader eyebrow="Administration" title="Organisation" description="Employees, user rights, site and plan." icon={Settings2} />
+        <section className="card detail-card restricted">
+          <Lock aria-hidden="true" />
+          <h2>Administration is for the Mine Manager</h2>
+          <p>Employees, user rights, site and company details are managed by the Mine Manager. Ask them if something needs to change.</p>
+        </section>
+      </div>
+    );
+  }
+
   if (isPending || !data) {
     return (
       <div className="workspace-page">
-        <PageHeader eyebrow="Administration" title="Organisation" description="Your people, site and plan." icon={Settings2} />
+        <PageHeader eyebrow="Administration" title="Organisation" description="Employees, user rights, site and plan." icon={Settings2} />
         <LoadingState />
       </div>
     );
   }
 
-  const { members, company, site, activity } = data;
-  const people = [...members].sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.name.localeCompare(b.name));
+  const { members, company, site } = data;
   const active = members.filter((member) => member.status === "active").length;
-  const invited = members.filter((member) => member.status === "invited").length;
+  const waiting = members.filter((member) => member.status === "invited").length;
   const fieldUsers = members.filter((member) => member.status !== "deactivated" && roleInfo(member.role)?.fieldOnly).length;
+  const needle = query.trim().toLowerCase();
+  const people = [...members]
+    .filter((member) => filter === "all" || member.status === filter)
+    .filter((member) => !needle || [member.name, member.email, member.role, member.employeeNumber].join(" ").toLowerCase().includes(needle))
+    .sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.name.localeCompare(b.name));
 
   return (
     <div className="workspace-page">
       <PageHeader
         eyebrow="Administration"
         title="Organisation"
-        description="Your people, site and plan."
+        description="Employees, user rights, site and plan."
         icon={Settings2}
-        action={tab === "people" && canManage ? <button className="button button--primary" onClick={() => setInviting(true)}><Plus /> Invite person</button> : undefined}
+        action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : undefined}
       />
 
       <section className="kpi-row" aria-label="Summary">
         <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
         <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
-        <article className="kpi"><span>People</span><strong>{active}</strong><small>{invited ? `${invited} invited` : "With access to VESPER"}</small></article>
+        <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
       </section>
-
-      {!canManage ? <p className="notice-line">Only the Mine Manager can change people, site and company details. You can see them here.</p> : null}
 
       <div className="tabs" role="tablist" aria-label="Administration sections">
         {tabs.map((item) => (
@@ -98,57 +116,83 @@ export function AdminScreen() {
 
       {tab === "people" ? (
         <div role="tabpanel" id="panel-people" aria-labelledby="tab-people" className="admin-panel">
-          <section className="card detail-card" aria-labelledby="people-heading">
-            <header className="card__header"><div><span className="eyebrow">Access</span><h2 id="people-heading">People and roles</h2></div></header>
+          <section className="card register-card" aria-labelledby="people-heading">
+            <header className="card__header"><div><span className="eyebrow">Access</span><h2 id="people-heading">Employees</h2></div></header>
+            <div className="register-toolbar">
+              <label className="register-search">
+                <Search aria-hidden="true" />
+                <input type="search" placeholder="Search by name, email, role or number" aria-label="Search employees" value={query} onChange={(event) => setQuery(event.target.value)} />
+              </label>
+              <div className="filter-chips" role="group" aria-label="Filter employees">
+                {filters.map((item) => (
+                  <button key={item.key} className={filter === item.key ? "active" : ""} aria-pressed={filter === item.key} onClick={() => setFilter(item.key)}>{item.label}</button>
+                ))}
+              </div>
+            </div>
             <div className="table-wrap">
-              <table className="data-table">
+              <table className="data-table data-table--register">
                 <thead>
-                  <tr><th scope="col">Person</th><th scope="col">Role</th><th scope="col">Experience</th><th scope="col">Access</th><th scope="col">Last signed in</th>{canManage ? <th scope="col"><span className="visually-hidden">Actions</span></th> : null}</tr>
+                  <tr><th scope="col">Employee</th><th scope="col">Role</th><th scope="col">Employee no.</th><th scope="col">Status</th><th scope="col">Last signed in</th></tr>
                 </thead>
                 <tbody>
-                  {people.map((member) => {
-                    const self = member.name === context.persona;
-                    return (
-                      <tr key={member.id} className={member.status === "deactivated" ? "row--muted" : ""}>
-                        <td><span className="person"><span className="avatar avatar--small">{initials(member.name)}</span><span className="cell-main"><strong>{member.name}{self ? " (you)" : ""}</strong><small>{member.email}</small></span></span></td>
-                        <td>{member.role}</td>
-                        <td>{roleInfo(member.role)?.fieldOnly ? "VESPER Mobile" : "Web and tablet"}</td>
-                        <td><StatusBadge value={statusTone[member.status]} label={memberStatusLabels[member.status]} /></td>
-                        <td>{member.lastSignInAt ? formatDemoDateTime(member.lastSignInAt) : <span className="muted">Not yet</span>}</td>
-                        {canManage ? (
-                          <td className="row-actions">
-                            <button className="button button--quiet button--small" aria-label={`Edit ${member.name}`} onClick={() => setEditing(member)}><Pencil /> Edit</button>
-                            {member.status === "invited" ? (
-                              <>
-                                <button className="button button--quiet button--small" aria-label={`Send the invitation to ${member.name} again`} disabled={actions.resend.isPending} onClick={() => actions.resend.mutate(member.id)}>Resend</button>
-                                <button className="button button--quiet button--small" aria-label={`Withdraw the invitation for ${member.name}`} onClick={() => setConfirm({ kind: "withdraw", member })}>Withdraw</button>
-                              </>
-                            ) : null}
-                            {member.status === "active" && !self ? <button className="button button--quiet button--small" aria-label={`Turn off access for ${member.name}`} onClick={() => setConfirm({ kind: "off", member })}>Turn off</button> : null}
-                            {member.status === "deactivated" ? <button className="button button--quiet button--small" aria-label={`Restore access for ${member.name}`} disabled={actions.setAccess.isPending} onClick={() => actions.setAccess.mutate({ id: member.id, access: "on" })}>Restore</button> : null}
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
+                  {people.length === 0 ? (
+                    <tr><td colSpan={5}><p className="empty-line">No employees match.</p></td></tr>
+                  ) : people.map((member) => (
+                    <tr key={member.id} className={member.status === "deactivated" ? "row--muted" : ""}>
+                      <td>
+                        <Link className="person person--link" href={`/admin/people/${member.id}`}>
+                          <span className="avatar avatar--small">{initials(member.name)}</span>
+                          <span className="cell-main"><strong>{member.name}{member.name === context.persona ? " (you)" : ""}</strong><small>{member.email}</small></span>
+                        </Link>
+                      </td>
+                      <td>{member.role}</td>
+                      <td>{member.employeeNumber || <span className="muted">—</span>}</td>
+                      <td><StatusBadge value={statusTone[member.status]} label={member.status === "invited" ? "Awaiting first sign-in" : memberStatusLabels[member.status]} /></td>
+                      <td>{member.lastSignInAt ? formatDemoDateTime(member.lastSignInAt) : <span className="muted">Not yet</span>}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </section>
+        </div>
+      ) : null}
 
-          <section className="card detail-card" aria-labelledby="activity-heading">
-            <header className="card__header"><div><span className="eyebrow">Record</span><h2 id="activity-heading">Recent changes</h2></div></header>
-            {activity.length === 0 ? (
-              <p className="empty-line">Changes to people, site and company details will be listed here.</p>
-            ) : (
-              <ul className="work-list">
-                {activity.slice(0, 8).map((event) => (
-                  <li className="work-row" key={event.id}>
-                    <div className="work-row__copy"><strong>{event.summary}</strong><small>{event.actor} · {formatDemoDateTime(event.at)}</small></div>
-                  </li>
+      {tab === "rights" ? (
+        <div role="tabpanel" id="panel-rights" aria-labelledby="tab-rights" className="admin-panel">
+          <section className="card detail-card" aria-labelledby="rights-heading">
+            <header className="card__header"><div><span className="eyebrow">Access control</span><h2 id="rights-heading">What each role can do</h2></div></header>
+            <p className="card-note card-note--top">Rights follow the role. To change what someone can do, change their role on their profile.</p>
+            <div className="table-wrap">
+              <table className="data-table rights-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Action</th>
+                    {roleNames.map((role) => <th scope="col" key={role} className="rights-table__role">{role}</th>)}
+                  </tr>
+                </thead>
+                {rightsAreas.map((area) => (
+                  <tbody key={area}>
+                    <tr className="rights-table__area"><th colSpan={roleNames.length + 1} scope="colgroup">{area}</th></tr>
+                    {rightsMatrix.filter((row) => row.area === area).map((row) => (
+                      <tr key={row.action}>
+                        <th scope="row" className="rights-table__action">{row.action}</th>
+                        {roleNames.map((role) => {
+                          const level = row.levels[role];
+                          return (
+                            <td key={role} className="rights-table__cell">
+                              <span className={`right right--${level}`} role="img" aria-label={`${row.action}, ${role}: ${levelLabels[level]}`}>
+                                {level === "yes" ? <Check aria-hidden="true" /> : level === "own" ? <span aria-hidden="true">Own</span> : <Minus aria-hidden="true" />}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
                 ))}
-              </ul>
-            )}
+              </table>
+            </div>
           </section>
         </div>
       ) : null}
@@ -158,7 +202,7 @@ export function AdminScreen() {
           <section className="card detail-card" aria-labelledby="site-heading">
             <header className="card__header">
               <div><span className="eyebrow">Site</span><h2 id="site-heading">{site.name}</h2></div>
-              {canManage ? <button className="button button--quiet" onClick={() => setEditingSite(true)}><Pencil /> Edit site</button> : null}
+              <button className="button button--quiet" onClick={() => setEditingSite(true)}><Pencil /> Edit site</button>
             </header>
             <dl className="definition-grid">
               <div><dt>Mine type</dt><dd>{site.type || "—"}</dd></div>
@@ -177,7 +221,7 @@ export function AdminScreen() {
           <section className="card detail-card" aria-labelledby="company-heading">
             <header className="card__header">
               <div><span className="eyebrow">Company</span><h2 id="company-heading">{company.name}</h2></div>
-              {canManage ? <button className="button button--quiet" onClick={() => setEditingCompany(true)}><Pencil /> Edit company</button> : null}
+              <button className="button button--quiet" onClick={() => setEditingCompany(true)}><Pencil /> Edit company</button>
             </header>
             <dl className="definition-grid">
               <div><dt>Industry</dt><dd>{company.industry || "—"}</dd></div>
@@ -216,7 +260,7 @@ export function AdminScreen() {
               <header className="card__header"><div><span className="eyebrow">Usage</span><h2 id="usage-heading">What you are using</h2></div></header>
               <ul className="plan-list">
                 <li><Check aria-hidden="true" /><span>Sites</span><strong>1 in use · {plan.sites} included</strong></li>
-                <li><Check aria-hidden="true" /><span>People with access</span><strong>{active}{invited ? ` · ${invited} invited` : ""}</strong></li>
+                <li><Check aria-hidden="true" /><span>Employees with access</span><strong>{active}{waiting ? ` · ${waiting} awaiting first sign-in` : ""}</strong></li>
                 <li className={plan.mobile ? "" : "plan__off"}>{plan.mobile ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}<span>VESPER Mobile users</span><strong>{plan.mobile ? fieldUsers : "Not included"}</strong></li>
               </ul>
             </section>
@@ -240,21 +284,21 @@ export function AdminScreen() {
         </div>
       ) : null}
 
-      {inviting ? (
+      {adding ? (
         <MemberDialog
-          pending={actions.invite.isPending}
-          onClose={() => setInviting(false)}
-          onSave={(input) => actions.invite.mutate(input as { name: string; email: string; role: string }, { onSuccess: () => setInviting(false) })}
+          pending={actions.addMember.isPending}
+          onClose={() => setAdding(false)}
+          onSave={(input) =>
+            actions.addMember.mutate(input as { name: string; email: string; role: string; phone: string; employeeNumber: string }, {
+              onSuccess: ({ member, temporaryPassword }) => {
+                setAdding(false);
+                setCreated({ name: member.name, email: member.email, password: temporaryPassword });
+              },
+            })
+          }
         />
       ) : null}
-      {editing ? (
-        <MemberDialog
-          member={editing}
-          pending={actions.updateMember.isPending}
-          onClose={() => setEditing(null)}
-          onSave={(input) => actions.updateMember.mutate({ id: editing.id, version: editing.version, ...input }, { onSuccess: () => setEditing(null) })}
-        />
-      ) : null}
+      {created ? <TemporaryPasswordDialog reason="added" name={created.name} email={created.email} password={created.password} onClose={() => setCreated(null)} /> : null}
       {editingSite ? (
         <SiteDialog
           site={site}
@@ -269,28 +313,6 @@ export function AdminScreen() {
           pending={actions.saveCompany.isPending}
           onClose={() => setEditingCompany(false)}
           onSave={(input) => actions.saveCompany.mutate({ ...input, version: company.version }, { onSuccess: () => setEditingCompany(false) })}
-        />
-      ) : null}
-      {confirm?.kind === "off" ? (
-        <ConfirmDialog
-          title={`Turn off access for ${confirm.member.name}?`}
-          body="They will no longer be able to sign in. Their name stays on the shifts, issues and equipment records they are part of, and you can restore access at any time."
-          confirmLabel="Turn off access"
-          tone="danger"
-          pending={actions.setAccess.isPending}
-          onClose={() => setConfirm(null)}
-          onConfirm={() => actions.setAccess.mutate({ id: confirm.member.id, access: "off" }, { onSettled: () => setConfirm(null) })}
-        />
-      ) : null}
-      {confirm?.kind === "withdraw" ? (
-        <ConfirmDialog
-          title={`Withdraw the invitation for ${confirm.member.name}?`}
-          body="The invitation is removed and they will not be able to sign in. You can invite them again later."
-          confirmLabel="Withdraw invitation"
-          tone="danger"
-          pending={actions.withdraw.isPending}
-          onClose={() => setConfirm(null)}
-          onConfirm={() => actions.withdraw.mutate(confirm.member.id, { onSettled: () => setConfirm(null) })}
         />
       ) : null}
     </div>

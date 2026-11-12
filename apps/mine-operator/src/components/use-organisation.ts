@@ -7,7 +7,7 @@ import type { OrganisationView } from "@/lib/demo-store";
 import { useDemoContext } from "@/stores/demo-context";
 import { useToast } from "./toast-provider";
 
-export type MemberInput = { name: string; email: string; role: string };
+export type MemberInput = { name: string; email: string; role: string; phone: string; employeeNumber: string };
 
 function failureTitle(error: unknown) {
   if (!(error instanceof ApiError)) return "That did not work";
@@ -40,11 +40,11 @@ export function useOrganisationMutations() {
     if (error instanceof ApiError && error.code === "VERSION_CONFLICT") void refresh();
   };
 
-  const invite = useMutation({
-    mutationFn: (input: MemberInput) => demoSend<Member>("/members", "POST", input),
-    onSuccess: async (member) => {
+  const addMember = useMutation({
+    mutationFn: (input: MemberInput) => demoSend<{ member: Member; temporaryPassword: string }>("/members", "POST", input),
+    onSuccess: async ({ member }) => {
       await refresh();
-      toast.push({ title: "Invitation sent", detail: `${member.name} can sign in as ${member.role} once they accept.` });
+      toast.push({ title: "Employee added", detail: `${member.name} is set up as ${member.role}.` });
     },
     onError,
   });
@@ -53,7 +53,7 @@ export function useOrganisationMutations() {
     mutationFn: ({ id, ...input }: { id: string; version: number } & Partial<MemberInput>) => demoSend<Member>(`/members/${id}`, "PATCH", input),
     onSuccess: async (member) => {
       await refresh();
-      toast.push({ title: "Changes saved", detail: `${member.name} is now ${member.role}.` });
+      toast.push({ title: "Changes saved", detail: `Details for ${member.name} were updated.` });
     },
     onError,
   });
@@ -67,20 +67,19 @@ export function useOrganisationMutations() {
     onError,
   });
 
-  const resend = useMutation({
-    mutationFn: (id: string) => demoSend<Member>(`/members/${id}/invitation`, "POST"),
-    onSuccess: async (member) => {
+  const resetPassword = useMutation({
+    mutationFn: (id: string) => demoSend<{ member: Member; temporaryPassword: string }>(`/members/${id}/password-reset`, "POST"),
+    onSuccess: async () => {
       await refresh();
-      toast.push({ title: "Invitation sent again", detail: member.email });
     },
     onError,
   });
 
-  const withdraw = useMutation({
+  const deleteMember = useMutation({
     mutationFn: (id: string) => demoSend<{ id: string }>(`/members/${id}`, "DELETE"),
     onSuccess: async () => {
       await refresh();
-      toast.push({ title: "Invitation withdrawn" });
+      toast.push({ title: "Employee deleted" });
     },
     onError,
   });
@@ -104,5 +103,5 @@ export function useOrganisationMutations() {
     onError,
   });
 
-  return { invite, updateMember, setAccess, resend, withdraw, saveCompany, saveSite };
+  return { addMember, updateMember, setAccess, resetPassword, deleteMember, saveCompany, saveSite };
 }

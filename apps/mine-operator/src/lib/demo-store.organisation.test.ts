@@ -19,42 +19,50 @@ function rejects(operation: () => unknown, status: number, pattern?: RegExp) {
   throw new Error("Expected the operation to be rejected.");
 }
 
-const invite = { name: "Zanele Mokoena", email: "Zanele.Mokoena@riverside.example", role: "Maintenance Planner" };
+const input = { name: "Zanele Mokoena", email: "Zanele.Mokoena@riverside.example", role: "Maintenance Planner", phone: "+27 82 555 0199", employeeNumber: "RIV-0100" };
+const find = (name: string) => demoDomain.organisation().members.find((item) => item.name === name)!;
 
 beforeEach(() => demoDomain.reset());
 
-describe("inviting people", () => {
-  it("records an invitation with a normalised email and an activity entry", () => {
-    const member = demoDomain.inviteMember(invite, manager);
-    expect(member).toMatchObject({ status: "invited", email: "zanele.mokoena@riverside.example", joinedAt: null });
-    expect(demoDomain.organisation().activity[0].summary).toMatch(/Invited Zanele Mokoena/);
+describe("adding employees", () => {
+  it("records the employee with a normalised email, a temporary password and an activity entry", () => {
+    const { member, temporaryPassword } = demoDomain.addMember(input, manager);
+    expect(member).toMatchObject({ status: "invited", email: "zanele.mokoena@riverside.example", joinedAt: null, mustChangePassword: true, employeeNumber: "RIV-0100" });
+    expect(temporaryPassword).toMatch(/^Vesper-\d{4}-/);
+    expect(demoDomain.organisation().activity[0].summary).toMatch(/Added Zanele Mokoena/);
   });
 
-  it("rejects a duplicate email, a bad email and an unknown role", () => {
-    rejects(() => demoDomain.inviteMember({ ...invite, email: "amina.patel@riverside.example" }, manager), 409, /already has access/);
-    rejects(() => demoDomain.inviteMember({ ...invite, email: "not-an-email" }, manager), 400, /valid work email/);
-    rejects(() => demoDomain.inviteMember({ ...invite, role: "Chief Wizard" }, manager), 400, /role/);
+  it("rejects a duplicate email, employee number, bad email and unknown role", () => {
+    rejects(() => demoDomain.addMember({ ...input, email: "amina.patel@riverside.example" }, manager), 409, /already has access/);
+    rejects(() => demoDomain.addMember({ ...input, employeeNumber: "RIV-0001" }, manager), 409, /employee number/);
+    rejects(() => demoDomain.addMember({ ...input, email: "not-an-email" }, manager), 400, /valid work email/);
+    rejects(() => demoDomain.addMember({ ...input, role: "Chief Wizard" }, manager), 400, /role/);
   });
 
   it("is limited to the Mine Manager", () => {
-    rejects(() => demoDomain.inviteMember(invite, amina), 403);
+    rejects(() => demoDomain.addMember(input, amina), 403);
   });
 
-  it("makes the new person available as an owner and a supervisor", () => {
-    demoDomain.inviteMember({ ...invite, role: "Shift Supervisor" }, manager);
+  it("makes the new person available as a supervisor", () => {
+    demoDomain.addMember({ ...input, role: "Shift Supervisor" }, manager);
     const shift = demoDomain.createShift({ name: "Shift Z", date: "2025-04-26", start: "06:00", end: "14:00", supervisor: "Zanele Mokoena" }, manager);
     expect(shift.supervisor).toBe("Zanele Mokoena");
   });
 });
 
-describe("signing in", () => {
-  it("accepts an invitation on first sign-in", () => {
-    const member = demoDomain.inviteMember(invite, manager);
-    const account = demoDomain.authenticate(invite.email, FIXTURE_PASSWORD);
-    expect(account).toMatchObject({ name: "Zanele Mokoena", role: "Maintenance Planner", home: "/equipment" });
-    const stored = demoDomain.organisation().members.find((item) => item.id === member.id);
-    expect(stored).toMatchObject({ status: "active" });
-    expect(stored?.joinedAt).not.toBeNull();
+describe("signing in and passwords", () => {
+  it("makes a new employee choose their own password before a session starts", () => {
+    const { temporaryPassword } = demoDomain.addMember(input, manager);
+    const first = demoDomain.authenticate(input.email, temporaryPassword);
+    expect(first).toEqual({ account: null, mustChangePassword: true });
+    rejects(() => demoDomain.changePassword(input.email, temporaryPassword, "short"), 400, /at least 10/);
+    rejects(() => demoDomain.changePassword(input.email, temporaryPassword, "alllowercase123"), 400, /upper and lower/);
+    rejects(() => demoDomain.changePassword(input.email, temporaryPassword, "NoDigitsHereAtAll"), 400, /number/);
+    const done = demoDomain.changePassword(input.email, temporaryPassword, "Quarry-Face-2025");
+    expect(done.account).toMatchObject({ name: "Zanele Mokoena", role: "Maintenance Planner", home: "/equipment" });
+    expect(find("Zanele Mokoena")).toMatchObject({ status: "active", mustChangePassword: false });
+    expect(demoDomain.authenticate(input.email, "Quarry-Face-2025").account?.name).toBe("Zanele Mokoena");
+    rejects(() => demoDomain.authenticate(input.email, temporaryPassword), 401);
   });
 
   it("refuses a wrong password and an unknown email without saying which", () => {
@@ -63,17 +71,24 @@ describe("signing in", () => {
   });
 
   it("refuses someone whose access is off and lets them in again once restored", () => {
-    const sipho = demoDomain.organisation().members.find((item) => item.name === "Sipho Nkosi")!;
+    const sipho = find("Sipho Nkosi");
     demoDomain.setMemberAccess(sipho.id, "off", manager);
     rejects(() => demoDomain.authenticate(sipho.email, FIXTURE_PASSWORD), 403, /turned off/);
     demoDomain.setMemberAccess(sipho.id, "on", manager);
-    expect(demoDomain.authenticate(sipho.email, FIXTURE_PASSWORD).name).toBe("Sipho Nkosi");
+    expect(demoDomain.authenticate(sipho.email, FIXTURE_PASSWORD).account?.name).toBe("Sipho Nkosi");
+  });
+
+  it("lets a manager reset someone else's password, which forces a new choice", () => {
+    const lebo = find("Lebo Maseko");
+    const { temporaryPassword } = demoDomain.resetPassword(lebo.id, manager);
+    rejects(() => demoDomain.authenticate(lebo.email, FIXTURE_PASSWORD), 401);
+    expect(demoDomain.authenticate(lebo.email, temporaryPassword).mustChangePassword).toBe(true);
+    rejects(() => demoDomain.resetPassword(find("John Dlamini").id, manager), 409, /your own password/);
+    rejects(() => demoDomain.resetPassword(lebo.id, amina), 403);
   });
 });
 
 describe("changing roles and access", () => {
-  const find = (name: string) => demoDomain.organisation().members.find((item) => item.name === name)!;
-
   it("changes a role, bumps the version and rejects a stale edit", () => {
     const lebo = find("Lebo Maseko");
     const before = lebo.version;
@@ -82,51 +97,51 @@ describe("changing roles and access", () => {
     rejects(() => demoDomain.updateMember(lebo.id, { role: "Field Employee", version: before }, manager), 409, /changed by someone else/);
   });
 
-  it("will not let a manager change or switch off their own account", () => {
+  it("updates phone and employee number", () => {
+    const naledi = find("Naledi Khoza");
+    const saved = demoDomain.updateMember(naledi.id, { phone: "+27 82 000 0000", employeeNumber: "RIV-0500" }, manager);
+    expect(saved).toMatchObject({ phone: "+27 82 000 0000", employeeNumber: "RIV-0500" });
+    rejects(() => demoDomain.updateMember(naledi.id, { employeeNumber: "RIV-0001" }, manager), 409, /employee number/);
+  });
+
+  it("will not let a manager change, switch off or delete their own account", () => {
     const john = find("John Dlamini");
     rejects(() => demoDomain.updateMember(john.id, { role: "Shift Supervisor" }, manager), 409, /your own role/);
     rejects(() => demoDomain.setMemberAccess(john.id, "off", manager), 409, /your own access/);
+    rejects(() => demoDomain.deleteMember(john.id, manager), 409, /your own account/);
   });
 
   it("always keeps one active Mine Manager", () => {
     const john = find("John Dlamini");
-    const second = demoDomain.inviteMember({ name: "Mpho Sithole", email: "mpho@riverside.example", role: "Mine Manager" }, manager);
-    // With a second manager, the first can be demoted by that manager.
-    const secondActor: Actor = { name: second.name, role: "Mine Manager" };
-    demoDomain.updateMember(john.id, { role: "Shift Supervisor" }, secondActor);
+    const { member: second } = demoDomain.addMember({ name: "Mpho Sithole", email: "mpho@riverside.example", role: "Mine Manager" }, manager);
+    demoDomain.updateMember(john.id, { role: "Shift Supervisor" }, { name: second.name, role: "Mine Manager" });
     rejects(() => demoDomain.setMemberAccess(second.id, "off", { name: "Someone Else", role: "Mine Manager" }), 409, /at least one active Mine Manager/);
+    rejects(() => demoDomain.deleteMember(second.id, { name: "Someone Else", role: "Mine Manager" }), 409, /at least one active Mine Manager/);
   });
 
-  it("keeps the name of anyone who has signed in, but lets an invited name be corrected", () => {
-    const lebo = find("Lebo Maseko");
-    rejects(() => demoDomain.updateMember(lebo.id, { name: "Lebogang Maseko" }, manager), 409, /keeps the name/);
-    const pending = demoDomain.inviteMember(invite, manager);
-    expect(demoDomain.updateMember(pending.id, { name: "Zanele M. Mokoena" }, manager).name).toBe("Zanele M. Mokoena");
+  it("keeps the name of anyone who has signed in, but lets a new employee's name be corrected", () => {
+    const { member, temporaryPassword } = demoDomain.addMember(input, manager);
+    expect(demoDomain.updateMember(member.id, { name: "Zanele M. Mokoena" }, manager).name).toBe("Zanele M. Mokoena");
+    demoDomain.changePassword(input.email, temporaryPassword, "Quarry-Face-2025");
+    rejects(() => demoDomain.updateMember(member.id, { name: "Zanele Mokoena" }, manager), 409, /keeps the name/);
   });
 });
 
-describe("removing people", () => {
-  it("withdraws a pending invitation completely", () => {
-    const pending = demoDomain.inviteMember(invite, manager);
-    demoDomain.removeInvitation(pending.id, manager);
-    expect(demoDomain.organisation().members.some((item) => item.id === pending.id)).toBe(false);
+describe("deleting employees", () => {
+  it("deletes an employee nobody refers to, and their password with them", () => {
+    const { member } = demoDomain.addMember(input, manager);
+    demoDomain.deleteMember(member.id, manager);
+    expect(demoDomain.organisation().members.some((item) => item.id === member.id)).toBe(false);
+    rejects(() => demoDomain.authenticate(input.email, FIXTURE_PASSWORD), 401);
   });
 
-  it("never deletes someone who has signed in", () => {
-    const lebo = demoDomain.organisation().members.find((item) => item.name === "Lebo Maseko")!;
-    rejects(() => demoDomain.removeInvitation(lebo.id, manager), 409, /Turn off access/);
+  it("never deletes someone who appears in shifts, issues or equipment history", () => {
+    rejects(() => demoDomain.deleteMember(find("Lebo Maseko").id, manager), 409, /Turn off access/);
+    rejects(() => demoDomain.deleteMember(find("Amina Patel").id, manager), 409, /Turn off access/);
   });
 
-  it("resends only pending invitations", () => {
-    const lebo = demoDomain.organisation().members.find((item) => item.name === "Lebo Maseko")!;
-    rejects(() => demoDomain.resendInvitation(lebo.id, manager), 409);
-    const pending = demoDomain.inviteMember(invite, manager);
-    const before = pending.version;
-    expect(demoDomain.resendInvitation(pending.id, manager).version).toBe(before + 1);
-  });
-
-  it("removes a deactivated person from the choices for new work but keeps existing records", () => {
-    const thabo = demoDomain.organisation().members.find((item) => item.name === "Thabo Molefe")!;
+  it("keeps a deactivated person's records whole but removes them from new choices", () => {
+    const thabo = find("Thabo Molefe");
     demoDomain.setMemberAccess(thabo.id, "off", manager);
     const shift = demoDomain.createShift({ name: "Shift Q", date: "2025-04-27", start: "06:00", end: "14:00", supervisor: "Amina Patel" }, manager);
     rejects(() => demoDomain.addCrew(shift.id, { name: "Thabo Molefe", duty: "Operator", version: shift.version }, manager), 400, /from your team/);

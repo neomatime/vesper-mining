@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Inter } from "next/font/google";
 import { DemoProviders } from "@/components/demo-providers";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import "./theme.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const display = Newsreader({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-ZA" className={`${inter.variable} ${display.variable}`}>
+    <html lang="en-ZA" className={inter.variable}>
       <body>
         <DemoProviders>{children}</DemoProviders>
       </body>

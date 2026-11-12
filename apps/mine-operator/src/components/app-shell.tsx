@@ -17,7 +17,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Settings2,
   ShieldCheck,
   UsersRound,
   Wrench,
@@ -51,7 +50,6 @@ const primaryNavigation: NavigationItem[] = [
   { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention" },
   { label: "Shift Control", href: "/shifts", icon: UsersRound },
   { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Administration", href: "/admin", icon: Settings2 },
 ];
 
 const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
@@ -134,13 +132,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <SiteMenu />
-
-        <nav className="topbar__shortcuts" aria-label="Workspace shortcuts">
-          <Link aria-current={pathname === "/overview" ? "page" : undefined} className={pathname === "/overview" ? "active" : ""} href="/overview">Overview</Link>
-          <Link aria-current={pathname.startsWith("/exceptions") ? "page" : undefined} className={pathname.startsWith("/exceptions") ? "active" : ""} href="/exceptions">Operations</Link>
-          <Link aria-current={pathname.startsWith("/resources") ? "page" : undefined} className={pathname.startsWith("/resources") ? "active" : ""} href="/resources">Readiness</Link>
-          <Link aria-current={pathname.startsWith("/reports") ? "page" : undefined} className={pathname.startsWith("/reports") ? "active" : ""} href="/reports">Reports</Link>
-        </nav>
 
         <div className="topbar__actions">
           <button className="search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search records and workspaces" aria-keyshortcuts="Control+K Meta+K">

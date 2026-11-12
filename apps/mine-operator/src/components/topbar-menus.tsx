@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, Check, ChevronDown, HardHat, Layers3, LogOut, Monitor, Smartphone } from "lucide-react";
+import { Bell, Check, ChevronDown, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { entitlementsFor } from "@/lib/entitlements";
+import { canManageOrganisation } from "@/lib/organisation-rules";
 import { initials, tierLabel, tiers } from "@/lib/personas";
 import { useDemoContext } from "@/stores/demo-context";
 import { useSession } from "@/stores/session";
@@ -111,6 +112,7 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
   const { context } = useDemoContext();
   const signOut = useSession((state) => state.signOut);
   const mobileIncluded = entitlementsFor(context.tier).mobile;
+  const canAdminister = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
 
   const handleSignOut = () => {
     close();
@@ -143,10 +145,6 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
           </div>
 
           <div className="menu-section">
-            <Link className="menu-item" href="/admin" onClick={close}>
-              <span className="menu-item__icon"><Layers3 size={16} /></span>
-              <span className="menu-item__copy"><strong>Plan</strong><small>{tierLabel(context.tier)}</small></span>
-            </Link>
             {inField ? (
               <Link className="menu-item" href="/overview" onClick={close}>
                 <span className="menu-item__icon"><Monitor size={16} /></span>
@@ -163,6 +161,12 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
                 <span className="menu-item__copy"><strong>Field experience</strong><small>Not included in {tierLabel(context.tier)}</small></span>
               </div>
             )}
+            {canAdminister ? (
+              <Link className="menu-item" href="/admin" onClick={close}>
+                <span className="menu-item__icon"><Settings2 size={16} /></span>
+                <span className="menu-item__copy"><strong>Administration</strong><small>People, rights, site and plan</small></span>
+              </Link>
+            ) : null}
           </div>
 
           <div className="menu-section menu-section--footer">

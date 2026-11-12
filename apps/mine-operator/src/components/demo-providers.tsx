@@ -29,6 +29,27 @@ function startDemoWorker() {
       },
       serviceWorker: { url: "/mockServiceWorker.js" },
       quiet: true,
+    }).then(async (registration) => {
+      // A hard reload (Ctrl+Shift+R) loads the page outside the worker's control, so requests would
+      // reach the server instead of the in-browser service. Reload once so the worker takes over.
+      if ("serviceWorker" in navigator && !navigator.serviceWorker.controller) {
+        try {
+          if (window.sessionStorage.getItem("vesper-worker-reload") !== "1") {
+            window.sessionStorage.setItem("vesper-worker-reload", "1");
+            window.location.reload();
+            return new Promise<never>(() => {});
+          }
+        } catch {
+          // Storage unavailable: carry on without the retry.
+        }
+      } else {
+        try {
+          window.sessionStorage.removeItem("vesper-worker-reload");
+        } catch {
+          // Ignore.
+        }
+      }
+      return registration;
     }),
   );
   return workerStartPromise;

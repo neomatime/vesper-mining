@@ -1,5 +1,5 @@
 import type { Company, Member, OrganisationEvent, SiteDetails } from "@vesper/api-contracts";
-import { accounts } from "./accounts";
+import { accounts, FIXTURE_PASSWORD } from "./accounts";
 
 const joined = "2025-01-13T08:00:00+02:00";
 
@@ -8,6 +8,9 @@ export const seedMembers: Member[] = accounts.map((account, index) => ({
   name: account.name,
   email: account.email,
   role: account.role,
+  phone: `+27 82 555 01${String(index + 10)}`,
+  employeeNumber: `RIV-${String(index + 1).padStart(4, "0")}`,
+  mustChangePassword: false,
   status: "active",
   invitedAt: joined,
   joinedAt: joined,
@@ -37,5 +40,9 @@ export const seedSite: SiteDetails = {
   siteContact: "Control room, ext. 201",
   version: 1,
 };
+
+export const seedCredentials: Record<string, { password: string; temporary: boolean }> = Object.fromEntries(
+  seedMembers.map((member) => [member.id, { password: FIXTURE_PASSWORD, temporary: false }]),
+);
 
 export const seedActivity: OrganisationEvent[] = [];
