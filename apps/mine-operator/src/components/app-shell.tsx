@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RouteProgress } from "./route-progress";
+import { ScrollHints } from "./scroll-hints";
 import { useEffect, useState } from "react";
 import { entitlementsFor } from "@/lib/entitlements";
 import { useDemoContext } from "@/stores/demo-context";
@@ -192,6 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       <RouteProgress />
+      <ScrollHints />
       <main className={`main-content ${isMobileExperience ? "main-content--mobile" : ""}`}>
         {mobileLocked ? <EntitlementGate capability="mobile" /> : children}
       </main>
