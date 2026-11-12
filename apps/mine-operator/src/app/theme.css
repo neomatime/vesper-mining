@@ -1074,3 +1074,38 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .operational-grid { align-items: start; }
 
 @media (max-width: 767px) { .hero-card__facts { margin-bottom: 0; } }
+
+/* ==========================================================================
+   Role homes: figures that matter to the role, and the two lists they work from
+   ========================================================================== */
+.needs-now__main--wide .attention-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1023px) { .needs-now__main--wide .attention-grid { grid-template-columns: 1fr; } }
+
+.figure-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+.figure-tile { display: grid; gap: 2px; border: 1px solid rgba(16, 24, 22, 0.07); border-radius: var(--radius-lg); padding: 16px 18px; background: #fff; box-shadow: var(--shadow-soft); }
+.figure-tile small { color: var(--text-secondary); font-size: 12.5px; font-weight: 600; }
+.figure-tile strong { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.figure-tile p { margin: 0; color: var(--text-secondary); font-size: 12.5px; }
+@media (max-width: 1100px) { .figure-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .figure-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .figure-tile { padding: 14px; }
+  .figure-tile strong { font-size: 22px; }
+  .figure-row > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+.home-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 1023px) { .home-panels { grid-template-columns: 1fr; } }
+.home-panel__empty { margin: 0; padding: 4px 24px 24px; color: var(--text-secondary); }
+.home-rows { display: grid; margin: 0; padding: 0 12px 12px; list-style: none; }
+.home-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-radius: 10px; padding: 12px; color: inherit; text-decoration: none; transition: background 180ms var(--ease-premium); }
+.home-row:hover { background: #f6f8f7; }
+.home-rows li + li .home-row { border-top: 1px solid var(--border-subtle); border-radius: 0 0 10px 10px; }
+.home-row__copy { display: grid; gap: 2px; min-width: 0; }
+.home-row__copy strong { font-size: 14.5px; font-weight: 600; }
+.home-row__copy small { color: var(--text-secondary); font-size: 12.5px; }
+.home-row .status-badge { flex: none; }
+
+/* Facts in a role's lead card have no icon, so they stack label over value */
+.needs-now__main--wide .hero-card__facts > span { display: grid; grid-template-columns: none; gap: 2px; padding-right: 25px; }
+.needs-now__main--wide .hero-card__facts small { white-space: nowrap; }

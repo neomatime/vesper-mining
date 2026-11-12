@@ -3,12 +3,12 @@ import type { Actor, Check } from "./issue-rules";
 
 export type RoleInfo = { role: string; scope: string; home: string; fieldOnly: boolean };
 
-/** The roles a person can hold. Each starts on its own page after signing in (App Flow §2.4). */
+/** The roles a person can hold. Each signs in to the same Overview, which shows that role's own home. Field employees start on VESPER Mobile. */
 export const roleCatalogue: RoleInfo[] = [
   { role: "Mine Manager", scope: "Management visibility and administration", home: "/overview", fieldOnly: false },
-  { role: "Shift Supervisor", scope: "Shift control and handover", home: "/shifts", fieldOnly: false },
-  { role: "Maintenance Planner", scope: "Equipment and readiness", home: "/equipment", fieldOnly: false },
-  { role: "Stores / Inventory Controller", scope: "Parts and stock", home: "/resources", fieldOnly: false },
+  { role: "Shift Supervisor", scope: "Shift control and handover", home: "/overview", fieldOnly: false },
+  { role: "Maintenance Planner", scope: "Equipment and readiness", home: "/overview", fieldOnly: false },
+  { role: "Stores / Inventory Controller", scope: "Parts and stock", home: "/overview", fieldOnly: false },
   { role: "Field Employee", scope: "Field execution on VESPER Mobile", home: "/mobile/my-shift", fieldOnly: true },
 ];
 

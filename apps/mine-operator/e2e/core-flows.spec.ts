@@ -50,7 +50,8 @@ test("starts each role where their work is", async ({ page, isMobile }) => {
   await page.getByRole("button", { name: /Account menu for Thabo Molefe/ }).click();
   await page.getByRole("button", { name: /Sign out/ }).click();
   await signIn(page, "Naledi Khoza");
-  await expect(page).toHaveURL(/\/resources$/);
+  await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByLabel("Summary").getByText("Readiness risks")).toBeVisible();
 });
 
 test("opens the canonical issue and preserves verification separation", async ({ page }) => {
