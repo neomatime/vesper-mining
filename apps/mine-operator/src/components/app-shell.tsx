@@ -129,8 +129,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X /> : <Menu />}
           </button>
           <Link href="/overview" className="wordmark" aria-label="VESPER overview">
-            VESPER
+            <span className="wordmark__name">VESPER</span>
+            <span className="wordmark__descriptor" aria-hidden="true">Operations Command</span>
           </Link>
+          <span className="topbar__demo-label">Demo / Simulated</span>
         </div>
 
         <SiteMenu />
