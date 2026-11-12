@@ -267,7 +267,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sidebar__nav a.active svg, .sidebar__group a.active svg { color: #16865b; }
 .sidebar__nav em, .sidebar__group em { margin-left: auto; min-width: 21px; height: 20px; display: grid; place-items: center; border-radius: 999px; color: #fff; background: #16865b; font-size: 12px; font-style: normal; }
 .sidebar__group { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid #e9eeeb; }
-.sidebar__group > p { margin: 0 8px 4px; color: #849088; font-size: 11px; font-weight: 850; letter-spacing: 0.11em; text-transform: uppercase; }
+.sidebar__group > p { margin: 0 8px 4px; color: #5f6b65; font-size: 11px; font-weight: 850; letter-spacing: 0.11em; text-transform: uppercase; }
 .sidebar__collapse { margin-top: auto; min-height: 40px; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 9px; padding: 0 10px; color: var(--text-secondary); background: #f3f6f4; font-size: 13px; }
 .sidebar__collapse svg { width: 17px; }
 
@@ -285,7 +285,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .profile-card small { color: var(--text-secondary); font-size: 12px; }
 .menu-section { display: grid; gap: 2px; padding: 8px; border-bottom: 1px solid #e8ede9; }
 .menu-section:last-child, .menu-section--footer { border-bottom: 0; }
-.menu-label { margin: 6px 8px 4px; color: #6b7a72; font-size: 12px; font-weight: 700; }
+.menu-label { margin: 6px 8px 4px; color: #5f6c65; font-size: 12px; font-weight: 700; }
 .menu-note { margin: 0; padding: 4px 16px 14px; color: var(--text-secondary); font-size: 12px; }
 .menu-item { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 11px; border: 0; border-radius: 10px; padding: 0 10px; color: var(--text-primary); background: transparent; text-align: left; transition: background 140ms ease; }
 .menu-item:hover { background: #f1f6f3; }
@@ -442,7 +442,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .action-list { display: grid; padding: 0 18px; }
 .action-row { min-height: 59px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid #e9eeeb; }
 .action-row:last-child { border-bottom: 0; }
-.action-row__marker { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; border: 2px solid #ccd5cf; border-radius: 50%; color: #6a776f; font-size: 12px; font-weight: 800; }
+.action-row__marker { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; border: 2px solid #ccd5cf; border-radius: 50%; color: #5a665f; font-size: 12px; font-weight: 800; }
 .action-row__marker--complete { color: #fff; border-color: var(--brand-emerald); background: var(--brand-emerald); }
 .action-row__marker--in_progress { color: var(--brand-emerald); border-color: var(--brand-emerald); }
 .action-row__marker svg { width: 18px; }
@@ -864,7 +864,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .catalogue__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
 .catalogue__open { color: var(--brand-emerald-dark); font-size: 13px; font-weight: 700; }
 .catalogue__card--locked { background: #fafbfa; }
-.catalogue__card--locked .catalogue__icon { color: #6b7a72; background: #eef1ef; }
+.catalogue__card--locked .catalogue__icon { color: #5f6c65; background: #eef1ef; }
 .catalogue__card--locked .catalogue__open { color: var(--text-secondary); }
 
 /* Subscription plans */
@@ -880,7 +880,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .plan ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .plan li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .plan li svg { width: 15px; height: 15px; color: var(--brand-emerald); }
-.plan__off { color: #8a978f; }
+.plan__off { color: #626e67; }
 .plan__off svg { color: #a9b4ad !important; }
 
 /* Entitlement gate */

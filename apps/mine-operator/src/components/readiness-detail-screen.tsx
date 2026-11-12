@@ -102,7 +102,7 @@ function ReadinessDetail({ activity }: { activity: ReadinessActivity }) {
         </article>
 
         <article className="card detail-card">
-          <header className="card__header"><div><span className="eyebrow">Prerequisite evidence</span><h2>Required parts</h2></div><span>No automatic purchase action</span></header>
+          <header className="card__header"><div><span className="eyebrow">Parts check</span><h2>Required parts</h2></div><span>No automatic purchase action</span></header>
           <div className="parts-table" role="table" aria-label="Required parts and stock evidence">
             <div className="parts-table__head" role="row"><span>Part</span><span>Required</span><span>Potentially allocable</span><span>Inbound</span><span>Quality</span><span><span className="sr-only">Actions</span></span></div>
             {activity.parts.map((part) => {
