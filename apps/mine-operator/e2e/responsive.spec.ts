@@ -50,4 +50,33 @@ test.describe("phone layout", () => {
     const chip = await page.getByRole("button", { name: "Week", exact: true }).boundingBox();
     expect(chip?.height ?? 0).toBeGreaterThanOrEqual(40);
   });
+
+  test("does not raise the keyboard on its own when sign-in opens", async ({ page }) => {
+    await page.goto("/sign-in");
+    await expect(page.getByLabel("Email address")).toBeVisible();
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe("INPUT");
+  });
+
+  test("keeps the whole sign-in form above where a phone keyboard sits", async ({ page }) => {
+    await page.goto("/sign-in");
+    await page.getByLabel("Email address").tap();
+    const brand = page.locator(".signin__brand");
+    await expect.poll(async () => (await brand.boundingBox())?.height ?? 999).toBeLessThan(130);
+    const height = page.viewportSize()?.height ?? 0;
+    const keyboard = 340;
+    for (const target of [page.getByLabel("Password"), page.getByRole("button", { name: "Sign in", exact: true })]) {
+      const box = await target.boundingBox();
+      expect((box?.y ?? 0) + (box?.height ?? 0), "sits above the keyboard").toBeLessThanOrEqual(height - keyboard);
+    }
+  });
+});
+
+test.describe("desktop sign-in", () => {
+  test.skip(({ isMobile }) => isMobile, "Desktop keeps the first field ready for typing.");
+
+  test("puts the cursor in the email field", async ({ page }) => {
+    await page.goto("/sign-in");
+    await expect(page.getByLabel("Email address")).toBeFocused();
+  });
 });
