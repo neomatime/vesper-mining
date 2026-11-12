@@ -711,3 +711,17 @@ a.card:hover, a.metric-card:hover { transform: translateY(-2px); }
 /* No scrollbars anywhere: everything still scrolls with wheel, trackpad, touch and keyboard */
 html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Sign in: the open pit at dusk */
+.signin__brand { background: #0b1411 url("/images/sign-in-mine.webp") center / cover no-repeat; }
+.signin__brand::before { inset: 0; opacity: 1; background: linear-gradient(180deg, rgba(8, 16, 13, 0.35) 0%, rgba(8, 16, 13, 0) 28%, rgba(8, 40, 28, 0.15) 52%, rgba(6, 46, 31, 0.82) 100%); background-size: auto; -webkit-mask-image: none; mask-image: none; }
+.signin__brand::after { display: none; }
+.signin__contours { right: -140px; bottom: -200px; width: 900px; opacity: 1; }
+.signin__contours ellipse { stroke: rgba(80, 220, 160, 0.3); }
+.signin__mark, .signin__statement { z-index: 2; }
+.signin__statement p { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45); }
+.signin__brand { background: url("/images/sign-in-mine.webp") 0 64px / 108% auto no-repeat, linear-gradient(180deg, #0d2c2e 0%, #0a1d19 55%, #06281c 100%); }
+.signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, rgba(13, 44, 46, 0.55) 9%, rgba(13, 44, 46, 0) 18%), linear-gradient(180deg, rgba(6, 40, 28, 0) 55%, rgba(6, 40, 28, 0.7) 76%, #06281c 100%); }
+.signin__contours ellipse { stroke: rgba(80, 220, 160, 0.34); }
+.signin__brand { background: url("/images/sign-in-mine.webp") 0 64px / 108% auto no-repeat, linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 10%, #0a2420 50%, #07281c 76%, #06281c 100%); }
+.signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 8%, rgba(13, 44, 46, 0.7) 12%, rgba(13, 44, 46, 0) 24%), linear-gradient(180deg, rgba(7, 40, 28, 0) 48%, rgba(7, 40, 28, 0.55) 62%, #07281c 75%, #07281c 100%); }
