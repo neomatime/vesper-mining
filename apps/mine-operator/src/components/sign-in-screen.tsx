@@ -16,6 +16,7 @@ export function SignInScreen() {
   const account = useAccount();
   const signIn = useSession((state) => state.signIn);
   const changePassword = useSession((state) => state.changePassword);
+  const signInWithMicrosoft = useSession((state) => state.signInWithMicrosoft);
   const [step, setStep] = useState<"credentials" | "new-password">("credentials");
   const [fresh, setFresh] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -38,6 +39,18 @@ export function SignInScreen() {
   const fail = (failure: unknown) => {
     setBusy(false);
     setError(failure instanceof ApiError ? failure.message : "VESPER could not be reached. Reload the page and try again.");
+  };
+
+  const continueWithMicrosoft = () => {
+    setError("");
+    if (!email.trim()) {
+      setError("Enter your work email address, then continue with Microsoft.");
+      return;
+    }
+    setBusy(true);
+    signInWithMicrosoft(email)
+      .then((result) => result.account && goHome(result.account.home))
+      .catch(fail);
   };
 
   const submit = (event: React.FormEvent) => {
@@ -117,6 +130,16 @@ export function SignInScreen() {
           )}
 
           {error ? <p className="signin__error" role="alert">{error}</p> : null}
+
+          {step === "credentials" ? (
+            <>
+              <button type="button" className="button button--sso button--wide button--large" onClick={continueWithMicrosoft} disabled={busy}>
+                <svg viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect x="11" y="1" width="9" height="9" fill="#7fba00" /><rect x="1" y="11" width="9" height="9" fill="#00a4ef" /><rect x="11" y="11" width="9" height="9" fill="#ffb900" /></svg>
+                Continue with Microsoft
+              </button>
+              <div className="signin__divider" aria-hidden="true"><span>or</span></div>
+            </>
+          ) : null}
 
           <button className="button button--primary button--wide button--large" disabled={busy}>
             {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}

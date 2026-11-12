@@ -1813,6 +1813,14 @@ export const demoDomain = {
     return { account: startSession(member), mustChangePassword: false };
   },
 
+  /** Single sign-on with a work Microsoft account: the identity provider has already checked the person, so only VESPER access is checked. */
+  authenticateSso(email: string): AuthResult {
+    const member = state.members.find((item) => item.email === normaliseEmail(email));
+    if (!member) fail(401, "NO_ACCOUNT", "No VESPER account matches that Microsoft address. Ask your Mine Manager to add you.");
+    if (member.status === "deactivated") fail(403, "ACCESS_OFF", "Your access to VESPER has been turned off. Ask your Mine Manager to restore it.");
+    return { account: startSession(member), mustChangePassword: false };
+  },
+
   /** Replaces a temporary password with one the person chose, then signs them in. */
   changePassword(email: string, current: string, next: string): AuthResult {
     const member = state.members.find((item) => item.email === normaliseEmail(email));

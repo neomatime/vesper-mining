@@ -91,3 +91,17 @@ test("shows the field report as pending while offline", async ({ page }) => {
   await expect(page.getByText("Pending Synchronisation")).toBeVisible();
   await expect(page.getByText(/has not been received centrally/)).toBeVisible();
 });
+
+test("continues with Microsoft using a work address, and explains when the address is not known", async ({ page }) => {
+  await page.goto("/sign-in");
+  const button = page.getByRole("button", { name: "Continue with Microsoft" });
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(page.locator(".signin__error")).toContainText("Enter your work email address");
+  await page.getByLabel("Email address").fill("nobody@riverside.example");
+  await button.click();
+  await expect(page.locator(".signin__error")).toContainText("No VESPER account matches");
+  await page.getByLabel("Email address").fill("john.dlamini@riverside.example");
+  await button.click();
+  await expect(page).toHaveURL(/\/overview/);
+});
