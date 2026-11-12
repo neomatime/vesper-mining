@@ -738,3 +738,5 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .signin__divider::before, .signin__divider::after { content: ""; height: 1px; flex: 1; background: var(--border-subtle); }
 .signin__form .signin__divider + .button { margin-top: 0; }
 .signin__form .button--sso { height: 52px; border-radius: 12px; font-size: 15px; }
+
+.signin__form .signin__divider + .button--sso { margin-top: 0; }
