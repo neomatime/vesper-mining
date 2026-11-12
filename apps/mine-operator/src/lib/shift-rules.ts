@@ -8,6 +8,9 @@ export const shiftStateLabels: Record<ShiftState, string> = {
   cancelled: "Cancelled",
 };
 
+/** How a shift state reads in a status badge. */
+export const shiftTone = { scheduled: "pending", in_progress: "in_progress", closed: "complete", cancelled: "unknown" } as const;
+
 export const handoverLabels = { draft: "Draft", published: "Published", acknowledged: "Acknowledged" } as const;
 
 export type ShiftCapability = "manage" | "run" | "handover" | "acknowledge" | "work";
