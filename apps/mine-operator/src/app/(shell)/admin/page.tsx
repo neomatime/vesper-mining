@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { WorkspaceScreen } from "@/components/workspace-screen";
+import { AdminScreen } from "@/components/admin-screen";
 
 export const metadata: Metadata = { title: "Administration" };
-export default function AdminPage() { return <WorkspaceScreen workspace="admin" />; }
+export default function AdminPage() { return <AdminScreen />; }

@@ -59,7 +59,7 @@ export function OperationalMap({ areas, compact = false }: { areas: MapArea[]; c
         ))}
         {!compact ? <ZoomControl position="bottomright" /> : null}
       </MapContainer>
-      <p className="map-disclosure">Illustrative site map · not live GPS, surveyed positioning or safety clearance</p>
+      <p className="map-disclosure">Indicative site map · not live GPS, surveyed positioning or safety clearance</p>
     </div>
   );
 }

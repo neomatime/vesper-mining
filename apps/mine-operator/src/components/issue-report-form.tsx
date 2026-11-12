@@ -4,19 +4,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CheckCircle2, CloudOff, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useShellData } from "./shell-data";
 import { z } from "zod";
 import type { OperationalIssue } from "@vesper/api-contracts";
-import { demoFetch } from "@/lib/api";
+import { demoSend } from "@/lib/api";
 import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
+import { useToast } from "./toast-provider";
+import { Select } from "./select";
 
 const reportSchema = z.object({
   title: z.string().min(4, "Use at least four characters."),
   description: z.string().min(12, "Describe what was observed in a little more detail."),
   equipmentId: z.string().optional(),
   areaId: z.string().optional(),
+  priority: z.enum(["low", "medium", "high", "critical"]),
 });
 
 type ReportInput = z.infer<typeof reportSchema>;
@@ -26,26 +30,29 @@ type PendingResult = { id: string; state: "pending_sync"; message: string };
 export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { connectivity, setConnectivity } = useDemoContext();
+  const { data: shell } = useShellData();
+  const requestedEquipment = useSearchParams().get("equipmentId") ?? "";
+  const equipmentOptions = (shell?.equipment ?? []).filter((item) => !item.retiredAt);
   const form = useForm<ReportInput>({
     resolver: zodResolver(reportSchema),
     defaultValues: {
       title: "",
       description: "",
-      equipmentId: mobile ? "eq-crusher-c02" : "",
-      areaId: mobile ? "area-crusher-line" : "",
+      equipmentId: requestedEquipment,
+      areaId: "",
+      priority: "medium",
     },
   });
   const mutation = useMutation({
     mutationFn: (input: ReportInput) =>
-      demoFetch<OperationalIssue | PendingResult>("/issues", {
-        method: "POST",
-        body: JSON.stringify({ ...input, pendingSync: connectivity === "offline" }),
-      }),
+      demoSend<OperationalIssue | PendingResult>("/issues", "POST", { ...input, pendingSync: connectivity === "offline" }),
     onSuccess: async (result) => {
-      if ("state" in result && result.state === "pending_sync") return;
+      if ("state" in result) return;
       await queryClient.invalidateQueries({ queryKey: ["workspace", "exceptions"] });
       await queryClient.invalidateQueries({ queryKey: ["overview"] });
+      toast.push({ title: "Issue reported", detail: `${result.issueNumber} is in the review queue. It is a report, not verification or permission to work.` });
       router.push(`/exceptions/${result.id}`);
     },
   });
@@ -55,10 +62,10 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
       <section className="success-state success-state--pending" aria-live="polite">
         <CloudOff />
         <span className="eyebrow">Pending Synchronisation</span>
-        <h1>Saved in this demonstration</h1>
+        <h1>Saved on this device</h1>
         <p>{mutation.data.message}</p>
         <div className="button-row">
-          <button className="button button--primary" onClick={() => setConnectivity("online")}>Simulate reconnection</button>
+          <button className="button button--primary" onClick={() => setConnectivity("online")}>Reconnect</button>
           <Link className="button button--quiet" href="/mobile/my-shift">Return to My Shift</Link>
         </div>
       </section>
@@ -77,9 +84,9 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
 
       <form className="card form-card" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="form-context">
-          <div><span>Site</span><strong>Riverside Mine</strong><small>Fictional demo site</small></div>
-          <div><span>Shift</span><strong>Shift A</strong><small>06:00–14:00 fixture time</small></div>
-          <div><span>Connection</span><strong>{connectivity === "online" ? "Demo online" : "Demo offline"}</strong><small>{connectivity === "online" ? "Mock service available" : "No central receipt will be claimed"}</small></div>
+          <div><span>Site</span><strong>Riverside Mine</strong><small>Open pit</small></div>
+          <div><span>Shift</span><strong>Shift A</strong><small>06:00–14:00</small></div>
+          <div><span>Connection</span><strong>{connectivity === "online" ? "Online" : "Offline"}</strong><small>{connectivity === "online" ? "Connected" : "No central receipt will be claimed"}</small></div>
         </div>
         <div className="form-grid">
           <label className="form-field form-field--wide">
@@ -89,21 +96,33 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
           </label>
           <label className="form-field">
             <span>Equipment</span>
-            <select {...form.register("equipmentId")}>
+            <Select
+              {...form.register("equipmentId", {
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+                  const chosen = equipmentOptions.find((item) => item.id === event.target.value);
+                  if (chosen?.areaId && !form.getValues("areaId")) form.setValue("areaId", chosen.areaId);
+                },
+              })}
+            >
               <option value="">No equipment selected</option>
-              <option value="eq-crusher-c02">Crusher C-02</option>
-              <option value="eq-ex204">Excavator EX-204</option>
-              <option value="eq-dz017">Dozer DZ-017</option>
-            </select>
+              {equipmentOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </Select>
           </label>
           <label className="form-field">
             <span>Operating area</span>
-            <select {...form.register("areaId")}>
+            <Select {...form.register("areaId")}>
               <option value="">No area selected</option>
-              <option value="area-north-pit">North Pit</option>
-              <option value="area-crusher-line">Crusher Line</option>
-              <option value="area-central-pit">Central Pit</option>
-            </select>
+              {(shell?.areas ?? []).map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
+            </Select>
+          </label>
+          <label className="form-field">
+            <span>Priority</span>
+            <Select {...form.register("priority")}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </Select>
           </label>
           <label className="form-field form-field--wide">
             <span>Observed condition</span>
@@ -115,10 +134,10 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
         <div className="form-footer">
           <button type="button" className="connection-toggle" onClick={() => setConnectivity(connectivity === "online" ? "offline" : "online")}>
             {connectivity === "online" ? <CheckCircle2 /> : <CloudOff />}
-            Simulate {connectivity === "online" ? "offline" : "online"}
+            {connectivity === "online" ? "Work offline" : "Back online"}
           </button>
           <button className="button button--primary" disabled={mutation.isPending}>
-            <Send /> {mutation.isPending ? "Recording demo issue…" : connectivity === "online" ? "Record demo issue" : "Save pending report"}
+            <Send /> {mutation.isPending ? "Recording issue…" : connectivity === "online" ? "Record issue" : "Save pending report"}
           </button>
         </div>
       </form>

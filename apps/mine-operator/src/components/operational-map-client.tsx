@@ -7,7 +7,7 @@ const MapImplementation = dynamic(
   () => import("./operational-map").then((module) => module.OperationalMap),
   {
     ssr: false,
-    loading: () => <div className="leaflet-shell"><div className="state-panel">Preparing fictional site plan…</div></div>,
+    loading: () => <div className="leaflet-shell"><div className="state-panel">Preparing the site plan…</div></div>,
   },
 );
 

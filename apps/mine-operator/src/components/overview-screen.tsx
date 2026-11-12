@@ -18,6 +18,8 @@ import {
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { demoFetch } from "@/lib/api";
+import { shiftTimes } from "@/lib/shift-format";
+import type { ShiftView } from "@/lib/shift-rules";
 import { recoverySummary } from "@/lib/calculations";
 import { ErrorState, LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
@@ -30,7 +32,7 @@ type OverviewResponse = {
   areas: MapArea[];
   equipment: Array<{ id: string; state: string }>;
   readiness: ReadinessActivity[];
-  shifts: Array<{ id: string; name: string; time: string; unresolved: number }>;
+  shifts: ShiftView[];
 };
 
 const chartData = [
@@ -49,10 +51,11 @@ export function OverviewScreen() {
     queryFn: () => demoFetch<OverviewResponse>("/overview"),
   });
 
-  if (query.isPending) return <LoadingState label="Loading simulated command centre" />;
+  if (query.isPending) return <LoadingState label="Loading the command centre" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
 
   const { context, priorityIssue, areas, readiness, shifts } = query.data;
+  const currentShift = shifts.find((item) => item.state === "in_progress") ?? shifts.find((item) => item.state === "scheduled") ?? shifts.at(-1);
   const completeActions = priorityIssue.actions.filter((action) => action.state === "complete").length;
   const progress = `${completeActions}/${priorityIssue.actions.length}`;
 
@@ -60,14 +63,14 @@ export function OverviewScreen() {
     <div className="dashboard-page">
       <section className="dashboard-greeting">
         <div>
-          <span className="eyebrow">Command Centre · Shift A</span>
+          <span className="eyebrow">Command Centre{currentShift ? ` · ${currentShift.name}` : ""}</span>
           <h1>Good morning, {context.persona.split(" ")[0]}</h1>
-          <p>Here is what requires attention at {context.siteName} in this fictional scenario.</p>
+          <p>Here is what requires attention at {context.siteName} today.</p>
         </div>
         <div className="context-pills">
           <span><Clock3 /> Thu, 24 Apr 2025</span>
-          <span><UsersRound /> Shift A · 06:00–14:00</span>
-          <span className="context-pills__freshness"><span /> Updated 4 min ago · simulated</span>
+          <span><UsersRound /> {currentShift ? `${currentShift.name} · ${shiftTimes(currentShift)}` : "No shift scheduled"}</span>
+          <span className="context-pills__freshness"><span /> Updated 4 min ago</span>
         </div>
       </section>
 
@@ -102,16 +105,16 @@ export function OverviewScreen() {
               ))}
             </div>
           </div>
-          <p className="card__footnote">{recoverySummary(priorityIssue.actions)} · no percentage or “On Track” claim</p>
+          <p className="card__footnote">{recoverySummary(priorityIssue.actions)}</p>
         </article>
       </section>
 
-      <section className="metric-grid" aria-label="Simulated operational summary">
-        <article className="metric-card"><span><Gauge /></span><div><small>Production (illustrative)</small><strong>156,200 <em>t</em></strong><p>Reported · current shift</p></div></article>
-        <article className="metric-card"><span><Target /></span><div><small>Plan (illustrative)</small><strong>162,000 <em>t</em></strong><p>Fixture target</p></div></article>
-        <article className="metric-card"><span><Wrench /></span><div><small>Equipment availability</small><strong>92<em>%</em></strong><p>Defined demo sample</p></div></article>
+      <section className="metric-grid" aria-label="Operational summary">
+        <article className="metric-card"><span><Gauge /></span><div><small>Production</small><strong>156,200 <em>t</em></strong><p>Reported · current shift</p></div></article>
+        <article className="metric-card"><span><Target /></span><div><small>Plan</small><strong>162,000 <em>t</em></strong><p>Target</p></div></article>
+        <article className="metric-card"><span><Wrench /></span><div><small>Equipment availability</small><strong>92<em>%</em></strong><p>Defined sample</p></div></article>
         <article className="metric-card"><span><Box /></span><div><small>Readiness risks</small><strong>{readiness.filter((item) => item.status !== "ready").length}</strong><p>1 needs confirmation</p></div></article>
-        <article className="metric-card"><span><Clock3 /></span><div><small>Open handover items</small><strong>{shifts[0]?.unresolved ?? 0}</strong><p>Original issues retained</p></div></article>
+        <article className="metric-card"><span><Clock3 /></span><div><small>Open handover items</small><strong>{currentShift?.unresolved ?? 0}</strong><p>Original issues retained</p></div></article>
       </section>
 
       <section className="operational-grid">
@@ -131,13 +134,13 @@ export function OverviewScreen() {
             ))}
           </div>
           <Link className="button button--primary button--wide" href={`/exceptions/${priorityIssue.id}`}>Review recovery actions <ArrowRight /></Link>
-          <p className="confirmation-note">Review only. No real equipment, people or operational system will be changed.</p>
+          <p className="confirmation-note">Opens the recovery review. Nothing changes until an action is taken.</p>
         </article>
       </section>
 
       <section className="insight-grid">
         <article className="card chart-card">
-          <header className="card__header"><div><span className="eyebrow">Illustrative fixture</span><h2>Production vs plan</h2></div><Link href="/reports/production-vs-plan">Details</Link></header>
+          <header className="card__header"><div><span className="eyebrow">This shift</span><h2>Production vs plan</h2></div><Link href="/reports/production-vs-plan">Details</Link></header>
           <div className="chart-wrap" aria-label="Production versus plan from 18 to 24 April 2025">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={-8}>
@@ -145,8 +148,8 @@ export function OverviewScreen() {
                 <XAxis dataKey="day" tickLine={false} axisLine={false} />
                 <YAxis hide domain={[0, 180]} />
                 <Tooltip />
-                <Bar dataKey="plan" fill="#CDE8DA" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="actual" fill="#16865B" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="plan" fill="#CDE8DA" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="actual" fill="#16865B" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -165,7 +168,7 @@ export function OverviewScreen() {
           <div className="dependency-item"><span><ShieldAlert /></span><div><strong>Safety authorisation</strong><small>Managed outside VESPER · reference only</small></div><StatusBadge value="unknown" label="External" /></div>
         </article>
         <article className="card handover-card">
-          <header className="card__header"><div><span className="eyebrow">Shift continuity</span><h2>Handover</h2></div><Link href="/shifts/shift-a-20250424/handover">View</Link></header>
+          <header className="card__header"><div><span className="eyebrow">Shift continuity</span><h2>Handover</h2></div><Link href={currentShift ? `/shifts/${currentShift.id}/handover` : "/shifts"}>View</Link></header>
           <div className="handover-count"><strong>3</strong><span>open items to carry over</span></div>
           <Link href={`/exceptions/${priorityIssue.id}`}><MapPin /> {priorityIssue.title}</Link>
           <Link href="/exceptions/issue-riv-002"><ShieldAlert /> Central Pit · Reduced Output</Link>

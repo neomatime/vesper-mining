@@ -1,0 +1,129 @@
+"use client";
+
+import { ArrowRight } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ApiError } from "@/lib/api";
+import { safeNext } from "@/lib/accounts";
+import { passwordProblem } from "@/lib/organisation-rules";
+import { entitlementsFor } from "@/lib/entitlements";
+import { useDemoContext } from "@/stores/demo-context";
+import { exit, useAccount, useSession } from "@/stores/session";
+
+export function SignInScreen() {
+  const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
+  const account = useAccount();
+  const signIn = useSession((state) => state.signIn);
+  const changePassword = useSession((state) => state.changePassword);
+  const [step, setStep] = useState<"credentials" | "new-password">("credentials");
+  const [fresh, setFresh] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const mobileIncluded = entitlementsFor(useDemoContext((state) => state.context.tier)).mobile;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    exit.explicit = false;
+  }, []);
+
+  useEffect(() => {
+    if (!account || busy) return;
+    router.replace(next ?? (account.home.startsWith("/mobile") && !mobileIncluded ? "/overview" : account.home));
+  }, [account, busy, next, mobileIncluded, router]);
+
+  const goHome = (home: string) => router.replace(next ?? (home.startsWith("/mobile") && !mobileIncluded ? "/overview" : home));
+  const fail = (failure: unknown) => {
+    setBusy(false);
+    setError(failure instanceof ApiError ? failure.message : "VESPER could not be reached. Reload the page and try again.");
+  };
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    if (step === "new-password") {
+      const problem = passwordProblem(fresh, password);
+      if (problem) return setError(problem);
+      if (fresh !== confirmation) return setError("The two passwords do not match.");
+      setBusy(true);
+      changePassword(email, password, fresh)
+        .then((result) => result.account && goHome(result.account.home))
+        .catch(fail);
+      return;
+    }
+    if (!email.trim() || !password) {
+      setError("Enter your email address and password.");
+      return;
+    }
+    setBusy(true);
+    signIn(email, password)
+      .then((result) => {
+        if (result.mustChangePassword) {
+          setStep("new-password");
+          setBusy(false);
+        } else if (result.account) goHome(result.account.home);
+      })
+      .catch(fail);
+  };
+
+  return (
+    <main className="signin">
+      <section className="signin__brand" aria-hidden="true">
+        <span className="signin__mark">VESPER</span>
+        <div className="signin__statement">
+          <p>Identify delays.</p>
+          <p>Prevent avoidable waiting.</p>
+          <p>Recover productive time.</p>
+        </div>
+        <svg className="signin__contours" viewBox="0 0 600 600" fill="none" aria-hidden="true">
+          {Array.from({ length: 9 }, (_, index) => (
+            <ellipse key={index} cx="360" cy="420" rx={70 + index * 42} ry={40 + index * 26} transform="rotate(-18 360 420)" />
+          ))}
+        </svg>
+      </section>
+
+      <section className="signin__panel">
+        <form className="signin__form" onSubmit={submit} noValidate>
+          {step === "credentials" ? (
+            <>
+              <h1>Sign in</h1>
+              <p>Welcome back. Use your work email address.</p>
+
+              <label className="field">
+                <span>Email address</span>
+                <input type="email" autoComplete="username" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} autoFocus />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} />
+              </label>
+            </>
+          ) : (
+            <>
+              <h1>Choose a new password</h1>
+              <p>Your administrator gave you a temporary password. Choose one only you know to continue.</p>
+              <label className="field">
+                <span>New password</span>
+                <input type="password" autoComplete="new-password" value={fresh} onChange={(event) => setFresh(event.target.value)} aria-invalid={Boolean(error)} autoFocus />
+              </label>
+              <label className="field">
+                <span>Confirm new password</span>
+                <input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} />
+              </label>
+              <small className="signin__note signin__note--left">At least 10 characters, with upper and lower case letters and a number.</small>
+            </>
+          )}
+
+          {error ? <p className="signin__error" role="alert">{error}</p> : null}
+
+          <button className="button button--primary button--wide button--large" disabled={busy}>
+            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
+          </button>
+        </form>
+        <small className="signin__note">All sites, people and records in this build are fictional.</small>
+      </section>
+    </main>
+  );
+}

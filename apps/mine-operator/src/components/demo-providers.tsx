@@ -1,7 +1,9 @@
 "use client";
 
+import { BrandLoader } from "./brand-loader";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { ToastProvider } from "./toast-provider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +30,27 @@ function startDemoWorker() {
       },
       serviceWorker: { url: "/mockServiceWorker.js" },
       quiet: true,
+    }).then(async (registration) => {
+      // A hard reload (Ctrl+Shift+R) loads the page outside the worker's control, so requests would
+      // reach the server instead of the in-browser service. Reload once so the worker takes over.
+      if ("serviceWorker" in navigator && !navigator.serviceWorker.controller) {
+        try {
+          if (window.sessionStorage.getItem("vesper-worker-reload") !== "1") {
+            window.sessionStorage.setItem("vesper-worker-reload", "1");
+            window.location.reload();
+            return new Promise<never>(() => {});
+          }
+        } catch {
+          // Storage unavailable: carry on without the retry.
+        }
+      } else {
+        try {
+          window.sessionStorage.removeItem("vesper-worker-reload");
+        } catch {
+          // Ignore.
+        }
+      }
+      return registration;
     }),
   );
   return workerStartPromise;
@@ -51,26 +74,25 @@ export function DemoProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (state === "loading") {
-    return (
-      <main className="bootstrap-state" aria-live="polite">
-        <div className="bootstrap-mark">V</div>
-        <p>Preparing deterministic VESPER demo data…</p>
-      </main>
-    );
+    return <BrandLoader />;
   }
 
   if (state === "error") {
     return (
       <main className="bootstrap-state" role="alert">
         <div className="bootstrap-mark bootstrap-mark--error">!</div>
-        <h1>Demo unavailable</h1>
-        <p>The mock service could not start. No real endpoint was contacted.</p>
+        <h1>VESPER could not start</h1>
+        <p>Reload the page. If it keeps happening, let your administrator know.</p>
         <button className="button button--primary" onClick={() => window.location.reload()}>
-          Retry demo setup
+          Reload
         </button>
       </main>
     );
   }
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }
