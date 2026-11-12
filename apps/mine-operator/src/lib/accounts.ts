@@ -18,10 +18,10 @@ export type Account = {
 
 export const accounts: Account[] = [
   { email: "john.dlamini@riverside.example", name: "John Dlamini", role: "Mine Manager", home: "/overview" },
-  { email: "amina.patel@riverside.example", name: "Amina Patel", role: "Shift Supervisor", home: "/shifts" },
-  { email: "sipho.nkosi@riverside.example", name: "Sipho Nkosi", role: "Shift Supervisor", home: "/shifts" },
-  { email: "lebo.maseko@riverside.example", name: "Lebo Maseko", role: "Maintenance Planner", home: "/equipment" },
-  { email: "naledi.khoza@riverside.example", name: "Naledi Khoza", role: "Stores / Inventory Controller", home: "/resources" },
+  { email: "amina.patel@riverside.example", name: "Amina Patel", role: "Shift Supervisor", home: "/overview" },
+  { email: "sipho.nkosi@riverside.example", name: "Sipho Nkosi", role: "Shift Supervisor", home: "/overview" },
+  { email: "lebo.maseko@riverside.example", name: "Lebo Maseko", role: "Maintenance Planner", home: "/overview" },
+  { email: "naledi.khoza@riverside.example", name: "Naledi Khoza", role: "Stores / Inventory Controller", home: "/overview" },
   { email: "thabo.molefe@riverside.example", name: "Thabo Molefe", role: "Field Employee", home: "/mobile/my-shift" },
 ];
 

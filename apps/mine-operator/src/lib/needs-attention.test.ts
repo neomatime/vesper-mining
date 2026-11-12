@@ -71,4 +71,21 @@ describe("needs attention", () => {
     expect(soon[0]?.reason).toContain("1 h 13 min");
     expect(needsAttention({ ...empty, shifts: [{ id: "s", name: "Shift A", state: "in_progress", endsAt: "2025-04-24T10:00:00+02:00", handover: { state: "published" } as never }] })).toEqual([]);
   });
+
+  it("lets a role weigh kinds differently, hide some, and narrow which issues count", () => {
+    const inputs = {
+      ...empty,
+      issues: [issue("a", "high", { equipmentId: "eq-1" }), issue("b", "high", { equipmentId: null })],
+      readiness: [activity("r", "needs_confirmation")],
+      shifts: [{ id: "s", name: "Shift A", state: "in_progress" as const, endsAt: "2025-04-24T10:00:00+02:00", handover: { state: "draft" } as never }],
+    };
+    const stores = needsAttention(inputs, {}, { weights: { issue: 0, handover: 0 } });
+    expect(stores.map((item) => item.kind)).toEqual(["readiness"]);
+
+    const planner = needsAttention(inputs, {}, { weights: { handover: 0 }, issueFilter: (item) => item.equipmentId !== null });
+    expect(planner.map((item) => item.id)).toEqual(["issue-a", "readiness-r"]);
+
+    const supervisor = needsAttention(inputs, {}, { weights: { handover: 2 } });
+    expect(supervisor[0]?.kind).toBe("handover");
+  });
 });

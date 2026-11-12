@@ -59,7 +59,7 @@ describe("signing in and passwords", () => {
     rejects(() => demoDomain.changePassword(input.email, temporaryPassword, "alllowercase123"), 400, /upper and lower/);
     rejects(() => demoDomain.changePassword(input.email, temporaryPassword, "NoDigitsHereAtAll"), 400, /number/);
     const done = demoDomain.changePassword(input.email, temporaryPassword, "Quarry-Face-2025");
-    expect(done.account).toMatchObject({ name: "Zanele Mokoena", role: "Maintenance Planner", home: "/equipment" });
+    expect(done.account).toMatchObject({ name: "Zanele Mokoena", role: "Maintenance Planner", home: "/overview" });
     expect(find("Zanele Mokoena")).toMatchObject({ status: "active", mustChangePassword: false });
     expect(demoDomain.authenticate(input.email, "Quarry-Face-2025").account?.name).toBe("Zanele Mokoena");
     rejects(() => demoDomain.authenticate(input.email, temporaryPassword), 401);

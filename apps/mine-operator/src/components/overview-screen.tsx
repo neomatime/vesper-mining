@@ -20,12 +20,15 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { demoFetch } from "@/lib/api";
 import type { EquipmentView } from "@/lib/equipment-rules";
 import { needsAttention } from "@/lib/needs-attention";
+import { homeRole, plannerHome, storesHome, supervisorHome } from "@/lib/role-home";
 import { shiftTimes } from "@/lib/shift-format";
+import { useDemoContext } from "@/stores/demo-context";
 import type { ShiftView } from "@/lib/shift-rules";
 import { recoverySummary } from "@/lib/calculations";
 import { ErrorState, LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { OperationalMapClient } from "./operational-map-client";
+import { RoleHomeScreen } from "./role-home-screen";
 
 type OverviewResponse = {
   context: { persona: string; role: string; siteName: string };
@@ -49,6 +52,8 @@ const chartData = [
 ];
 
 export function OverviewScreen() {
+  // The person is whoever is signed in, not whoever the demo records were first written for.
+  const { context: signedIn } = useDemoContext();
   const query = useQuery({
     queryKey: ["overview", "site-riverside"],
     queryFn: () => demoFetch<OverviewResponse>("/overview"),
@@ -58,6 +63,14 @@ export function OverviewScreen() {
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
 
   const { context, priorityIssue, issues, areas, equipment, readiness, shifts, now } = query.data;
+  const role = homeRole(signedIn.role);
+  if (role !== "manager") {
+    const home = { issues, equipment, readiness, shifts, now };
+    const model = role === "supervisor" ? supervisorHome(home, signedIn.persona) : role === "planner" ? plannerHome(home) : storesHome(home);
+    const running = shifts.find((item) => item.state === "in_progress");
+    return <RoleHomeScreen model={model} persona={signedIn.persona} siteName={context.siteName} now={now} shiftLabel={running ? `${running.name} · ${shiftTimes(running)}` : undefined} />;
+  }
+
   const currentShift = shifts.find((item) => item.state === "in_progress") ?? shifts.find((item) => item.state === "scheduled") ?? shifts.at(-1);
   const completeActions = priorityIssue.actions.filter((action) => action.state === "complete").length;
   const progress = `${completeActions}/${priorityIssue.actions.length}`;
@@ -70,7 +83,7 @@ export function OverviewScreen() {
       <section className="dashboard-greeting">
         <div>
           <span className="eyebrow">Command Centre{currentShift ? ` · ${currentShift.name}` : ""}</span>
-          <h1>Good morning, {context.persona.split(" ")[0]}</h1>
+          <h1>Good morning, {signedIn.persona.split(" ")[0]}</h1>
           <p>Here is what requires attention at {context.siteName} today.</p>
         </div>
         <div className="context-pills">

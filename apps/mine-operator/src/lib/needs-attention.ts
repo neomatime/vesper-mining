@@ -18,6 +18,12 @@ export type AttentionItem = {
   urgency: number;
 };
 
+/** How a role weighs the kinds of item: a weight of 0 hides a kind, and an issue filter narrows which issues count. */
+export type Lens = {
+  weights?: Partial<Record<AttentionItem["kind"], number>>;
+  issueFilter?: (issue: OperationalIssue) => boolean;
+};
+
 type Inputs = {
   issues: OperationalIssue[];
   readiness: ReadinessActivity[];
@@ -35,7 +41,7 @@ const readinessReason: Record<ReadinessActivity["status"], string> = {
   review_inbound: "Inbound stock needs a review.",
   ready: "",
 };
-const readinessLabel: Record<ReadinessActivity["status"], string> = { overdue: "Overdue", potential_shortage: "Possible shortage", needs_confirmation: "Needs confirming", review_inbound: "Review inbound", ready: "Ready" };
+export const readinessLabel: Record<ReadinessActivity["status"], string> = { overdue: "Overdue", potential_shortage: "Possible shortage", needs_confirmation: "Needs confirming", review_inbound: "Review inbound", ready: "Ready" };
 
 function minutesSince(iso: string, now: string) {
   return Math.max(0, Math.round((Date.parse(now) - Date.parse(iso)) / 60_000));
@@ -57,11 +63,12 @@ function untilEnd(iso: string, now: string) {
  * Everything that currently needs a person, most urgent first. The list is built from the same records the
  * rest of VESPER uses, so it can never disagree with them. `exclude` leaves out an item already shown elsewhere.
  */
-export function needsAttention({ issues, readiness, equipment, shifts, now }: Inputs, exclude: { issueId?: string } = {}): AttentionItem[] {
+export function needsAttention({ issues, readiness, equipment, shifts, now }: Inputs, exclude: { issueId?: string } = {}, lens: Lens = {}): AttentionItem[] {
   const items: AttentionItem[] = [];
 
   for (const issue of issues) {
     if (!isOpen(issue) || issue.id === exclude.issueId) continue;
+    if (lens.issueFilter && !lens.issueFilter(issue)) continue;
     const blocked = issue.operationalStatus === "blocked";
     const waiting = issue.workflowState === "awaiting_dependency";
     items.push({
@@ -125,5 +132,8 @@ export function needsAttention({ issues, readiness, equipment, shifts, now }: In
     });
   }
 
-  return items.sort((a, b) => b.urgency - a.urgency || a.title.localeCompare(b.title));
+  return items
+    .map((item) => ({ ...item, urgency: item.urgency * (lens.weights?.[item.kind] ?? 1) }))
+    .filter((item) => item.urgency > 0)
+    .sort((a, b) => b.urgency - a.urgency || a.title.localeCompare(b.title));
 }
