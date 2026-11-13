@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -25,6 +25,7 @@ export function SignInScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reveal, setReveal] = useState(false);
   const [compact, setCompact] = useState(false);
   const emailField = useRef<HTMLInputElement>(null);
   const freshField = useRef<HTMLInputElement>(null);
@@ -100,65 +101,79 @@ export function SignInScreen() {
   };
 
   return (
-    <main className={`signin ${compact ? "signin--compact" : ""}`}>
-      <section className="signin__brand" aria-hidden="true">
-        <span className="signin__mark">VESPER</span>
-        <div className="signin__statement">
-          <p>Identify delays.</p>
-          <p>Prevent avoidable waiting.</p>
-          <p>Recover productive time.</p>
-        </div>
-      </section>
+    <main className={`login ${compact ? "login--compact" : ""}`}>
+      <header className="login__brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="login__mark" src="/images/brand/vesper-mark.png" width={754} height={649} alt="" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="login__wordmark" src="/images/brand/vesper-wordmark.png" width={1671} height={223} alt="VESPER" />
+        <p className="login__tagline">The mining operating system</p>
+        <span className="login__rule" aria-hidden="true" />
+      </header>
 
-      <section className="signin__panel">
-        <form className="signin__form" onSubmit={submit} noValidate>
+      <section className="login__card">
+        <form className="login__form" onSubmit={submit} noValidate>
           {step === "credentials" ? (
             <>
               <h1>Sign in</h1>
-              <p>Welcome back. Use your work email address.</p>
+              <p className="login__lead">Welcome back. Use your work email address.</p>
 
-              <label className="field">
-                <span>Email address</span>
-                <input type="email" autoComplete="username" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} ref={emailField} onFocus={keepInView} />
-              </label>
-              <label className="field">
-                <span>Password</span>
-                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} onFocus={keepInView} />
-              </label>
+              <div className="login__field">
+                <label htmlFor="login-email">Email address</label>
+                <div className="login__control">
+                  <Mail aria-hidden="true" />
+                  <input id="login-email" type="email" placeholder="Enter your work email" autoComplete="username" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} ref={emailField} onFocus={keepInView} />
+                </div>
+              </div>
+              <div className="login__field">
+                <label htmlFor="login-password">Password</label>
+                <div className="login__control">
+                  <LockKeyhole aria-hidden="true" />
+                  <input id="login-password" type={reveal ? "text" : "password"} placeholder="Enter your password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} onFocus={keepInView} />
+                  <button type="button" className="login__reveal" onClick={() => setReveal((value) => !value)} aria-pressed={reveal} aria-label={reveal ? "Hide characters" : "Show characters"}>
+                    {reveal ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  </button>
+                </div>
+              </div>
             </>
           ) : (
             <>
               <h1>Choose a new password</h1>
-              <p>Your administrator gave you a temporary password. Choose one only you know to continue.</p>
-              <label className="field">
-                <span>New password</span>
-                <input type="password" autoComplete="new-password" value={fresh} onChange={(event) => setFresh(event.target.value)} aria-invalid={Boolean(error)} ref={freshField} onFocus={keepInView} />
-              </label>
-              <label className="field">
-                <span>Confirm new password</span>
-                <input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} />
-              </label>
-              <small className="signin__note signin__note--left">At least 10 characters, with upper and lower case letters and a number.</small>
+              <p className="login__lead">Your administrator gave you a temporary password. Choose one only you know to continue.</p>
+              <div className="login__field">
+                <label htmlFor="login-new">New password</label>
+                <div className="login__control">
+                  <LockKeyhole aria-hidden="true" />
+                  <input id="login-new" type="password" placeholder="Choose a new password" autoComplete="new-password" value={fresh} onChange={(event) => setFresh(event.target.value)} aria-invalid={Boolean(error)} ref={freshField} onFocus={keepInView} />
+                </div>
+              </div>
+              <div className="login__field">
+                <label htmlFor="login-confirm">Confirm new password</label>
+                <div className="login__control">
+                  <LockKeyhole aria-hidden="true" />
+                  <input id="login-confirm" type="password" placeholder="Repeat the new password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} />
+                </div>
+              </div>
+              <small className="login__hint">At least 10 characters, with upper and lower case letters and a number.</small>
             </>
           )}
 
-          {error ? <p className="signin__error" role="alert">{error}</p> : null}
+          {error ? <p className="login__error" role="alert">{error}</p> : null}
 
-          <button className="button button--primary button--wide button--large" disabled={busy}>
-            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight /></> : <>Save and continue <ArrowRight /></>}
+          <button className="login__submit" disabled={busy}>
+            {busy ? <><span className="spinner" aria-hidden="true" /> Signing you in…</> : step === "credentials" ? <>Sign in <ArrowRight aria-hidden="true" /></> : <>Save and continue <ArrowRight aria-hidden="true" /></>}
           </button>
           {step === "credentials" ? (
             <>
-              <div className="signin__divider" aria-hidden="true"><span>or</span></div>
-              <button type="button" className="button button--sso button--wide button--large" onClick={continueWithMicrosoft} disabled={busy}>
+              <div className="login__divider" aria-hidden="true"><span>or</span></div>
+              <button type="button" className="login__sso" onClick={continueWithMicrosoft} disabled={busy}>
                 <svg viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect x="11" y="1" width="9" height="9" fill="#7fba00" /><rect x="1" y="11" width="9" height="9" fill="#00a4ef" /><rect x="11" y="11" width="9" height="9" fill="#ffb900" /></svg>
                 Continue with Microsoft
               </button>
             </>
           ) : null}
-
         </form>
-        <small className="signin__note">All sites, people and records in this build are fictional.</small>
+        <small className="login__note">All sites, people and records in this build are fictional.</small>
       </section>
     </main>
   );

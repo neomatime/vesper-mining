@@ -8,6 +8,7 @@ import "./typography.css";
 import "./chrome.css";
 import "./dark.generated.css";
 import "./dark.css";
+import "./login.css";
 
 export const metadata: Metadata = {
   title: {
