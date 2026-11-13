@@ -34,8 +34,8 @@
   text-align: center;
   transition: opacity 240ms var(--ease-premium), max-height 320ms var(--ease-premium), gap 320ms var(--ease-premium);
 }
-.login__mark { width: clamp(52px, min(6vw, 8.6vh), 84px); height: auto; margin-bottom: clamp(10px, 1.8vh, 20px); }
-.login__wordmark { width: clamp(176px, min(20vw, 28vh), 290px); height: auto; }
+.login__mark { width: clamp(40px, min(4.4vw, 6.4vh), 62px); height: auto; margin-bottom: clamp(10px, 1.8vh, 20px); }
+.login__wordmark { width: clamp(140px, min(15vw, 21vh), 214px); height: auto; }
 .login__tagline {
   margin: clamp(12px, 2vh, 20px) 0 0;
   color: #2c3a35;
@@ -172,8 +172,8 @@
 /* ------------------------------------------------------------------------------------------------ phones and tablets */
 @media (max-width: 767px) {
   .login { align-content: start; gap: 22px; padding-top: 28px; background-position: 90% 100%; }
-  .login__mark { width: 58px; }
-  .login__wordmark { width: 196px; }
+  .login__mark { width: 46px; }
+  .login__wordmark { width: 156px; }
   .login__tagline { font-size: 10.5px; letter-spacing: 0.34em; margin-right: -0.34em; }
   .login__card { gap: 14px; padding: 28px 20px 18px; }
   .login__form { gap: 16px; }
@@ -188,7 +188,7 @@
   .login--compact .login__mark,
   .login--compact .login__tagline,
   .login--compact .login__rule { display: none; }
-  .login--compact .login__wordmark { width: 128px; }
+  .login--compact .login__wordmark { width: 112px; }
   .login--compact .login__card { gap: 10px; padding: 20px 18px 14px; }
   .login--compact .login__form { gap: 12px; }
   .login--compact .login__form h1 { font-size: 24px; }
