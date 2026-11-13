@@ -197,12 +197,12 @@ export function OverviewScreen() {
           <div className="chart-wrap" aria-label="Production versus plan from 18 to 24 April 2025">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={-8}>
-                <CartesianGrid vertical={false} stroke="#E7ECE8" />
+                <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
                 <XAxis dataKey="day" tickLine={false} axisLine={false} />
                 <YAxis hide domain={[0, 180]} />
                 <Tooltip />
-                <Bar dataKey="plan" fill="#CDE8DA" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="actual" fill="#16865B" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="plan" fill="var(--chart-plan)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="actual" fill="var(--chart-actual)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
