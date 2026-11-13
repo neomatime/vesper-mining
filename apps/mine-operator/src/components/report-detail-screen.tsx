@@ -51,7 +51,7 @@ export function ReportDetailScreen({ reportKey }: { reportKey: string }) {
           <div className="report-chart" role="img" aria-label={`${chart.title} bar chart. The same figures are in the table below.`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chart.data}>
-                <CartesianGrid vertical={false} stroke="#E7ECE8" />
+                <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} interval={chart.data.length > 5 ? "preserveStartEnd" : 0} minTickGap={12} tick={{ fontSize: 12 }} />
                 <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip cursor={{ fill: "rgba(22,134,91,0.06)" }} />

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { DemoProviders } from "@/components/demo-providers";
+import { themeInitScript } from "@/lib/theme";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import "./theme.css";
+import "./dark.generated.css";
+import "./dark.css";
 
 export const metadata: Metadata = {
   title: {
@@ -18,7 +21,10 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, inte
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-ZA">
+    <html lang="en-ZA" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <DemoProviders>{children}</DemoProviders>
       </body>

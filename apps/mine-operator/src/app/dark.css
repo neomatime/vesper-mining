@@ -1,0 +1,76 @@
+/*
+ * Dark theme, the hand-made part. `dark.generated.css` (made by scripts/generate-dark-theme.mjs) re-colours every rule
+ * of the light stylesheet. This file sets the colour variables those rules read, and fixes what a mechanical
+ * mapping cannot judge. It loads last, so a rule here wins over a generated one of the same weight.
+ */
+
+/* The appearance switch in the account menu works in both themes */
+.theme-switch { display: grid; gap: 8px; padding: 6px 8px 8px; }
+.theme-switch__label { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.theme-switch .segmented { display: grid; grid-template-columns: repeat(3, 1fr); }
+.theme-switch .segmented button { padding: 0 8px; gap: 5px; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-canvas: #0b100f;
+  --surface-base: #151b19;
+  --surface-soft: #181f1c;
+  --surface-muted: #1c2521;
+  --text-primary: #e7eee9;
+  --text-secondary: #9fada5;
+  --border-subtle: #26332d;
+  --border-strong: #34443c;
+
+  /* Emerald stays as the fill colour for buttons and selected days; its "dark" twin is the one used for text and links */
+  --brand-emerald-dark: #5fd3a2;
+  --tint: #153428;
+  --tint-border: #23563f;
+  --tint-ink: #8fe6bf;
+
+  --status-warning: #e3a33f;
+  --status-warning-soft: #392a0d;
+  --status-danger: #ef6d68;
+  --status-danger-soft: #3a1816;
+  --status-neutral: #9fada5;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5), 0 18px 44px -14px rgba(0, 0, 0, 0.65);
+  --shadow-soft: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25), 0 18px 36px -22px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 1px 1px rgba(0, 0, 0, 0.35), 0 6px 14px rgba(0, 0, 0, 0.3), 0 28px 48px -24px rgba(0, 0, 0, 0.7);
+  --shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  --glow-focus: 0 0 0 4px rgba(43, 180, 126, 0.28);
+}
+
+/* A sweep of light across a loading placeholder should be lighter than the placeholder, not darker */
+:root[data-theme="dark"] .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent); }
+
+/* Cards and panels read as raised surfaces: a fine light edge instead of a soft shadow that dark backgrounds swallow */
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .popover,
+:root[data-theme="dark"] .floating-panel,
+:root[data-theme="dark"] .dialog { border-color: rgba(255, 255, 255, 0.07); }
+
+/* Charts: one set of colours per theme, so the bars sit comfortably on either surface */
+:root { --chart-plan: #cde8da; --chart-actual: #16865b; --chart-grid: #e7ece8; }
+:root[data-theme="dark"] {
+  --chart-plan: #27493b;
+  --chart-actual: #2bb37f;
+  --chart-grid: #26332d;
+}
+:root[data-theme="dark"] .recharts-cartesian-axis-tick-value { fill: var(--text-secondary); }
+:root[data-theme="dark"] .recharts-default-tooltip { border-color: var(--border-strong) !important; background-color: var(--surface-base) !important; }
+:root[data-theme="dark"] .recharts-tooltip-label,
+:root[data-theme="dark"] .recharts-tooltip-item,
+:root[data-theme="dark"] .recharts-legend-item-text { color: var(--text-primary) !important; }
+:root[data-theme="dark"] .recharts-tooltip-cursor { fill: rgba(255, 255, 255, 0.05); }
+/* Report charts take their colours from data; the pale "plan" colour becomes the dark plan colour */
+:root[data-theme="dark"] [fill="#CDE8DA" i] { fill: var(--chart-plan); }
+
+/* Solid fills keep the strong colour; only text and tints use the lighter dark-theme variants */
+:root[data-theme="dark"] .button--danger,
+:root[data-theme="dark"] .notification-dot,
+:root[data-theme="dark"] .bootstrap-mark--error { background: #c83b38; }
+:root[data-theme="dark"] .button--light { color: #123f2d; }
+:root[data-theme="dark"] .action-row__marker--in_progress { color: var(--brand-emerald-dark); }

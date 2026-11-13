@@ -11,6 +11,7 @@ import { useDemoContext } from "@/stores/demo-context";
 import { useSession } from "@/stores/session";
 import { NotificationList, useNotifications } from "./notification-list";
 import { useDismiss } from "./use-dismiss";
+import { ThemeSwitch } from "./theme-switch";
 
 function useMenu() {
   const [open, setOpen] = useState(false);
@@ -168,6 +169,10 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
                 <span className="menu-item__copy"><strong>Administration</strong><small>People, rights, site and plan</small></span>
               </Link>
             ) : null}
+          </div>
+
+          <div className="menu-section">
+            <ThemeSwitch />
           </div>
 
           <div className="menu-section menu-section--footer">
