@@ -1,0 +1,236 @@
+/*
+ * VESPER type system.
+ *
+ * One typeface (Inter, self-hosted, with its optical-size axis so large headings are drawn more finely than small
+ * text), a light weight scale (300 to 500), and a short list of named styles. Hierarchy comes from size, tracking and
+ * colour, never from a heavier weight. The same rules apply in the dark theme.
+ *
+ *   page title     300, 26 to 31 px, tight         the one h1 on a screen
+ *   section title  400, 18 px                      card and dialog headings
+ *   card title     500, 15 px                      h3 and list-item names
+ *   body           400, 14 px / 22 px              reading text
+ *   control        450, 14 px                      buttons, tabs, navigation, chips
+ *   label          600, 11.5 px, uppercase, tracked  eyebrows, table heads, metric names
+ *   figure         300, tabular digits             numbers people compare
+ *   caption        400, 12.5 px, secondary colour  hints and meta lines
+ */
+
+/* Self-hosted: no request leaves the product's own domain, and every client sees the same letterforms. */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Variable-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* While Inter loads, a system font is sized to match it, so the page does not jump when the real font arrives. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Segoe UI");
+  ascent-override: 96.9%;
+  descent-override: 24.1%;
+  line-gap-override: 0%;
+  size-adjust: 107.4%;
+}
+
+:root {
+  --font-ui: "Inter", "Inter Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-base: var(--font-ui);
+  --font-family-display: var(--font-ui);
+  --font-family-data: var(--font-ui);
+  --font-display-stack: var(--font-ui);
+
+  /* The lightest scale that stays legible. Nothing on the page is heavier than 500. */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 450;
+  --weight-strong: 500;
+
+  --track-display: -0.018em;
+  --track-title: -0.018em;
+  --track-section: -0.014em;
+  --track-control: -0.006em;
+  --track-label: 0.08em;
+}
+
+html {
+  font-optical-sizing: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: var(--weight-regular);
+  line-height: 22px;
+  letter-spacing: 0;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-variant-ligatures: common-ligatures contextual;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+}
+
+/* The browser's own "bold" is 700. VESPER's strongest weight is 600. */
+strong, b, th, dt, h1, h2, h3, h4, h5, h6, legend { font-weight: var(--weight-strong); }
+
+/* Page title */
+.page-header h1,
+.dashboard-greeting h1,
+.profile-header__copy h1,
+.console__card h1,
+.provider-page__job h1,
+.entitlement-gate h1,
+.mobile-page-header h1 {
+  font-family: var(--font-ui);
+  font-size: clamp(26px, 2.2vw, 31px);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--track-title);
+  line-height: 1.2;
+}
+.signin__form h1 {
+  font-size: 32px;
+  font-weight: var(--weight-light);
+  letter-spacing: -0.024em;
+  line-height: 1.15;
+}
+
+/* Display: the large statement on a hero card and the sign-in photograph */
+.hero-card h2 {
+  font-size: clamp(24px, 2.3vw, 32px);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--track-display);
+  line-height: 1.12;
+}
+.signin__statement p { font-weight: var(--weight-regular); letter-spacing: var(--track-display); }
+
+/* Section title */
+.card__header h2,
+.section-heading h2,
+.dialog__header h2,
+.popover__header h2,
+.cal-toolbar__nav h2,
+.cal-agenda h2,
+.restricted h2 {
+  font-size: 18px;
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--track-section);
+  line-height: 26px;
+}
+.section-heading h2 { font-size: 20px; line-height: 28px; }
+
+/* Card title */
+.attention-card h3,
+.profile-rights__group h3,
+.role-diff h3,
+.opportunity-card h3 {
+  font-size: 15px;
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.008em;
+  line-height: 22px;
+}
+
+/* Label: small, uppercase, tracked */
+.eyebrow,
+.kpi span,
+.metric-card small,
+.data-table th,
+.sidebar__group > p,
+.hero-card__facts small,
+.figure-tile small,
+.credential-card dt,
+.rights-table__area th,
+.reply-link span,
+.recovery-card__opportunity small {
+  font-size: 11.5px;
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--track-label);
+  line-height: 16px;
+  text-transform: uppercase;
+}
+/* The eyebrow above a title is quieter than a table head: normal case would read as a second heading */
+.eyebrow { letter-spacing: 0.09em; }
+
+/* Control: buttons, tabs, navigation, chips, menu items */
+.button,
+.tab,
+.sidebar__nav a,
+.sidebar__group a,
+.filter-chips button,
+.segmented button,
+.segmented a,
+.mobile-bottom-nav a,
+.menu-item__copy strong,
+.select__option,
+.calendar__link {
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-control);
+}
+.sidebar__nav a.active,
+.sidebar__group a.active,
+.tab--active,
+.filter-chips button.active,
+.segmented .active { font-weight: var(--weight-strong); }
+
+/* Names in lists and tables read as strong; their detail lines stay regular */
+.cell-main strong,
+.record-row__copy strong,
+.home-row__copy strong,
+.attention-card h3,
+.action-row strong,
+.dependency-item strong,
+.recovery-step strong,
+.work-row strong,
+.cal-item__body strong { font-weight: var(--weight-medium); }
+
+.status-badge { font-weight: var(--weight-medium); }
+
+/* Figure: numbers people compare. Digits share one width, so columns line up. */
+.kpi strong,
+.metric-card strong,
+.figure-tile strong,
+.progress-orbit strong,
+.hero-card__facts strong,
+.definition-grid dd,
+.context-pills,
+.data-table td,
+.cal__number,
+.cal__chip b,
+.cal-week__head strong,
+.cal-item__time strong,
+.cal-strip__day strong,
+.cal-day__hours span,
+.cal-day__shift > span,
+.invite__quote dd,
+.handover-count strong,
+time {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "kern" 1, "tnum" 1;
+}
+.kpi strong,
+.metric-card strong,
+.figure-tile strong,
+.progress-orbit strong,
+.handover-count strong {
+  font-weight: var(--weight-light);
+  letter-spacing: -0.02em;
+}
+
+/* Caption: hints and meta lines */
+.field-hint,
+.card__footnote,
+.confirmation-note,
+.hero-card__note,
+.home-row__copy small,
+.attention-card p,
+.figure-tile p {
+  font-weight: var(--weight-regular);
+  letter-spacing: 0;
+}
+
+/* The wordmark is set, not typed: wide tracking, medium weight */
+.wordmark { font-weight: var(--weight-strong); }

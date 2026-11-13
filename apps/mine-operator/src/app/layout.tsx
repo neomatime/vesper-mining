@@ -4,6 +4,8 @@ import { themeInitScript } from "@/lib/theme";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import "./theme.css";
+import "./typography.css";
+import "./chrome.css";
 import "./dark.generated.css";
 import "./dark.css";
 
@@ -23,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-ZA" suppressHydrationWarning>
       <head>
+        <link rel="preload" href="/fonts/Inter-Variable-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
