@@ -6,7 +6,7 @@
 
 /* The appearance switch in the account menu works in both themes */
 .theme-switch { display: grid; gap: 8px; padding: 6px 8px 8px; }
-.theme-switch__label { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.theme-switch__label { color: var(--text-secondary); font-size: 12px; font-weight: var(--weight-strong); }
 .theme-switch .segmented { display: grid; grid-template-columns: repeat(3, 1fr); }
 .theme-switch .segmented button { padding: 0 8px; gap: 5px; }
 
@@ -74,3 +74,6 @@
 :root[data-theme="dark"] .bootstrap-mark--error { background: #c83b38; }
 :root[data-theme="dark"] .button--light { color: #123f2d; }
 :root[data-theme="dark"] .action-row__marker--in_progress { color: var(--brand-emerald-dark); }
+
+/* The sidebar is the same surface colour as the top bar and the cards (the generated grey was a shade lighter) */
+:root[data-theme="dark"] .sidebar { background: var(--surface-base); }
