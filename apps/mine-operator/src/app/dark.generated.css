@@ -1331,12 +1331,6 @@
 :root[data-theme="dark"] .context-pills > span {
   border-color: var(--border-subtle);
 }
-:root[data-theme="dark"] .signin {
-  background: var(--surface-canvas);
-}
-:root[data-theme="dark"] .signin__form > p {
-  color: var(--text-secondary);
-}
 :root[data-theme="dark"] .field input,
 :root[data-theme="dark"] .field select {
   border: 1px solid var(--border-strong);
@@ -1350,13 +1344,6 @@
 }
 :root[data-theme="dark"] .field input[aria-invalid="true"] {
   border-color: #c7453f;
-}
-:root[data-theme="dark"] .signin__error {
-  color: #cda3a1;
-  background: #2f1815;
-}
-:root[data-theme="dark"] .signin__note {
-  color: var(--text-secondary);
 }
 :root[data-theme="dark"] .console {
   background: var(--surface-canvas);
@@ -1885,30 +1872,6 @@
 :root[data-theme="dark"] .spinner {
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #1d2321;
-}
-:root[data-theme="dark"] .signin {
-  background: #0d1411;
-}
-:root[data-theme="dark"] .signin__panel {
-  background: var(--surface-canvas);
-}
-:root[data-theme="dark"] .signin__form .field input {
-  background: #181d1c;
-}
-:root[data-theme="dark"] .signin__form .button--sso {
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  background: #181d1c;
-}
-:root[data-theme="dark"] .signin__form .button--sso:hover:not(:disabled) {
-  border-color: #b8c1ba;
-}
-:root[data-theme="dark"] .signin__divider {
-  color: #acb1af;
-}
-:root[data-theme="dark"] .signin__divider::before,
-:root[data-theme="dark"] .signin__divider::after {
-  background: var(--border-subtle);
 }
 :root[data-theme="dark"] .segmented {
   border: 1px solid var(--border-subtle);

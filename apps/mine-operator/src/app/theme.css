@@ -30,7 +30,15 @@ svg.lucide, .lucide { stroke-width: 1.6; }
 ::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: var(--radius-sm); background: #cfccc1; background-clip: content-box; }
 
 /* Type */
-.page-header h1, .dashboard-greeting h1, .hero-card h2, .entitlement-gate h1, .dialog__header h2, .kpi strong, .card__header h2, .signin__form h1, .console__card h1, .popover__header h2 { font-family: var(--font-display-stack); font-weight: 400; letter-spacing: -0.015em; }
+.page-header h1,
+.dashboard-greeting h1,
+.hero-card h2,
+.entitlement-gate h1,
+.dialog__header h2,
+.kpi strong,
+.card__header h2,
+.console__card h1,
+.popover__header h2 { font-family: var(--font-display-stack); font-weight: 400; letter-spacing: -0.015em; }
 .page-header h1 { font-size: clamp(32px, 3.2vw, 42px); line-height: 1.08; }
 .page-header p { max-width: 640px; margin-top: 10px; font-size: 15.5px; }
 .card__header h2 { font-size: 21px; line-height: 1.25; }
@@ -154,28 +162,11 @@ svg.lucide, .lucide { stroke-width: 1.6; }
 .metric-grid { gap: 16px; margin: 20px 0; }
 .recovery-card, .map-card, .action-card { border-radius: var(--radius-lg); }
 
-/* Sign in */
-.signin { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr); background: var(--surface-canvas); }
-.signin__brand { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 56px 64px; color: #fff; background: radial-gradient(120% 90% at 85% 100%, #17372c 0%, transparent 60%), var(--ink); }
-.signin__mark { position: relative; z-index: 1; font-size: 17px; font-weight: var(--weight-strong); letter-spacing: 0.4em; }
-.signin__statement { position: relative; z-index: 1; display: grid; gap: 6px; max-width: 520px; }
-.signin__statement p { margin: 0; font-family: var(--font-display-stack); font-size: clamp(30px, 3.4vw, 46px); font-weight: 400; line-height: 1.12; letter-spacing: -0.02em; color: #f2f1ec; }
-.signin__statement p:nth-child(2) { color: #c9d4cd; }
-.signin__statement p:nth-child(3) { color: #8fa398; }
-.signin__contours { position: absolute; right: -80px; bottom: -120px; width: 760px; opacity: 0.5; }
-.signin__contours ellipse { stroke: rgba(120, 200, 165, 0.18); stroke-width: 1; }
-.signin__panel { display: grid; align-content: center; justify-items: center; gap: 28px; padding: 48px 32px; }
-.signin__form { width: min(380px, 100%); display: grid; gap: 18px; }
-.signin__form h1 { margin: 0; font-size: 36px; line-height: 1.1; }
-.signin__form > p { margin: -8px 0 6px; color: var(--text-secondary); }
 .field { display: grid; gap: 7px; }
 .field > span { font-size: 13.5px; font-weight: var(--weight-strong); }
 .field input, .field select { height: 48px; width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 0 14px; color: var(--text-primary); background: #fff; outline: 0; transition: border-color 140ms ease, box-shadow 140ms ease; }
 .field input:focus, .field select:focus { border-color: var(--brand-emerald); box-shadow: 0 0 0 3px rgba(14, 107, 75, 0.12); }
 .field input[aria-invalid="true"] { border-color: #c7453f; }
-.signin__error { margin: 0; border-radius: var(--radius-md); padding: 11px 14px; color: #8f2d29; background: #fbecea; font-size: 14px; }
-.signin__form .button { margin-top: 6px; }
-.signin__note { max-width: 380px; color: var(--text-secondary); font-size: 13px; text-align: center; }
 
 /* Presenter console */
 .console { min-height: 100vh; display: grid; place-items: center; padding: 32px; background: var(--surface-canvas); }
@@ -195,9 +186,6 @@ svg.lucide, .lucide { stroke-width: 1.6; }
 .plan-list li.plan__off svg, .plan-list li.plan__off strong { color: #9aa29c; }
 
 @media (max-width: 1023px) {
-  .signin { grid-template-columns: 1fr; }
-  .signin__brand { min-height: 280px; padding: 36px 32px; }
-  .signin__statement p { font-size: 28px; }
   .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kpi { border-bottom: 1px solid var(--border-subtle); }
 }
@@ -208,7 +196,6 @@ svg.lucide, .lucide { stroke-width: 1.6; }
   .card__header { padding: 20px 20px 8px; }
   .definition-grid, .work-list, .comments { padding: 0 20px; }
   .composer { margin: 0 20px 12px; }
-  .signin__panel { padding: 32px 20px 40px; }
 }
 
 /* Equipment */
@@ -316,7 +303,15 @@ body { font-family: var(--font-display-stack); font-size: 14px; line-height: 1.5
 .kpi strong, .data-table td, .metric-card strong, .sidebar em, .progress-orbit strong, .hero-card__facts strong { font-variant-numeric: tabular-nums; }
 
 /* Type: one family, decisive weights */
-.page-header h1, .dashboard-greeting h1, .hero-card h2, .entitlement-gate h1, .dialog__header h2, .kpi strong, .card__header h2, .signin__form h1, .console__card h1, .popover__header h2 { font-family: var(--font-display-stack); font-weight: var(--weight-strong); letter-spacing: -0.02em; }
+.page-header h1,
+.dashboard-greeting h1,
+.hero-card h2,
+.entitlement-gate h1,
+.dialog__header h2,
+.kpi strong,
+.card__header h2,
+.console__card h1,
+.popover__header h2 { font-family: var(--font-display-stack); font-weight: var(--weight-strong); letter-spacing: -0.02em; }
 .page-header h1, .dashboard-greeting h1 { font-size: clamp(25px, 2.4vw, 30px); line-height: 1.15; }
 .page-header p { margin-top: 6px; font-size: 14.5px; }
 .page-header { margin-bottom: 28px; }
@@ -380,8 +375,6 @@ body { font-family: var(--font-display-stack); font-size: 14px; line-height: 1.5
 .sidebar__nav a.active svg, .sidebar__group a.active svg { color: var(--brand-emerald); }
 .sidebar__group > p { color: #5f6b65; font-size: 11px; font-weight: var(--weight-strong); letter-spacing: 0.09em; text-transform: uppercase; }
 .sidebar__collapse { border-radius: var(--radius-sm); background: var(--surface-muted); }
-
-.signin__note--left { display: block; margin-top: -4px; text-align: left; }
 
 /* Credentials */
 .credential-card { display: grid; gap: 14px; margin: 0 0 16px; padding: 16px 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-soft); }
@@ -666,29 +659,6 @@ a.card:hover, a.metric-card:hover { transform: translateY(-2px); }
 .brand-loader__line::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, #5be3a7, transparent); animation: line-travel 1.6s ease-in-out infinite; }
 .brand-loader p { margin: 0; color: #8fa398; font-size: 12.5px; letter-spacing: 0.08em; }
 
-/* Sign in: the first impression */
-.signin { background: #0d1411; }
-.signin__brand { background: radial-gradient(80% 60% at 20% 0%, rgba(58, 213, 146, 0.1) 0%, transparent 60%), radial-gradient(120% 90% at 85% 100%, #1a3d31 0%, transparent 60%), #0d1411; padding: 64px 72px; }
-.signin__brand::before { content: ""; position: absolute; inset: 0; opacity: 0.5; background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px); background-size: 72px 72px; -webkit-mask-image: radial-gradient(70% 70% at 30% 40%, #000 0%, transparent 75%); mask-image: radial-gradient(70% 70% at 30% 40%, #000 0%, transparent 75%); }
-.signin__brand::after { content: ""; position: absolute; width: 640px; height: 640px; left: -160px; top: -200px; border-radius: 50%; background: radial-gradient(circle, rgba(58, 213, 146, 0.12), transparent 65%); animation: halo-breathe 9s ease-in-out infinite; }
-.signin__mark { font-size: 16px; letter-spacing: 0.5em; animation: fade-in 900ms var(--ease-premium) both; }
-.signin__statement { gap: 10px; }
-.signin__statement p { font-weight: 400; letter-spacing: -0.03em; animation: reveal-up 900ms var(--ease-premium) both; }
-.signin__statement p:nth-child(1) { animation-delay: 150ms; }
-.signin__statement p:nth-child(2) { animation-delay: 300ms; }
-.signin__statement p:nth-child(3) { animation-delay: 450ms; }
-.signin__contours { opacity: 0.7; animation: fade-in 1600ms 400ms var(--ease-premium) both; }
-.signin__contours ellipse { stroke: rgba(120, 200, 165, 0.16); }
-.signin__panel { position: relative; background: var(--surface-canvas); border-radius: var(--radius-lg) 0 0 var(--radius-lg); box-shadow: -30px 0 60px -30px rgba(0, 0, 0, 0.5); }
-.signin__form { animation: reveal-up 900ms 250ms var(--ease-premium) both; }
-.signin__form h1 { font-weight: var(--weight-medium); letter-spacing: -0.035em; }
-.signin__form .field input { height: 52px; border-radius: var(--radius-lg); background: #fff; box-shadow: 0 1px 1px rgba(16, 24, 22, 0.03); }
-.signin__form .button--primary { height: 52px; border-radius: var(--radius-lg); font-size: 15px; }
-.signin__form .button--primary svg { transition: transform 280ms var(--ease-premium); }
-.signin__form .button--primary:hover:not(:disabled) svg { transform: translateX(4px); }
-.signin__note { animation: fade-in 1200ms 700ms var(--ease-premium) both; }
-.signin__error { animation: shake 420ms var(--ease-premium); }
-
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes reveal-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
@@ -701,55 +671,13 @@ a.card:hover, a.metric-card:hover { transform: translateY(-2px); }
 @keyframes halo-breathe { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
 @keyframes line-travel { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
-
-@media (max-width: 1023px) { .signin__panel { border-radius: var(--radius-lg) var(--radius-lg) 0 0; margin-top: -24px; box-shadow: 0 -20px 40px -24px rgba(0, 0, 0, 0.45); } .signin__brand { padding: 40px 32px 56px; } }
-@media (prefers-reduced-motion: reduce) { .route-progress { display: none; } .skeleton::after, .brand-loader__halo, .brand-loader__line::after, .signin__brand::after { animation: none; } }
-
-.signin__statement { max-width: none; }
-.signin__statement p { font-size: clamp(30px, 3vw, 44px); }
+@media (prefers-reduced-motion: reduce) { .route-progress { display: none; } .skeleton::after,
+.brand-loader__halo,
+.brand-loader__line::after { animation: none; } }
 
 /* No scrollbars anywhere: everything still scrolls with wheel, trackpad, touch and keyboard */
 html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display: none; width: 0; height: 0; }
-
-/* Sign in: the open pit at dusk */
-.signin__brand { background: #0b1411 url("/images/sign-in-mine.webp") center / cover no-repeat; }
-.signin__brand::before { inset: 0; opacity: 1; background: linear-gradient(180deg, rgba(8, 16, 13, 0.35) 0%, rgba(8, 16, 13, 0) 28%, rgba(8, 40, 28, 0.15) 52%, rgba(6, 46, 31, 0.82) 100%); background-size: auto; -webkit-mask-image: none; mask-image: none; }
-.signin__brand::after { display: none; }
-.signin__contours { right: -140px; bottom: -200px; width: 900px; opacity: 1; }
-.signin__contours ellipse { stroke: rgba(80, 220, 160, 0.3); }
-.signin__mark, .signin__statement { z-index: 2; }
-.signin__statement p { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45); }
-.signin__brand { background: url("/images/sign-in-mine.webp") 0 64px / 108% auto no-repeat, linear-gradient(180deg, #0d2c2e 0%, #0a1d19 55%, #06281c 100%); }
-.signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, rgba(13, 44, 46, 0.55) 9%, rgba(13, 44, 46, 0) 18%), linear-gradient(180deg, rgba(6, 40, 28, 0) 55%, rgba(6, 40, 28, 0.7) 76%, #06281c 100%); }
-.signin__contours ellipse { stroke: rgba(80, 220, 160, 0.34); }
-.signin__brand { background: url("/images/sign-in-mine.webp") 0 64px / 108% auto no-repeat, linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 10%, #0a2420 50%, #07281c 76%, #06281c 100%); }
-.signin__brand::before { background: linear-gradient(180deg, #0d2c2e 0%, #0d2c2e 8%, rgba(13, 44, 46, 0.7) 12%, rgba(13, 44, 46, 0) 24%), linear-gradient(180deg, rgba(7, 40, 28, 0) 48%, rgba(7, 40, 28, 0.55) 62%, #07281c 75%, #07281c 100%); }
-
-/* Sign in: the tunnel photograph */
-.signin__brand { background: #0b1411 url("/images/sign-in-timbered-tunnel.jpg") 50% center / cover no-repeat; }
-.signin__brand::before { background: linear-gradient(180deg, rgba(8, 16, 13, 0.5) 0%, rgba(8, 16, 13, 0.05) 26%, rgba(7, 40, 28, 0.2) 50%, rgba(7, 40, 28, 0.88) 100%); }
-
-/* Sign in with Microsoft */
-.signin__form .button--sso { margin-top: 6px; gap: 12px; border: 1px solid var(--border-strong); color: var(--text-primary); background: #fff; font-weight: var(--weight-strong); box-shadow: 0 1px 1px rgba(16, 24, 22, 0.04); }
-.signin__form .button--sso:hover:not(:disabled) { border-color: #b8c1ba; box-shadow: var(--shadow-soft); transform: translateY(-1px); }
-.signin__form .button--sso svg { width: 18px; height: 18px; flex: 0 0 18px; }
-.signin__divider { display: flex; align-items: center; gap: 14px; margin: 0; color: #626e68; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; }
-.signin__divider::before, .signin__divider::after { content: ""; height: 1px; flex: 1; background: var(--border-subtle); }
-.signin__form .signin__divider + .button { margin-top: 0; }
-.signin__form .button--sso { height: 52px; border-radius: var(--radius-lg); font-size: 15px; }
-
-.signin__form .signin__divider + .button--sso { margin-top: 0; }
-
-/* Sign in: processing plant at sunset */
-.signin__brand { background: url("/images/sign-in-sunset-plant.jpg") 50% 150px / 100% auto no-repeat, linear-gradient(180deg, #4c4a6c 0%, #4c4a6c 20%, #0a100f 82%, #0a100f 100%); }
-.signin__brand::before { background: linear-gradient(180deg, rgba(8, 14, 12, 0.55) 0%, rgba(8, 14, 12, 0) 22%), linear-gradient(180deg, rgba(6, 40, 28, 0) 62%, rgba(6, 40, 28, 0.6) 82%, rgba(6, 40, 28, 0.85) 100%); }
-.signin__brand::before { background: linear-gradient(180deg, rgba(8, 14, 12, 0.55) 0%, rgba(8, 14, 12, 0) 22%), linear-gradient(180deg, rgba(10, 16, 15, 0) 56%, #0a100f 79%, #072a1d 100%); }
-
-/* Sign in: the photograph stays clean. A soft dark fade, no rings, sits behind the statements. */
-.signin__brand::before { background: linear-gradient(180deg, rgba(8, 12, 12, 0.45) 0%, rgba(8, 12, 12, 0) 20%), linear-gradient(180deg, rgba(8, 12, 12, 0) 52%, rgba(8, 12, 12, 0.55) 76%, rgba(8, 12, 12, 0.86) 100%); }
-.signin__brand { background: url("/images/sign-in-sunset-plant.jpg") 50% 150px / 100% auto no-repeat, linear-gradient(180deg, #4c4a6c 0%, #4c4a6c 20%, #0a100f 82%, #0a100f 100%); }
-.signin__brand::before { background: linear-gradient(180deg, rgba(8, 12, 12, 0.45) 0%, rgba(8, 12, 12, 0) 20%), linear-gradient(180deg, rgba(10, 16, 15, 0) 54%, #0a100f 77%, #0a100f 100%); }
 
 /* Shift calendar */
 .segmented { display: inline-flex; gap: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 3px; background: var(--surface-muted); }
@@ -889,18 +817,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 [data-fade-left]:not([data-fade-right]) { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
 [data-fade-left][data-fade-right] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 
-/* Sign in on small screens: the photograph fills its band, with room for the wordmark and the statements */
-@media (max-width: 1023px) {
-  .signin__brand { min-height: 360px; padding: 32px 28px 36px; background: #0a100f url("/images/sign-in-sunset-plant.jpg") 52% 62% / cover no-repeat; }
-  .signin__brand::before { background: linear-gradient(180deg, rgba(8, 12, 12, 0.55) 0%, rgba(8, 12, 12, 0) 32%, rgba(8, 12, 12, 0.35) 62%, rgba(8, 12, 12, 0.9) 100%); }
-  .signin__statement { gap: 6px; }
-  .signin__statement p { font-size: clamp(21px, 5.6vw, 30px); }
-}
-@media (max-width: 480px) {
-  .signin__brand { min-height: 320px; padding: 28px 22px 32px; }
-  .signin__statement p { font-size: clamp(20px, 5.8vw, 24px); }
-}
-
 /* Top bar on phones: the site name gives way before the profile picture does */
 @media (max-width: 767px) {
   .topbar > * { flex-shrink: 0; }
@@ -945,21 +861,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
   .app-shell { --active-sidebar-width: 86px; }
   .sidebar { width: 72px; padding: 12px 8px; }
 }
-
-/* Sign in on a phone: once a field is tapped the photograph steps back for good, so the whole form stays above the keyboard
-   and nothing moves under a finger while the person is typing */
-@media (max-width: 1023px) {
-  .signin { min-height: 100vh; min-height: 100dvh; }
-  .signin__brand { transition: min-height 320ms var(--ease-premium), padding 320ms var(--ease-premium); }
-  .signin__statement { max-height: 200px; transition: opacity 200ms var(--ease-premium), max-height 320ms var(--ease-premium); }
-  .signin--compact .signin__brand { min-height: 92px; padding-block: 22px 14px; }
-  .signin--compact .signin__statement { max-height: 0; overflow: hidden; opacity: 0; }
-  .signin--compact .signin__panel { padding-top: 24px; gap: 16px; }
-}
-
-@media (max-width: 1023px) { .signin { grid-template-rows: auto 1fr; } }
-
-@media (max-width: 1023px) { .signin__panel { align-content: start; } .signin--compact .signin__form { gap: 14px; } }
 
 /* ==========================================================================
    Floating top bar: the same bar, lifted off the screen edge like the sidebar
@@ -1110,9 +1011,4 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .needs-now__main--wide .hero-card__facts > span { display: grid; grid-template-columns: none; gap: 2px; padding-right: 25px; }
 .needs-now__main--wide .hero-card__facts small { white-space: nowrap; }
 
-:root { --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; }
-
-
-/* The sign-in panel meets the photograph with a soft edge */
-.signin__panel { border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
-@media (max-width: 1023px) { .signin__panel { border-radius: var(--radius-lg) var(--radius-lg) 0 0; } }
+:root { --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 20px; }

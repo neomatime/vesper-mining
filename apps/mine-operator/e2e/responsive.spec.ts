@@ -31,13 +31,18 @@ test.describe("phone layout", () => {
     await expect(tabs).not.toHaveAttribute("data-fade-right", "");
   });
 
-  test("shows the photograph on the sign-in page", async ({ page }) => {
+  test("shows the mine photograph, the mark, the wordmark and the card on the sign-in page", async ({ page }) => {
     await page.goto("/sign-in");
-    const image = await page.locator(".signin__brand").evaluate((element) => getComputedStyle(element).backgroundImage);
-    expect(image).toContain("sign-in-sunset-plant");
-    const wordmark = await page.locator(".signin__mark").boundingBox();
-    const statement = await page.locator(".signin__statement").boundingBox();
-    expect((statement?.y ?? 0) - ((wordmark?.y ?? 0) + (wordmark?.height ?? 0))).toBeGreaterThan(24);
+    const image = await page.locator(".login").evaluate((element) => getComputedStyle(element).backgroundImage);
+    expect(image).toContain("sign-in-background");
+    const mark = await page.locator(".login__mark").boundingBox();
+    const wordmark = await page.locator(".login__wordmark").boundingBox();
+    const card = await page.locator(".login__card").boundingBox();
+    expect(mark && wordmark && card).toBeTruthy();
+    // Mark, then wordmark, then card, top to bottom, none overlapping.
+    expect((wordmark?.y ?? 0) - ((mark?.y ?? 0) + (mark?.height ?? 0))).toBeGreaterThanOrEqual(0);
+    expect((card?.y ?? 0) - ((wordmark?.y ?? 0) + (wordmark?.height ?? 0))).toBeGreaterThan(24);
+    await expect(page.getByRole("img", { name: "VESPER" })).toBeVisible();
   });
 
   test("gives touch controls a comfortable size", async ({ page }) => {
@@ -61,8 +66,8 @@ test.describe("phone layout", () => {
   test("keeps the whole sign-in form above where a phone keyboard sits", async ({ page }) => {
     await page.goto("/sign-in");
     await page.getByLabel("Email address").tap();
-    const brand = page.locator(".signin__brand");
-    await expect.poll(async () => (await brand.boundingBox())?.height ?? 999).toBeLessThan(130);
+    const brand = page.locator(".login__brand");
+    await expect.poll(async () => (await brand.boundingBox())?.height ?? 999).toBeLessThan(70);
     const height = page.viewportSize()?.height ?? 0;
     const keyboard = 340;
     for (const target of [page.getByLabel("Password"), page.getByRole("button", { name: "Sign in", exact: true })]) {
