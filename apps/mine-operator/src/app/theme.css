@@ -4,6 +4,14 @@
  * quiet status marks and generous space. Loaded after globals.css, so it refines every screen.
  */
 
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/PlusJakartaSans-VariableFont_wght.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
 :root {
   --surface-canvas: #f7f6f2;
   --surface-muted: #f1f0ea;
@@ -1109,3 +1117,224 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 /* Facts in a role's lead card have no icon, so they stack label over value */
 .needs-now__main--wide .hero-card__facts > span { display: grid; grid-template-columns: none; gap: 2px; padding-right: 25px; }
 .needs-now__main--wide .hero-card__facts small { white-space: nowrap; }
+
+/* ==========================================================================
+   Corporate typography and geometry
+   Plus Jakarta Sans and the HiVE scale, with restrained square construction.
+   ========================================================================== */
+
+:root {
+  --font-family-base: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-family-display: var(--font-family-base);
+  --font-family-data: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --text-body-size: 15px;
+  --text-body-line: 24px;
+  --text-body-weight: 400;
+  --text-h1-size: 32px;
+  --text-h1-line: 40px;
+  --text-h1-weight: 700;
+  --text-h2-size: 20px;
+  --text-h2-line: 28px;
+  --text-h2-weight: 600;
+  --text-label-size: 12px;
+  --text-label-line: 16px;
+  --text-label-weight: 600;
+  --text-label-tracking: .08em;
+  --radius-lg: 2px;
+}
+
+body {
+  font-family: var(--font-family-base);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  line-height: var(--text-body-line);
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.page-header h1,
+.dashboard-greeting h1,
+.profile-header__copy h1,
+.signin__form h1,
+.console__card h1,
+.provider-page__job h1,
+.entitlement-gate h1 {
+  font-family: var(--font-family-display);
+  font-size: var(--text-h1-size);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: -.02em;
+  line-height: var(--text-h1-line);
+}
+
+.hero-card h2,
+.card__header h2,
+.section-heading h2,
+.dialog__header h2,
+.popover__header h2,
+.cal-toolbar__nav h2,
+.cal-agenda h2,
+.restricted h2 {
+  font-family: var(--font-family-display);
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
+  letter-spacing: -.015em;
+  line-height: var(--text-h2-line);
+}
+
+.attention-card h3,
+.profile-rights__group h3,
+.role-diff h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.eyebrow,
+.kpi span,
+.metric-card small,
+.data-table th,
+.sidebar__group > p,
+.hero-card__facts small,
+.figure-tile small,
+.credential-card dt,
+.profile-rights__group h3,
+.rights-table__area th,
+.reply-link span,
+.role-diff h3,
+.recovery-card__opportunity small {
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
+  line-height: var(--text-label-line);
+  text-transform: uppercase;
+}
+
+.kpi strong,
+.metric-card strong,
+.figure-tile strong,
+.progress-orbit strong,
+.hero-card__facts strong,
+.data-table td,
+.context-pills,
+.definition-grid dd,
+.cal__number,
+.cal__chip b,
+.cal-week__head strong,
+.cal-item__time strong,
+.cal-strip__day strong,
+.cal-day__hours span,
+.cal-day__shift > span,
+.invite__quote dd,
+time {
+  font-family: var(--font-family-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Corporate geometry: square, precise surfaces. True status dots and progress
+   rings remain circular because their shape communicates state. */
+.topbar,
+.sidebar,
+.card,
+.detail-card,
+.register-card,
+.report-chart-card,
+.kpi-row,
+.metric-card,
+.recovery-card,
+.map-card,
+.action-card,
+.state-panel,
+.cal-card,
+.hero-card,
+.figure-tile,
+.attention-card,
+.credential-card,
+.console__card,
+.mobile-bottom-nav,
+.mobile-bottom-nav a,
+.mobile-hero,
+.mobile-card,
+.mobile-actions a,
+.mobile-priority,
+.context-pills > span,
+.sidebar__collapse,
+.recovery-card__opportunity,
+.evidence-callout,
+.safety-boundary {
+  border-radius: 2px;
+}
+
+.button,
+.icon-button,
+.site-selector,
+.search-trigger,
+.profile-chip,
+.register-search input,
+.form-field input,
+.form-field select,
+.form-field textarea,
+.field input,
+.field select,
+.composer textarea,
+.handover-notes textarea,
+.select__trigger,
+.date-field__button,
+.calendar__nav,
+.calendar__day,
+.calendar__link,
+.filter-chips button,
+.segmented,
+.segmented button,
+.segmented a,
+.chip,
+.chips li,
+.tag-lowest,
+.right,
+.reply-link input,
+.select__option,
+.cal__grid,
+.cal__chip,
+.cal-week__day,
+.cal-item,
+.cal-strip__day,
+.cal-day__shift,
+.home-row {
+  border-radius: 2px;
+}
+
+.popover,
+.floating-panel,
+.search-dialog,
+.dialog,
+.toast {
+  border-radius: 3px;
+}
+
+.avatar,
+.avatar--large,
+.mine-thumbnail,
+.opportunity-card__icon,
+.metric-card > span,
+.record-row__icon,
+.work-row__icon,
+.action-row__marker {
+  border-radius: 2px;
+}
+
+.signin__panel {
+  border-radius: 2px 0 0 2px;
+}
+
+.signin__error {
+  border-radius: 2px;
+}
+
+@media (max-width: 1023px) {
+  .signin__panel { border-radius: 2px 2px 0 0; }
+}

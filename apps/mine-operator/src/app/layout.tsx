@@ -1,11 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { DemoProviders } from "@/components/demo-providers";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import "./theme.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: {
@@ -21,7 +18,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, inte
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-ZA" className={inter.variable}>
+    <html lang="en-ZA">
       <body>
         <DemoProviders>{children}</DemoProviders>
       </body>
