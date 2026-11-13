@@ -4,6 +4,7 @@ import { BrandLoader } from "./brand-loader";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "./toast-provider";
+import { reactivateDemoWorker } from "@/lib/demo-worker";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +71,19 @@ export function DemoProviders({ children }: { children: React.ReactNode }) {
 
     return () => {
       active = false;
+    };
+  }, []);
+
+  // A tab left in the background may have had its demo service stopped. Wake it as soon as the person comes back.
+  useEffect(() => {
+    const wake = () => {
+      if (document.visibilityState === "visible") void reactivateDemoWorker();
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("focus", wake);
+    return () => {
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("focus", wake);
     };
   }, []);
 
