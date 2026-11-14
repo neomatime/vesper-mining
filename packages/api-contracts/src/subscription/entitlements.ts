@@ -17,7 +17,13 @@ export class SubscriptionConfigError extends Error {
   }
 }
 
-export type ResolvedSubscription = { plan: SubscriptionPlan; siteAllowance: number };
+export type AppliedOverride = { feature: FeatureCode; enabled: boolean };
+
+/**
+ * A subscription worked out for one client: its plan, the number of sites it may use, and the features it has. The features are
+ * the plan's features, changed only by approved overrides that are in effect (see overrides.ts).
+ */
+export type ResolvedSubscription = { plan: SubscriptionPlan; siteAllowance: number; features: readonly FeatureCode[]; appliedOverrides: readonly AppliedOverride[] };
 type SubscriptionInput = OrganisationSubscription | ResolvedSubscription;
 
 /** Checks a stored subscription and works out its site allowance. Throws if it is not valid. */
@@ -30,27 +36,37 @@ export function resolveSubscription(input: OrganisationSubscription): ResolvedSu
     if (input.contractedSites != null && input.contractedSites !== allowance.sites) {
       throw new SubscriptionConfigError(`${plan.displayName} allows exactly ${allowance.sites} ${allowance.sites === 1 ? "site" : "sites"}. Leave the contracted sites empty or set it to ${allowance.sites}.`);
     }
-    return { plan, siteAllowance: allowance.sites };
+    return { plan, siteAllowance: allowance.sites, features: plan.features, appliedOverrides: [] };
   }
 
   const sites = input.contractedSites;
   if (sites == null || !Number.isInteger(sites) || sites < allowance.minimumSites) {
     throw new SubscriptionConfigError(`${plan.displayName} needs a contracted number of sites, a whole number of at least ${allowance.minimumSites}. It is never unlimited by default.`);
   }
-  return { plan, siteAllowance: sites };
+  return { plan, siteAllowance: sites, features: plan.features, appliedOverrides: [] };
 }
 
 const resolved = (subscription: SubscriptionInput): ResolvedSubscription => ("plan" in subscription ? subscription : resolveSubscription(subscription));
 
 /** Whether the subscription includes a feature. */
 export function planAllows(subscription: SubscriptionInput, feature: FeatureCode): boolean {
-  return resolved(subscription).plan.features.includes(feature);
+  return resolved(subscription).features.includes(feature);
 }
 
 /** Whether the subscription's reporting reaches a level, for example `advanced`. */
 export function reportingAllows(subscription: SubscriptionInput, level: ReportingLevel): boolean {
   const have = reportingLevelOrder.indexOf(resolved(subscription).plan.reporting);
   return have >= reportingLevelOrder.indexOf(level);
+}
+
+/**
+ * Whether a report at a given level may be seen. Essential and operational reports follow the plan's reporting level. Advanced
+ * and group-level reports follow the feature, so an approved override can grant them to a client whose plan does not include them.
+ */
+export function reportAllowed(subscription: SubscriptionInput, level: ReportingLevel): boolean {
+  if (level === "advanced") return planAllows(subscription, "advanced_analytics");
+  if (level === "group") return planAllows(subscription, "group_dashboards");
+  return reportingAllows(subscription, level);
 }
 
 export type SiteCapacity = { allowed: boolean; allowance: number; remaining: number; reason: string | null };
@@ -80,8 +96,8 @@ export type AccessDecision = { allowed: boolean; deniedBy: "subscription" | "rol
  * its own role rules and site scope, which this module does not know about. The answer says which gate refused.
  */
 export function evaluateAccess(input: { subscription: SubscriptionInput; feature: FeatureCode; rolePermitted: boolean; siteAuthorised?: boolean }): AccessDecision {
-  const { plan } = resolved(input.subscription);
-  if (!plan.features.includes(input.feature)) {
+  const { plan, features } = resolved(input.subscription);
+  if (!features.includes(input.feature)) {
     const from = lowestPlanWith(input.feature);
     return { allowed: false, deniedBy: "subscription", reason: `${plan.displayName} does not include this${from ? `. It is included from ${from.displayName}` : ""}.` };
   }

@@ -5,8 +5,8 @@ import { editionSchema, subscriptionIdSchema } from "./subscription/types";
 /**
  * The client deployment manifest: everything HIMARK records to prepare one client's instance, and nothing secret.
  *
- * The shape follows the standard arrangement: one hosting project per client organisation, one UAT environment and one
- * production environment, each with its own database. Mining sites are records inside those databases, so a site has no
+ * The shape follows the standard arrangement: one hosting project per client organisation, one UAT environment (deployed from a
+ * dedicated staging branch using Preview variables scoped to that branch) and one production environment, each with its own database. Mining sites are records inside those databases, so a site has no
  * environment and no database of its own. This file only describes and checks a manifest. It does not provision anything.
  */
 
@@ -14,9 +14,19 @@ const slug = z
   .string()
   .regex(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/, "Use lower case letters, digits and hyphens only.");
 
+const variableName = z.string().regex(/^[A-Z][A-Z0-9_]*$/, "Use upper case letters, digits and underscores.");
+const branchName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,98}$/, "Use a branch name such as staging.");
+
 const environmentBase = {
   /** The environment's address once it exists. Empty until provisioning. */
   url: z.string().url().startsWith("https://", "Use an https address.").nullable(),
+  /** The Git branch this environment deploys from. UAT uses a dedicated staging branch. Production uses the approved release branch. */
+  branch: branchName,
+  /**
+   * The names of the environment variables this environment needs, and nothing else. Values are never recorded here. UAT gets its
+   * values from Preview variables scoped to its branch, and production from Production variables.
+   */
+  variables: z.array(variableName),
 };
 
 export const deploymentStatusSchema = z.enum(["draft", "ready_for_provisioning", "provisioned", "uat_validated", "live", "suspended"]);
@@ -81,6 +91,22 @@ export const clientDeploymentSchema = z
     }
     if (new Set(manifest.sites.map((site) => site.code)).size !== manifest.sites.length) {
       context.addIssue({ code: "custom", path: ["sites"], message: "Site codes must be unique." });
+    }
+    if (environments.uat.branch === environments.production.branch) {
+      context.addIssue({ code: "custom", path: ["environments", "uat", "branch"], message: "UAT needs its own branch. It cannot deploy from the production branch." });
+    }
+    if (environments.uat.branch === "main" || environments.uat.branch === "master") {
+      context.addIssue({ code: "custom", path: ["environments", "uat", "branch"], message: "UAT cannot deploy from main. Use a dedicated staging branch." });
+    }
+    for (const [name, environment] of Object.entries(environments)) {
+      if (new Set(environment.variables).size !== environment.variables.length) {
+        context.addIssue({ code: "custom", path: ["environments", name, "variables"], message: "Variable names must be unique." });
+      }
+    }
+    const uatNames = [...environments.uat.variables].sort().join(",");
+    const productionNames = [...environments.production.variables].sort().join(",");
+    if (uatNames !== productionNames) {
+      context.addIssue({ code: "custom", path: ["environments", "uat", "variables"], message: "UAT and production must use the same variable names, with different values." });
     }
     if (environments.uat.databaseRef === environments.production.databaseRef) {
       context.addIssue({ code: "custom", path: ["environments", "uat", "databaseRef"], message: "UAT must not use the production database." });

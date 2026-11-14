@@ -4,30 +4,51 @@ import { subscriptionPlanSchema } from "./types";
 /**
  * The five subscriptions as data. Everything else asks this file what a plan includes, so a commercial change is made once.
  *
- * What the editions add to each other:
- *   Core        the essential product: every workspace and the essential mobile field workflows
- *   Operations  Core, plus the expanded field workflows (PRD VES-BR-015)
- *   Enterprise  Operations, plus advanced analytics (PRD VES-BR-016)
- *   Group       Enterprise, plus group-level reporting, with a contracted number of sites
+ * The editions, as the product owner defined them (14 November 2026):
+ *   Core        operational visibility: overview, basic map, report and track issues, essential equipment visibility,
+ *               assigned tasks, basic shift information, essential reporting, essential mobile
+ *   Operations  operational coordination: Core, plus advanced work and exception coordination, detailed handovers, downtime and
+ *               maintenance coordination, Resource Readiness, digital inspections, detailed reporting, expanded mobile
+ *   Enterprise  Operations, plus advanced analytics, multi-site comparison, management oversight, contracted integrations and
+ *               approved customer configurations
+ *   Group       Enterprise, plus group dashboards, cross-site oversight, group administration and contracted extensions
  *
- * Core and Operations are the same in the current prototype apart from the expanded field workflows, which are not built yet.
- * Where Core ends and Operations begins is an open commercial decision, so nothing has been restricted to keep them apart.
+ * These are the intended entitlements. Not all of them are built: features.ts records which exist. Nothing was built to
+ * tell the editions apart. Operations - Single Site and Operations are identical apart from the site allowance.
  */
 
 const CORE_FEATURES: FeatureCode[] = [
   "overview",
   "operational_map",
-  "work_exceptions",
-  "equipment_maintenance",
-  "resource_readiness",
-  "shift_control",
-  "reports",
+  "issue_tracking",
+  "equipment_visibility",
+  "assigned_tasks",
+  "shift_basic",
   "administration",
   "mobile_field_essential",
 ];
 
-const OPERATIONS_FEATURES: FeatureCode[] = [...CORE_FEATURES, "mobile_field_expanded"];
-const ENTERPRISE_FEATURES: FeatureCode[] = [...OPERATIONS_FEATURES, "advanced_analytics"];
+const OPERATIONS_FEATURES: FeatureCode[] = [
+  ...CORE_FEATURES,
+  "work_coordination",
+  "shift_handover",
+  "equipment_maintenance",
+  "resource_readiness",
+  "digital_inspections",
+  "mobile_field_expanded",
+];
+
+const ENTERPRISE_FEATURES: FeatureCode[] = [
+  ...OPERATIONS_FEATURES,
+  "advanced_analytics",
+  "multi_site_comparison",
+  "management_oversight",
+  "contracted_integrations",
+  "customer_configurations",
+];
+
+/** What Group adds to the Enterprise foundation. */
+const GROUP_FEATURES: FeatureCode[] = ["group_dashboards", "cross_site_oversight", "group_administration", "contracted_extensions"];
 
 /** What each edition includes. One list per edition, so plans of the same edition cannot drift apart. */
 export const editionFeatures: Record<Edition, readonly FeatureCode[]> = {
@@ -36,7 +57,10 @@ export const editionFeatures: Record<Edition, readonly FeatureCode[]> = {
   enterprise: ENTERPRISE_FEATURES,
 };
 
-/** The fewest sites a Group agreement can cover. Six or fewer is Enterprise (PRD section 11.1, provisional). */
+/**
+ * The fewest sites a Group agreement can license. Six or fewer is Enterprise (PRD section 11.1). This is a commercial licensing
+ * threshold, not a requirement that seven sites are active: a Group client may license 10 and activate 4. The licensed maximum is enforced.
+ */
 export const GROUP_MINIMUM_SITES = 7;
 
 type PlanInput = Omit<SubscriptionPlan, "features" | "webAccess" | "mobileAccess"> & { extraFeatures?: FeatureCode[] };
@@ -59,7 +83,7 @@ export const subscriptionPlans: readonly SubscriptionPlan[] = [
     edition: "core",
     siteAllowance: { kind: "fixed", sites: 1 },
     reporting: "essential",
-    restrictions: ["One mining site."],
+    restrictions: ["One mining site.", "Operational visibility. Operations capabilities need an Operations subscription."],
   }),
   plan({
     id: "operations_single",
@@ -95,9 +119,10 @@ export const subscriptionPlans: readonly SubscriptionPlan[] = [
     edition: "enterprise",
     siteAllowance: { kind: "contracted", minimumSites: GROUP_MINIMUM_SITES },
     reporting: "group",
-    extraFeatures: ["group_reporting"],
+    extraFeatures: GROUP_FEATURES,
     restrictions: [
-      "The number of sites is set by the client agreement and must be configured explicitly. It is never unlimited by default.",
+      "Licenses at least 7 sites. The maximum is set by the client agreement, must be configured explicitly and is enforced. It is never unlimited by default.",
+      "The client may activate fewer sites than it licenses.",
       "Customer-specific tailoring applies only where the agreement requires it.",
     ],
   }),

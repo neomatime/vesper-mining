@@ -5,6 +5,8 @@
 **Method:** the code, the tests and the four specifications were read directly. Nothing here is inferred from a specification alone.
 **Status of the specifications:** the PRD (v1.1), TRD (v1.2), Backend Schema (v1.1), App Flow (v1.1) and the UI/UX specification are still approval-pending. This audit records no approval.
 
+> **Update, 14 November 2026.** This audit is the position **before** the subscription work and is kept as it was written. Since then: the product owner has approved the direction of dedicated client databases and defined the Core, Operations, Enterprise and Group entitlements, the Group licensing rule and the UAT approach. The five documentation conflicts in section 15 are now written up as five exact proposed amendments in `VESPER_PROPOSED_SPECIFICATION_AMENDMENTS.md`, with their implications, awaiting the owner's decision. Nothing in the specifications was changed.
+
 ## 1. Summary
 
 VESPER is a working front-end prototype on simulated data. It is one Next.js application plus one shared contracts package. There is **no backend, no database, no real authentication and no per-client deployment configuration**. Subscription logic existed in two small files and was **out of step with the specifications**: Core had VESPER Mobile switched off, while the PRD (section 11.1, VES-BR-014 and 015) and the Backend Schema (revision 1.1) say every subscription, Core included, has it.

@@ -5,6 +5,7 @@ import type { MapArea, Member, OperationalIssue, ReadinessActivity } from "@vesp
 import { demoFetch } from "@/lib/api";
 import type { EquipmentView } from "@/lib/equipment-rules";
 import type { ShiftView } from "@/lib/shift-rules";
+import { can } from "@/lib/entitlements";
 import { useDemoContext } from "@/stores/demo-context";
 
 export type ShellOverview = {
@@ -27,7 +28,9 @@ export function useShellData() {
     queryFn: () => demoFetch<ShellOverview>("/overview"),
   });
 
-  const data = query.data;
+  // Resource Readiness is an Operations capability. Without it the readiness records are not shown anywhere that reads this.
+  const readinessIncluded = can(context.tier, "resource_readiness");
+  const data = query.data && !readinessIncluded ? { ...query.data, readiness: [] } : query.data;
   const counts = {
     openIssues: data ? data.issues.filter((issue) => !finishedStates.has(issue.workflowState)).length : 0,
     readinessAttention: data ? data.readiness.filter((activity) => activity.status !== "ready").length : 0,

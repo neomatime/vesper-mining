@@ -30,6 +30,7 @@ import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useEquipmentMutations } from "./use-equipment-mutations";
+import { useFeature } from "./use-entitlements";
 import { useServiceRequests } from "./use-service";
 import { canRequestService, isOpenRequest, requestStatusLabels } from "@/lib/service-rules";
 
@@ -113,6 +114,9 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   const retired = item.retiredAt !== null;
+  const canMaintain = useFeature("equipment_maintenance");
+  const readinessIncluded = useFeature("resource_readiness");
+  const linkedReadiness = readinessIncluded ? item.readiness : [];
   const canManage = !retired && canActOnEquipment("manage", actor).allowed;
   const canService = !retired && canActOnEquipment("service", actor).allowed;
   const canRequest = !retired && canRequestService(actor).allowed;
@@ -134,7 +138,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
         action={
           <div className="header-actions">
             {canReading ? <button className="button button--quiet" onClick={() => setDialog({ kind: "reading" })}><Gauge /> Record reading</button> : null}
-            {canService ? <button className="button button--primary" onClick={() => setDialog({ kind: "service" })}><Plus /> Log service</button> : null}
+            {canService && canMaintain ? <button className="button button--primary" onClick={() => setDialog({ kind: "service" })}><Plus /> Log service</button> : null}
             <MoreMenu>
               {(closeMenu) => (
                 <>
@@ -178,8 +182,9 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
             {item.notes ? <p className="card__footnote">{item.notes}</p> : null}
           </article>
 
-          <DowntimeCard item={item} now={shell?.now ?? item.stateUpdatedAt} />
+          {canMaintain ? <DowntimeCard item={item} now={shell?.now ?? item.stateUpdatedAt} /> : null}
 
+          {canMaintain ? (
           <article className="card detail-card">
             <header className="card__header">
               <div><span className="eyebrow">Planned work</span><h2>Maintenance plans</h2></div>
@@ -217,7 +222,9 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
               </ul>
             )}
           </article>
+          ) : null}
 
+          {canMaintain ? (
           <article className="card detail-card" aria-labelledby="service-requests-heading">
             <header className="card__header">
               <div><span className="eyebrow">Service providers</span><h2 id="service-requests-heading">Service requests</h2></div>
@@ -239,7 +246,9 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
               </ul>
             )}
           </article>
+          ) : null}
 
+          {canMaintain ? (
           <article className="card detail-card">
             <header className="card__header">
               <div><span className="eyebrow">Record</span><h2>Service history</h2></div>
@@ -267,6 +276,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
               </div>
             )}
           </article>
+          ) : null}
         </div>
 
         <aside className="detail-layout__aside">
@@ -281,7 +291,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
 
           <article className="card detail-card">
             <header className="card__header"><div><span className="eyebrow">Connected</span><h2>Linked work</h2></div></header>
-            {item.linkedIssues.length === 0 && item.readiness.length === 0 ? (
+            {item.linkedIssues.length === 0 && linkedReadiness.length === 0 ? (
               <div className="empty-inline"><strong>Nothing linked</strong><span>Issues and planned maintenance for this equipment show up here.</span></div>
             ) : (
               <ul className="work-list">
@@ -290,7 +300,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
                     <Link className="work-row__copy" href={`/exceptions/${issue.id}`}><strong>{issue.title}</strong><small>{issue.issueNumber} · {issueStateLabels[issue.workflowState]}</small></Link>
                   </li>
                 ))}
-                {item.readiness.map((activity) => (
+                {linkedReadiness.map((activity) => (
                   <li className="work-row" key={activity.id}>
                     <Link className="work-row__copy" href={`/resources/${activity.id}`}><strong>{activity.title}</strong><small>Readiness · {formatStatus(activity.status)}</small></Link>
                   </li>

@@ -39,6 +39,7 @@ import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 import { useShiftMutations } from "./use-shift-mutations";
+import { useFeature } from "./use-entitlements";
 
 export function ShiftDetailScreen({ id, handover = false }: { id: string; handover?: boolean }) {
   const query = useQuery({
@@ -63,6 +64,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
   const [completing, setCompleting] = useState<{ id: string; title: string } | null>(null);
 
   const live = shift.state === "scheduled" || shift.state === "in_progress";
+  const handoverIncluded = useFeature("shift_handover");
   const canManage = canActOnShift("manage", actor).allowed;
   const canRun = canActOnShift("run", actor, shift).allowed;
   const equipment = (shell?.equipment ?? []).filter((item) => !item.retiredAt);
@@ -95,7 +97,9 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
             <MoreMenu>
               {(closeMenu) => (
                 <>
+                  {handoverIncluded ? (
                   <Link className="menu-item" href={`/shifts/${shift.id}/handover`} onClick={closeMenu}><span className="menu-item__icon"><Send size={16} /></span><span className="menu-item__copy"><strong>Handover</strong><small>{shift.next ? `To ${shift.next.name}` : "No next shift yet"}</small></span></Link>
+                  ) : null}
                   {shift.state === "scheduled" && canManage ? <button className="menu-item" onClick={() => { closeMenu(); setDialog({ kind: "cancel" }); }}><span className="menu-item__icon"><XCircle size={16} /></span><span className="menu-item__copy"><strong>Cancel shift</strong><small>Keep it on the roster as cancelled</small></span></button> : null}
                   {(shift.state === "scheduled" || shift.state === "cancelled") && canManage ? <button className="menu-item menu-item--danger" onClick={() => { closeMenu(); setDialog({ kind: "delete" }); }}><span className="menu-item__icon"><Trash2 size={16} /></span><span className="menu-item__copy"><strong>Delete</strong><small>Only for shifts made in error</small></span></button> : null}
                 </>
@@ -203,6 +207,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
         </div>
 
         <aside className="detail-layout__aside">
+          {handoverIncluded ? (
           <article className="card next-action-card">
             <span className="eyebrow">Handover</span>
             <h2>{handoverLabels[shift.handover.state]}</h2>
@@ -210,6 +215,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
             <Link className="button button--quiet button--wide" href={`/shifts/${shift.id}/handover`}>{shift.handover.state === "draft" ? "Prepare handover" : "Open handover"}</Link>
             {shift.state === "in_progress" ? <small className="dd-note">{remaining(shift.endsAt, shiftNow(shell?.now))} left on this shift</small> : null}
           </article>
+          ) : null}
           <article className="card timeline-card">
             <span className="eyebrow">History</span>
             <h2>Activity</h2>

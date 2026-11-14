@@ -1,4 +1,4 @@
-import type { IssueWorkflowState, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
+import type { IssueWorkflowState, OperationalIssue, ReadinessActivity, ReportingLevel } from "@vesper/api-contracts";
 import { potentiallyAllocable } from "./calculations";
 import { primaryCauseLabel, secondaryCauseLabel, stateLabels } from "./issue-rules";
 import { partPosition } from "./readiness-rules";
@@ -15,16 +15,19 @@ export type ReportSummary = {
   key: ReportKey;
   title: string;
   description: string;
+  /** The reporting level a subscription needs to see this report: essential, operational or advanced. */
+  level: ReportingLevel;
+  /** True for the advanced level. Kept for the screens that only need to know that. */
   advanced: boolean;
 };
 
 export const reportCatalogue: ReportSummary[] = [
-  { key: "production-vs-plan", title: "Production vs plan", description: "Reported actual against target, by day.", advanced: false },
-  { key: "operational-exceptions", title: "Operational exceptions", description: "Where every issue sits in its lifecycle, from live records.", advanced: false },
-  { key: "equipment-delay-stages", title: "Delay stages", description: "Time issues have spent in each stage, split into active work, waiting and coordination.", advanced: false },
-  { key: "resource-readiness", title: "Resource readiness", description: "Required parts against what could be allocated, with unknown stock kept separate.", advanced: false },
-  { key: "recurring-causes", title: "Recurring causes", description: "The primary and secondary causes reported on equipment issues, ranked by how often they recur.", advanced: false },
-  { key: "delay-analytics", title: "Delay analytics", description: "Delay categories compared across weeks. Indicative trend view.", advanced: true },
+  { key: "production-vs-plan", title: "Production vs plan", description: "Reported actual against target, by day.", level: "essential", advanced: false },
+  { key: "operational-exceptions", title: "Operational exceptions", description: "Where every issue sits in its lifecycle, from live records.", level: "essential", advanced: false },
+  { key: "equipment-delay-stages", title: "Delay stages", description: "Time issues have spent in each stage, split into active work, waiting and coordination.", level: "operational", advanced: false },
+  { key: "resource-readiness", title: "Resource readiness", description: "Required parts against what could be allocated, with unknown stock kept separate.", level: "operational", advanced: false },
+  { key: "recurring-causes", title: "Recurring causes", description: "The primary and secondary causes reported on equipment issues, ranked by how often they recur.", level: "operational", advanced: false },
+  { key: "delay-analytics", title: "Delay analytics", description: "Delay categories compared across weeks. Indicative trend view.", level: "advanced", advanced: true },
 ];
 
 export type ReportColumn = { key: string; label: string };

@@ -1,6 +1,6 @@
 # VESPER database architecture
 
-**Status:** a logical design and a set of decisions to confirm. **No database exists, none is provisioned by this work, and no migration has been written or run.** Nothing here chooses a database product or an ORM.
+**Status:** a logical design and a set of decisions to confirm. The product owner approved the **direction** of dedicated client databases on 14 November 2026. The exact wording changes to the Backend Schema are **proposed, not applied** (see `VESPER_PROPOSED_SPECIFICATION_AMENDMENTS.md`, amendments 1 to 3). **No database exists, none is provisioned by this work, and no migration has been written or run.** Nothing here chooses a database product or an ORM.
 
 ## 1. The arrangement
 
@@ -33,7 +33,7 @@ The Backend Schema was written for one shared multi-tenant database ("tenant iso
 | 5.1 `subscriptions`, `subscription_entitlements`, `subscription_site_allocations` | Keep, with the clarification in section 4 |
 | TRD 842 | Site partitioning stays server-side. Tenant partitioning is the deployment boundary |
 
-These are recorded for the owner to approve. The specification is not edited by this work.
+The wording of these amendments is set out exactly in `VESPER_PROPOSED_SPECIFICATION_AMENDMENTS.md` for the owner's decision. The specification is not edited by this work.
 
 ## 3. Logical groups
 
@@ -56,9 +56,13 @@ The standard schema covers the groups the Backend Schema already defines. They a
 ## 4. How subscriptions relate to the database
 
 - The **plan configuration** (which features and how many sites each of the five subscriptions has) is **code**, in `packages/api-contracts/src/subscription/`. It is one definition that ships with every release.
-- The database holds the **client's subscription**: `subscriptions.plan_code` (one of the five identifiers), the contracted site count for Group, the effective dates and status.
-- `subscription_entitlements` should hold **only agreed overrides** to the plan's defaults, not a copy of every feature for every client. This avoids two sources of truth that can drift. It is a decision to confirm (see section 7).
-- `subscription_site_allocations` records which sites count against the allowance, so a site limit can be checked.
+- The database holds the **client's subscription and what is particular to it**, which is exactly the client entitlement record the application already validates:
+  - `subscriptions`: the plan code, the **licensed** number of sites for Group, effective dates and status.
+  - `subscription_entitlements`: **only approved overrides** to the plan's defaults, each with an agreement reference, effective date and approval details (proposed in amendment 3).
+  - `subscription_audit_events`: an append-only history of every creation, approval, amendment and revocation (proposed in amendment 3).
+  - `subscription_site_allocations`: which sites count against the licence, so a site limit can be checked.
+- **Group licenses a maximum, not an activation.** A client may license 10 sites and activate 4. The licensed maximum is stored on the subscription and enforced when a site is added. The seven-site minimum is a licensing threshold only.
+- The essential mobile experience can never be removed by an override.
 
 ## 5. Scoping rules for the standard schema
 
@@ -79,7 +83,7 @@ The schema supports many sites per organisation from the start. The prototype ha
 1. **Database product.** PostgreSQL is a candidate in the TRD. Not decided.
 2. **ORM or query layer.** Not decided. None is added.
 3. **Rule for `organisation_id`** (section 5, rule 3).
-4. **Source of default entitlements**: code with overrides (proposed) or database rows.
+4. **Source of default entitlements**: code with overrides (proposed in amendment 3) or database rows. The application already validates and resolves a client entitlement record, so the database only has to store it securely.
 5. **Data retention for a lost feature** after a downgrade.
 6. **Audit design**: immutable event tables, who can read them, retention.
 7. **Backups, restore and residency** per client, including POPIA obligations.
