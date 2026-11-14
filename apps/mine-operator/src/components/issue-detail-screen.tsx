@@ -37,6 +37,7 @@ import {
   type Actor,
   type TransitionOption,
 } from "@/lib/issue-rules";
+import { attachmentKind, sizeLabel } from "@/lib/evidence";
 import { initials } from "@/lib/personas";
 import { useDemoContext } from "@/stores/demo-context";
 import {
@@ -73,18 +74,6 @@ const nextStepHint: Record<OperationalIssue["workflowState"], string> = {
   cancelled: "Cancelled issues are kept as history.",
   duplicate: "Duplicate issues are kept as history.",
 };
-
-function attachmentKind(name: string): "photo" | "document" | "other" {
-  if (/\.(jpe?g|png|gif|webp|heic)$/i.test(name)) return "photo";
-  if (/\.(pdf|docx?|xlsx?|txt|csv)$/i.test(name)) return "document";
-  return "other";
-}
-
-function sizeLabel(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function IssueDetailScreen({ id }: { id: string }) {
   const query = useQuery({

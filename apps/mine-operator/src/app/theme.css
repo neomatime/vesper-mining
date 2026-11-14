@@ -1030,3 +1030,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .downtime-reasons li { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border-subtle); padding: 6px 0; font-size: 14px; }
 .downtime-reasons b { font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
 .downtime-note { display: block; color: var(--text-secondary); font-size: 12.5px; }
+
+/* A finished task: what was done and the evidence kept with it */
+.task-completion { display: grid; gap: 6px; margin-top: 6px; }
+.task-completion q { color: var(--text-secondary); font-size: 13px; quotes: none; }
+.task-evidence { display: grid; gap: 8px; justify-items: start; }

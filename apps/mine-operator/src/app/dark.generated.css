@@ -2146,3 +2146,6 @@
 :root[data-theme="dark"] .downtime-note {
   color: var(--text-secondary);
 }
+:root[data-theme="dark"] .task-completion q {
+  color: var(--text-secondary);
+}

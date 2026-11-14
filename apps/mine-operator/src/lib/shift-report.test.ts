@@ -19,6 +19,12 @@ const issue = (over: Record<string, unknown>) => ({ id: "issue-1", issueNumber: 
 const now = "2025-04-24T13:00:00+02:00";
 
 describe("draftShiftReport", () => {
+  it("adds what was done and how many files were attached to a finished task", () => {
+    const withNote = { ...shift, work: [{ id: "w1", title: "Check liners", owner: "Naledi Khoza", issueId: null, done: true, doneAt: "2025-04-24T07:00:00+02:00", completion: { note: "Counted 6 on the shelf.", evidence: [{ name: "a.jpg", kind: "photo", sizeLabel: "1 MB" }], by: "Naledi Khoza" } }] } as unknown as Shift;
+    const text = draftShiftReport({ shift: withNote, issues: [], equipment: [], now }).sections.find((s) => s.key === "work_done")!.lines[0]!.text;
+    expect(text).toBe("Check liners, Naledi Khoza (done 07:00): Counted 6 on the shelf. [1 file attached]");
+  });
+
   it("splits work into done and not done, with owners and times", () => {
     const draft = draftShiftReport({ shift, issues: [], equipment: [], now });
     expect(draft.sections.find((s) => s.key === "work_done")?.lines[0]?.text).toContain("Thabo Molefe");

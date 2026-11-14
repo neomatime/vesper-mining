@@ -36,6 +36,7 @@ import { ErrorState, LoadingState } from "./query-state";
 import { CancelShiftDialog, CrewDialog, ShiftFormDialog, WorkDialog } from "./shift-dialogs";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
+import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 import { useShiftMutations } from "./use-shift-mutations";
 
 export function ShiftDetailScreen({ id, handover = false }: { id: string; handover?: boolean }) {
@@ -58,6 +59,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
   const actor = { name: context.persona, role: context.role };
   const mutations = useShiftMutations(shift);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [completing, setCompleting] = useState<{ id: string; title: string } | null>(null);
 
   const live = shift.state === "scheduled" || shift.state === "in_progress";
   const canManage = canActOnShift("manage", actor).allowed;
@@ -159,12 +161,13 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
                   const mayToggle = live && (canManage || item.owner === actor.name);
                   return (
                     <li className="work-row" key={item.id}>
-                      <button className={`check ${item.done ? "check--done" : ""}`} aria-pressed={item.done} aria-label={`${item.done ? "Reopen" : "Mark done"}: ${item.title}`} disabled={!mayToggle || mutations.updateWork.isPending} onClick={() => mutations.updateWork.mutate({ workId: item.id, done: !item.done })}>
+                      <button className={`check ${item.done ? "check--done" : ""}`} aria-pressed={item.done} aria-label={`${item.done ? "Reopen" : "Mark done"}: ${item.title}`} disabled={!mayToggle || mutations.updateWork.isPending} onClick={() => (item.done ? mutations.updateWork.mutate({ workId: item.id, done: false }) : setCompleting({ id: item.id, title: item.title }))}>
                         {item.done ? <Check /> : null}
                       </button>
                       <div className="work-row__copy">
                         <strong className={item.done ? "struck" : ""}>{item.title}</strong>
                         <small>{item.owner ?? "Not assigned"}{item.doneAt ? ` · finished ${formatDemoDateTime(item.doneAt)}` : ""}</small>
+                        <TaskCompletionNote task={item} />
                       </div>
                       {item.issueId ? <Link className="chip chip--link" href={`/exceptions/${item.issueId}`}><Link2 /> Issue</Link> : null}
                       {live && canManage ? <button className="icon-button icon-button--light" aria-label={`Remove work: ${item.title}`} disabled={mutations.removeWork.isPending} onClick={() => mutations.removeWork.mutate(item.id)}><Trash2 /></button> : null}
@@ -217,6 +220,14 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
 
       {dialog?.kind === "edit" ? <ShiftFormDialog shift={shift} pending={mutations.update.isPending} onClose={close} onSave={(input) => mutations.update.mutate(input, { onSuccess: close })} /> : null}
       {dialog?.kind === "crew" ? <CrewDialog shift={shift} equipment={equipment} pending={mutations.addCrew.isPending} onClose={close} onSave={(input) => mutations.addCrew.mutate(input, { onSuccess: close })} /> : null}
+      {completing ? (
+        <TaskCompletionDialog
+          title={completing.title}
+          pending={mutations.updateWork.isPending}
+          onClose={() => setCompleting(null)}
+          onSave={(input) => mutations.updateWork.mutate({ workId: completing.id, done: true, ...input }, { onSuccess: () => setCompleting(null) })}
+        />
+      ) : null}
       {dialog?.kind === "work" ? <WorkDialog shift={shift} issues={shift.issues} pending={mutations.addWork.isPending} onClose={close} onSave={(input) => mutations.addWork.mutate(input, { onSuccess: close })} /> : null}
       {dialog?.kind === "cancel" ? <CancelShiftDialog shift={shift} pending={mutations.cancel.isPending} onClose={close} onSave={(reason) => mutations.cancel.mutate({ reason }, { onSuccess: close })} /> : null}
       {dialog?.kind === "delete" ? (
