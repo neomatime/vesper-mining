@@ -54,16 +54,19 @@ describe("issue lifecycle", () => {
     rejects(() => demoDomain.createIssue({ title: "ab", description: "short" }, field), 400, /title/i);
   });
 
-  it("requires a primary cause when equipment is chosen, keeps an optional secondary, and rejects anything off the lists", () => {
+  it("requires a primary cause with equipment, and offers only the secondary causes that belong to it", () => {
     const base = { title: "Hydraulic leak on EX-204", description: "A hydraulic leak was observed during pre-start.", equipmentId: "eq-ex204" };
-    const issue = demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" } }, field);
-    expect(issue.defect).toEqual({ symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" });
-    expect(demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "unsure" } }, field).defect).toEqual({ symptom: "leak", secondary: null, operability: "unsure" });
+    const issue = demoDomain.createIssue({ ...base, defect: { symptom: "hydraulic", secondary: "hose_or_fitting_leak", operability: "limited" } }, field);
+    expect(issue.defect).toEqual({ symptom: "hydraulic", secondary: "hose_or_fitting_leak", operability: "limited" });
+    expect(demoDomain.createIssue({ ...base, defect: { symptom: "hydraulic", operability: "unsure" } }, field).defect).toEqual({ symptom: "hydraulic", secondary: null, operability: "unsure" });
+    expect(demoDomain.createIssue({ ...base, defect: { symptom: "other", operability: "unsure" } }, field).defect?.secondary).toBeNull();
     rejects(() => demoDomain.createIssue(base, field), 400, /primary cause/i);
-    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "leak", operability: "limited" } }, field), 400, /must differ/i);
+    // A secondary cause from another primary cause's list is refused.
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "hydraulic", secondary: "feed_blockage", operability: "limited" } }, field), 400, /does not belong to the primary cause/i);
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "other", secondary: "weather", operability: "limited" } }, field), 400, /does not belong/i);
     rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "mystery", operability: "limited" } }, field), 400, /from the lists/i);
-    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "fine" } }, field), 400, /from the lists/i);
-    rejects(() => demoDomain.createIssue({ title: base.title, description: base.description, defect: { symptom: "leak", operability: "limited" } }, field), 400, /equipment is selected/i);
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "hydraulic", operability: "fine" } }, field), 400, /from the lists/i);
+    rejects(() => demoDomain.createIssue({ title: base.title, description: base.description, defect: { symptom: "hydraulic", operability: "limited" } }, field), 400, /equipment is selected/i);
     expect(demoDomain.createIssue({ title: base.title, description: base.description }, field).defect).toBeNull();
   });
 

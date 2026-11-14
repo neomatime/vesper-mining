@@ -10,7 +10,8 @@ import { useShellData } from "./shell-data";
 import { z } from "zod";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import { demoSend } from "@/lib/api";
-import { defectOperabilities, defectOperabilityLabels, defectSymptomLabels, defectSymptoms } from "@/lib/issue-rules";
+import { causeGroups, secondariesOf } from "@vesper/api-contracts";
+import { defectOperabilities, defectOperabilityLabels } from "@/lib/issue-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
 import { useToast } from "./toast-provider";
@@ -27,7 +28,7 @@ const reportSchema = z.object({
   priority: z.enum(["low", "medium", "high", "critical"]),
 }).superRefine((value, context) => {
   if (value.equipmentId && !value.symptom) context.addIssue({ code: "custom", path: ["symptom"], message: "Choose the primary cause that was noticed." });
-  if (value.symptom && value.secondary && value.secondary === value.symptom) context.addIssue({ code: "custom", path: ["secondary"], message: "The secondary cause must differ from the primary cause." });
+  if (value.symptom && value.secondary && !secondariesOf(value.symptom).some((item) => item.id === value.secondary)) context.addIssue({ code: "custom", path: ["secondary"], message: "Choose a secondary cause from the list for this primary cause." });
 });
 
 type ReportInput = z.infer<typeof reportSchema>;
@@ -57,6 +58,7 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   });
   const chosenEquipment = useWatch({ control: form.control, name: "equipmentId" });
   const chosenPrimary = useWatch({ control: form.control, name: "symptom" });
+  const secondaryOptions = chosenPrimary ? secondariesOf(chosenPrimary) : [];
   const mutation = useMutation({
     mutationFn: (input: ReportInput) =>
       demoSend<OperationalIssue | PendingResult>("/issues", "POST", {
@@ -139,19 +141,22 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
             <>
               <label className="form-field">
                 <span>Primary cause noticed</span>
-                <Select aria-invalid={Boolean(form.formState.errors.symptom)} {...form.register("symptom")}>
+                <Select
+                  aria-invalid={Boolean(form.formState.errors.symptom)}
+                  {...form.register("symptom", { onChange: () => form.setValue("secondary", "") })}
+                >
                   <option value="">Choose the main cause</option>
-                  {defectSymptoms.map((value) => <option key={value} value={value}>{defectSymptomLabels[value]}</option>)}
+                  {causeGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
                 </Select>
                 {form.formState.errors.symptom ? <small className="field-error">{form.formState.errors.symptom.message}</small> : null}
               </label>
               <label className="form-field">
                 <span>Secondary cause noticed (optional)</span>
-                <Select aria-invalid={Boolean(form.formState.errors.secondary)} {...form.register("secondary")}>
-                  <option value="">None</option>
-                  {defectSymptoms.filter((value) => value !== chosenPrimary).map((value) => <option key={value} value={value}>{defectSymptomLabels[value]}</option>)}
+                <Select key={chosenPrimary || "none"} aria-invalid={Boolean(form.formState.errors.secondary)} disabled={!chosenPrimary || secondaryOptions.length === 0} {...form.register("secondary")}>
+                  <option value="">{!chosenPrimary ? "Choose the primary cause first" : secondaryOptions.length === 0 ? "No secondary causes for this one" : "None"}</option>
+                  {secondaryOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </Select>
-                {form.formState.errors.secondary ? <small className="field-error">{form.formState.errors.secondary.message}</small> : <small className="field-hint">The main cause counts in reports. Add a second one if it also contributed.</small>}
+                {form.formState.errors.secondary ? <small className="field-error">{form.formState.errors.secondary.message}</small> : <small className="field-hint">Only the causes that belong to the primary cause are listed.</small>}
               </label>
               <label className="form-field">
                 <span>Is it still working? (as you see it)</span>

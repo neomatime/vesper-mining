@@ -28,7 +28,7 @@ import type {
   ShiftEvent,
   ShiftWork,
 } from "@vesper/api-contracts";
-import { downtimeReasonSchema, issueDefectSchema } from "@vesper/api-contracts";
+import { downtimeReasonSchema, isSecondaryOf, issueDefectSchema } from "@vesper/api-contracts";
 import {
   areas,
   defaultContext,
@@ -279,7 +279,7 @@ function readDefect(value: unknown, equipmentId: string | null): OperationalIssu
   if (!equipmentId) fail(400, "VALIDATION_ERROR", "Cause details can only be added when equipment is selected.");
   const parsed = issueDefectSchema.safeParse(value);
   if (!parsed.success) fail(400, "VALIDATION_ERROR", "Choose the primary cause, an optional secondary cause and whether the equipment is still working, from the lists.");
-  if (parsed.data.secondary && parsed.data.secondary === parsed.data.symptom) fail(400, "VALIDATION_ERROR", "The secondary cause must differ from the primary cause.");
+  if (parsed.data.secondary && !isSecondaryOf(parsed.data.symptom, parsed.data.secondary)) fail(400, "VALIDATION_ERROR", "That secondary cause does not belong to the primary cause. Choose one from its own list.");
   return { symptom: parsed.data.symptom, secondary: parsed.data.secondary ?? null, operability: parsed.data.operability };
 }
 

@@ -1,11 +1,11 @@
 import type {
   Action,
   DefectOperability,
-  DefectSymptom,
   IssueDependency,
   IssueWorkflowState,
   OperationalIssue,
 } from "@vesper/api-contracts";
+import { causeGroups, secondariesOf } from "@vesper/api-contracts";
 
 /**
  * Demonstration-only policy for the issue lifecycle (App Flow §9.2 and §9.4).
@@ -204,7 +204,8 @@ export function checkTransition(
   return null;
 }
 
-export const defectSymptomLabels: Record<DefectSymptom, string> = {
+/** Records made before causes had their own secondary lists carry these older values. They keep their wording. */
+const earlierCauseLabels: Record<string, string> = {
   leak: "Leak",
   noise_or_vibration: "Unusual noise or vibration",
   overheating: "Overheating",
@@ -213,9 +214,17 @@ export const defectSymptomLabels: Record<DefectSymptom, string> = {
   tyres_tracks_or_wear: "Tyres, tracks or wear parts",
   structural_damage: "Structural damage",
   warning_or_alarm: "Warning light or alarm",
-  other: "Other",
 };
-export const defectSymptoms = Object.keys(defectSymptomLabels) as DefectSymptom[];
+
+const humanise = (value: string) => value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+
+export function primaryCauseLabel(id: string) {
+  return causeGroups.find((group) => group.id === id)?.label ?? earlierCauseLabels[id] ?? humanise(id);
+}
+
+export function secondaryCauseLabel(primary: string, id: string) {
+  return secondariesOf(primary).find((item) => item.id === id)?.label ?? earlierCauseLabels[id] ?? humanise(id);
+}
 
 /** As the reporter sees it. This is information for the planner and supervisor, not a restriction or a release. */
 export const defectOperabilityLabels: Record<DefectOperability, string> = {

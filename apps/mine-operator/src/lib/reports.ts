@@ -1,6 +1,6 @@
 import type { IssueWorkflowState, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { potentiallyAllocable } from "./calculations";
-import { defectSymptomLabels, stateLabels } from "./issue-rules";
+import { primaryCauseLabel, secondaryCauseLabel, stateLabels } from "./issue-rules";
 import { partPosition } from "./readiness-rules";
 
 export type ReportKey =
@@ -169,47 +169,46 @@ export function buildReport(
 
     case "recurring-causes": {
       const withCause = issues.filter((issue) => issue.defect);
-      const tally = new Map<string, { primary: number; secondary: number; latest: { at: string; issue: string } }>();
-      const bump = (cause: string, kind: "primary" | "secondary", issue: OperationalIssue) => {
-        const row = tally.get(cause) ?? { primary: 0, secondary: 0, latest: { at: issue.reportedAt, issue: issue.issueNumber } };
-        row[kind] += 1;
-        if (Date.parse(issue.reportedAt) >= Date.parse(row.latest.at)) row.latest = { at: issue.reportedAt, issue: issue.issueNumber };
-        tally.set(cause, row);
-      };
+      const byPrimary = new Map<string, number>();
+      const byPair = new Map<string, { primary: string; secondary: string; count: number; latest: { at: string; issue: string } }>();
       for (const issue of withCause) {
         if (!issue.defect) continue;
-        bump(defectSymptomLabels[issue.defect.symptom], "primary", issue);
-        if (issue.defect.secondary) bump(defectSymptomLabels[issue.defect.secondary], "secondary", issue);
+        const primary = primaryCauseLabel(issue.defect.symptom);
+        const secondary = issue.defect.secondary ? secondaryCauseLabel(issue.defect.symptom, issue.defect.secondary) : "No secondary cause";
+        byPrimary.set(primary, (byPrimary.get(primary) ?? 0) + 1);
+        const key = `${primary}|${secondary}`;
+        const row = byPair.get(key) ?? { primary, secondary, count: 0, latest: { at: issue.reportedAt, issue: issue.issueNumber } };
+        row.count += 1;
+        if (Date.parse(issue.reportedAt) >= Date.parse(row.latest.at)) row.latest = { at: issue.reportedAt, issue: issue.issueNumber };
+        byPair.set(key, row);
       }
-      const ranked = [...tally]
-        .map(([label, row]) => ({ label, primary: row.primary, secondary: row.secondary, total: row.primary + row.secondary, latest: row.latest.issue }))
-        .sort((a, b) => b.total - a.total || b.primary - a.primary || a.label.localeCompare(b.label));
+      const primaries = [...byPrimary].map(([label, count]) => ({ label, issues: count })).sort((a, b) => b.issues - a.issues || a.label.localeCompare(b.label));
+      const rank = new Map(primaries.map((row, index) => [row.label, index]));
+      const pairs = [...byPair.values()]
+        .sort((a, b) => (rank.get(a.primary) ?? 0) - (rank.get(b.primary) ?? 0) || b.count - a.count || a.secondary.localeCompare(b.secondary))
+        .map((row) => ({ primary: row.primary, secondary: row.secondary, count: row.count, latest: row.latest.issue }));
       return {
         ...base,
         issues: withCause,
         period: "Current records · live",
         quality: "reported",
         source: "Issue register",
-        definition: "Counts the primary and secondary cause chosen when an issue was reported on equipment. An issue counts once as a primary cause and, if a second was given, once as a secondary cause. Issues reported before causes were captured are not counted.",
+        definition: "Counts each equipment issue once under its primary cause, then breaks every primary cause down by the secondary cause chosen from that primary cause's own list. Issues reported before causes were captured are not counted.",
         caveat: "Causes are as reported by the person who raised the issue, not verified. A high count shows where to look first. It is not a confirmed fault pattern.",
         chart: {
-          title: "Reported causes",
+          title: "Issues by primary cause",
           unit: "issues",
-          stacked: true,
-          series: [
-            { key: "primary", label: "Primary cause", color: GREEN },
-            { key: "secondary", label: "Secondary cause", color: AMBER },
-          ],
-          data: ranked,
+          stacked: false,
+          series: [{ key: "issues", label: "Issues", color: GREEN }],
+          data: primaries,
         },
         columns: [
-          { key: "label", label: "Cause" },
-          { key: "primary", label: "As primary" },
-          { key: "secondary", label: "As secondary" },
-          { key: "total", label: "Total" },
+          { key: "primary", label: "Primary cause" },
+          { key: "secondary", label: "Secondary cause" },
+          { key: "count", label: "Issues" },
           { key: "latest", label: "Latest issue" },
         ],
-        rows: ranked,
+        rows: pairs,
       };
     }
 
