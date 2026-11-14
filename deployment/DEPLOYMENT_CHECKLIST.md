@@ -7,7 +7,7 @@ Tick each item when done and record who did it and when. Keep the completed chec
 ## 1. Agreement
 - [ ] The customer agreement is signed and approved by HIMARK.
 - [ ] The approved subscription is recorded: Core, Operations – Single Site, Operations, Enterprise or Group.
-- [ ] For Group: the contracted number of sites is written in the agreement (at least 7).
+- [ ] For Group: the licensed number of sites is written in the agreement (at least 7). The client may activate fewer.
 - [ ] Any Enterprise or Group tailoring in the agreement is listed, with its owner.
 
 ## 2. Prepare the manifest
@@ -23,7 +23,8 @@ Tick each item when done and record who did it and when. Keep the completed chec
 
 ## 4. Provision (production phase only)
 - [ ] One hosting project is created for the client, named in the manifest. **Not one per site.**
-- [ ] A UAT environment is created with restricted access. It is not publicly reachable.
+- [ ] A dedicated `staging` branch is the UAT source. Its Preview environment variables are scoped to that branch (`vercel env add NAME --environment preview --git-branch staging`), using the variable names in the manifest. Custom Environments are not used.
+- [ ] The UAT deployment has restricted access. It is not publicly reachable and is not indexed.
 - [ ] A production environment is created.
 - [ ] Secrets are loaded through the approved secrets store. None is typed into a chat, ticket or file.
 - [ ] Status: `provisioned`.
@@ -37,7 +38,8 @@ Tick each item when done and record who did it and when. Keep the completed chec
 ## 6. Activate the subscription
 - [ ] The subscription record is created for the organisation, with the contracted sites for Group.
 - [ ] The entitlements match the plan configuration for that subscription.
-- [ ] The first sites from the manifest are created inside the databases.
+- [ ] The client entitlement record is created from the template: agreement reference, effective date, approval and audit history. Any feature override is explicit, has a reason and is approved.
+- [ ] The first sites from the manifest are created inside the databases, within the licence.
 
 ## 7. Initial setup by the client's administrator
 - [ ] The first administrator signs in and sets a password of their own.

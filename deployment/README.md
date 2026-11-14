@@ -24,6 +24,7 @@ one VESPER codebase, one standard database schema, five subscription configurati
 | File | Purpose |
 | --- | --- |
 | `templates/client-deployment.example.json` | The manifest to copy for each new client. Safe to commit: it holds no secrets. |
+| `templates/client-entitlements.example.json` | The client entitlement record: plan, licensed sites, approved overrides, agreement, approval and audit history. A separate record because it changes for different reasons. |
 | `DEPLOYMENT_CHECKLIST.md` | The steps from signed agreement to go-live, with who does what. |
 | `../packages/api-contracts/src/deployment.ts` | The rules a manifest must satisfy. Tests run the example through them. |
 
@@ -37,8 +38,10 @@ one VESPER codebase, one standard database schema, five subscription configurati
    - **Every other subscription:** leave it `null`, or set it to the fixed allowance (1, 1, 3 or 6).
 5. List the first `sites` by code and name. There must not be more than the allowance. The administrator can add the rest in VESPER.
 6. Give each environment a `databaseRef`. It is a **name** for the database, not a connection string. It must end in `-uat-db` or `-prod-db`, and the two must differ.
-7. Leave `url` as `null` until the environment exists.
-8. Set `status` as the work moves on: `draft`, `ready_for_provisioning`, `provisioned`, `uat_validated`, `live` or `suspended`.
+7. Set each environment's `branch`. **UAT deploys from a dedicated `staging` branch** and production from the production release branch (`main`). They must differ, and UAT cannot use `main`.
+8. List the `variables` each environment needs, **by name only**. UAT and production list the same names. Values live in Vercel: Preview variables scoped to the `staging` branch for UAT, Production variables for production.
+9. Leave `url` as `null` until the environment exists.
+10. Set `status` as the work moves on: `draft`, `ready_for_provisioning`, `provisioned`, `uat_validated`, `live` or `suspended`.
 
 ## Secrets
 
@@ -48,6 +51,10 @@ A manifest never contains a password, token, key or connection string. The valid
 
 The rules are in `packages/api-contracts/src/deployment.ts` (`validateClientDeployment`). To check a manifest, run it through that function. The unit tests in `apps/mine-operator/src/lib/deployment.test.ts` show how, and they check the example in this folder on every test run.
 
-What it enforces: the subscription exists, the edition matches it, a Group has a valid contracted allowance, the listed sites fit the allowance, UAT and production are separate, no field holds a secret, and there is no database or environment per site.
+What it enforces: the subscription exists, the edition matches it, a Group has a valid licensed number, the listed sites fit the licence (fewer is fine), UAT and production have separate databases, branches and addresses, the variable names match, no field holds a secret, and there is no database or environment per site.
+
+## Client entitlements
+
+A client's entitlements are data, not code. Copy `client-entitlements.example.json` and fill in the organisation, plan, licensed sites (Group), agreement reference, effective date, any approved feature overrides with a reason each, the approval, and the audit history. `validateClientEntitlementRecord` (in `packages/api-contracts/src/subscription/overrides.ts`) refuses an override with no agreement, approval or audit trail, an override that changes nothing, a duplicate, one that removes the essential mobile experience, or an unknown field. In production these records are stored securely and enforced by the backend. The prototype uses mock records.
 
 See `docs/architecture/VESPER_DEPLOYMENT_ARCHITECTURE.md` for the full process, upgrades and release management.

@@ -66,8 +66,8 @@ describe("the five subscriptions", () => {
     const groupPlan = findPlan("group")!;
     expect(groupPlan.edition).toBe("enterprise");
     for (const feature of enterprise.features) expect(groupPlan.features).toContain(feature);
-    expect(groupPlan.features).toContain("group_reporting");
-    expect(enterprise.features).not.toContain("group_reporting");
+    expect(groupPlan.features).toContain("group_dashboards");
+    expect(enterprise.features).not.toContain("group_dashboards");
     for (const edition of ["core", "operations", "enterprise"] as const) expect(editionFeatures[edition].length).toBeGreaterThan(0);
   });
 
@@ -80,10 +80,28 @@ describe("the five subscriptions", () => {
     expect(planAllows(sub("core"), "mobile_field_essential")).toBe(true);
   });
 
-  it("keep every workspace the prototype has in every subscription, because no further restriction has been approved", () => {
-    for (const feature of ["overview", "operational_map", "work_exceptions", "equipment_maintenance", "resource_readiness", "shift_control", "reports", "administration"] as const) {
-      for (const id of subscriptionIds) expect(planAllows(sub(id), feature), `${id} ${feature}`).toBe(true);
+  it("make Core operational visibility: overview, basic map, report and track issues, equipment visibility, tasks, basic shifts, essential mobile", () => {
+    const core = findPlan("core")!.features;
+    expect([...core].sort()).toEqual(["administration", "assigned_tasks", "equipment_visibility", "issue_tracking", "mobile_field_essential", "operational_map", "overview", "shift_basic"]);
+    for (const feature of ["work_coordination", "shift_handover", "equipment_maintenance", "resource_readiness", "digital_inspections", "mobile_field_expanded"] as const) {
+      expect(planAllows(sub("core"), feature), feature).toBe(false);
     }
+  });
+
+  it("make Operations operational coordination: everything in Core plus the six coordination capabilities", () => {
+    const ops = findPlan("operations")!.features;
+    for (const feature of findPlan("core")!.features) expect(ops).toContain(feature);
+    const added = ops.filter((feature) => !findPlan("core")!.features.includes(feature)).sort();
+    expect(added).toEqual(["digital_inspections", "equipment_maintenance", "mobile_field_expanded", "resource_readiness", "shift_handover", "work_coordination"]);
+  });
+
+  it("make Enterprise everything in Operations plus its five capabilities, and Group everything in Enterprise plus its four", () => {
+    const enterprise = findPlan("enterprise")!.features;
+    const group = findPlan("group")!.features;
+    for (const feature of findPlan("operations")!.features) expect(enterprise).toContain(feature);
+    expect(enterprise.filter((feature) => !findPlan("operations")!.features.includes(feature)).sort()).toEqual(["advanced_analytics", "contracted_integrations", "customer_configurations", "management_oversight", "multi_site_comparison"]);
+    for (const feature of enterprise) expect(group).toContain(feature);
+    expect(group.filter((feature) => !enterprise.includes(feature)).sort()).toEqual(["contracted_extensions", "cross_site_oversight", "group_administration", "group_dashboards"]);
   });
 });
 
@@ -105,14 +123,32 @@ describe("reporting entitlements", () => {
     expect(reportingAllows(sub("operations"), "operational")).toBe(true);
     expect(reportingAllows(sub("enterprise"), "group")).toBe(false);
     expect(reportingAllows(sub("group"), "group")).toBe(true);
-    expect(planAllows(sub("group"), "group_reporting")).toBe(true);
+    expect(planAllows(sub("group"), "group_dashboards")).toBe(true);
+    expect(planAllows(sub("enterprise"), "group_dashboards")).toBe(false);
   });
 
   it("names the lowest subscription that includes a feature", () => {
     expect(lowestPlanWith("mobile_field_essential")?.id).toBe("core");
     expect(lowestPlanWith("mobile_field_expanded")?.id).toBe("operations_single");
     expect(lowestPlanWith("advanced_analytics")?.id).toBe("enterprise");
-    expect(lowestPlanWith("group_reporting")?.id).toBe("group");
+    expect(lowestPlanWith("group_dashboards")?.id).toBe("group");
+    expect(lowestPlanWith("resource_readiness")?.id).toBe("operations_single");
+  });
+});
+
+describe("Group licensed sites", () => {
+  it("license a contracted maximum without requiring that many sites to be active", () => {
+    const licensed = { subscriptionId: "group" as const, contractedSites: 10 };
+    expect(canAddSite(licensed, 4)).toMatchObject({ allowed: true, allowance: 10, remaining: 6 });
+    expect(canAddSite(licensed, 9).remaining).toBe(1);
+  });
+
+  it("enforce the licensed maximum, and never let the seven-site threshold stand in for it", () => {
+    const licensed = { subscriptionId: "group" as const, contractedSites: 10 };
+    expect(canAddSite(licensed, 10).allowed).toBe(false);
+    expect(canAddSite(licensed, 10).reason).toMatch(/includes 10 sites/);
+    expect(canAddSite({ subscriptionId: "group", contractedSites: 7 }, 7).allowed).toBe(false);
+    expect(canAddSite({ subscriptionId: "group", contractedSites: 7 }, 3).remaining).toBe(4);
   });
 });
 
@@ -138,15 +174,15 @@ describe("subscription entitlements and user permissions are separate gates", ()
   });
 
   it("refuse on the role even when the subscription includes the feature", () => {
-    expect(evaluateAccess({ ...base, feature: "reports", rolePermitted: false })).toMatchObject({ allowed: false, deniedBy: "role" });
+    expect(evaluateAccess({ ...base, feature: "issue_tracking", rolePermitted: false })).toMatchObject({ allowed: false, deniedBy: "role" });
   });
 
   it("refuse on the site when the person is not authorised for it", () => {
-    expect(evaluateAccess({ ...base, feature: "reports", siteAuthorised: false })).toMatchObject({ allowed: false, deniedBy: "site" });
+    expect(evaluateAccess({ ...base, feature: "issue_tracking", siteAuthorised: false })).toMatchObject({ allowed: false, deniedBy: "site" });
   });
 
   it("allow only when every gate allows, and name no gate", () => {
-    expect(evaluateAccess({ ...base, feature: "reports" })).toEqual({ allowed: true, deniedBy: null, reason: null });
+    expect(evaluateAccess({ ...base, feature: "issue_tracking" })).toEqual({ allowed: true, deniedBy: null, reason: null });
   });
 
   it("do not let a generous role override a missing subscription feature", () => {
@@ -163,13 +199,14 @@ describe("subscription upgrades", () => {
   it("move Core to Operations by adding the Operations capabilities", () => {
     const change = describeChange(sub("core"), sub("operations"), 1);
     expect(change.direction).toBe("upgrade");
-    expect(change.gained).toEqual(["mobile_field_expanded"]);
+    expect(change.gained.sort()).toEqual(["digital_inspections", "equipment_maintenance", "mobile_field_expanded", "resource_readiness", "shift_handover", "work_coordination"]);
     expect(change.lost).toEqual([]);
   });
 
   it("move Enterprise to Group by adding the Group configuration and the contracted capacity", () => {
     const change = describeChange(sub("enterprise"), group, 4);
-    expect(change).toMatchObject({ direction: "upgrade", gained: ["group_reporting"], siteAllowanceFrom: 6, siteAllowanceTo: 10, blockedBy: null });
+    expect(change).toMatchObject({ direction: "upgrade", siteAllowanceFrom: 6, siteAllowanceTo: 10, blockedBy: null });
+    expect(change.gained.sort()).toEqual(["contracted_extensions", "cross_site_oversight", "group_administration", "group_dashboards"]);
   });
 
   it("flag a downgrade, and block it while the client uses more sites than the new subscription allows", () => {
@@ -177,7 +214,7 @@ describe("subscription upgrades", () => {
     expect(ok).toMatchObject({ direction: "downgrade", blockedBy: null });
     const blocked = describeChange(sub("operations"), sub("operations_single"), 2);
     expect(blocked.blockedBy).toMatch(/uses 2\. Deactivate sites/);
-    expect(describeChange(sub("enterprise"), sub("operations"), 0).lost).toEqual(["advanced_analytics"]);
+    expect(describeChange(sub("enterprise"), sub("operations"), 0).lost.sort()).toEqual(["advanced_analytics", "contracted_integrations", "customer_configurations", "management_oversight", "multi_site_comparison"]);
   });
 
   it("report no change for the same subscription and the same capacity", () => {

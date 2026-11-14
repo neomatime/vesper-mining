@@ -28,7 +28,8 @@ import { usePathname } from "next/navigation";
 import { RouteProgress } from "./route-progress";
 import { ScrollHints } from "./scroll-hints";
 import { useEffect, useState } from "react";
-import { entitlementsFor } from "@/lib/entitlements";
+import type { FeatureCode } from "@vesper/api-contracts";
+import { can, entitlementsFor } from "@/lib/entitlements";
 import { useDemoContext } from "@/stores/demo-context";
 import { CommandSearch } from "./command-search";
 import { EntitlementGate } from "./entitlement-gate";
@@ -42,6 +43,8 @@ type NavigationItem = {
   href: string;
   icon: LucideIcon;
   count?: CountKey;
+  /** The feature a subscription must include for this item to show. */
+  feature?: FeatureCode;
 };
 
 const primaryNavigation: NavigationItem[] = [
@@ -49,7 +52,7 @@ const primaryNavigation: NavigationItem[] = [
   { label: "Operational Map", href: "/map", icon: Map },
   { label: "Work & Exceptions", href: "/exceptions", icon: AlertTriangle, count: "openIssues" },
   { label: "Equipment & Maintenance", href: "/equipment", icon: Wrench },
-  { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention" },
+  { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention", feature: "resource_readiness" },
   { label: "Shift Control", href: "/shifts", icon: UsersRound },
   { label: "Reports", href: "/reports", icon: BarChart3 },
 ];
@@ -60,8 +63,8 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
     items: [
       { label: "Report an issue", href: "/exceptions/new", icon: CirclePlus },
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
-      { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention" },
-      { label: "Shift handover", href: "/shifts", icon: ShieldCheck },
+      { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention", feature: "resource_readiness" },
+      { label: "Shift handover", href: "/shifts", icon: ShieldCheck, feature: "shift_handover" },
     ],
   },
   {
@@ -114,6 +117,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return pathname === href || (href !== "/overview" && pathname.startsWith(`${href}/`));
   };
 
+  const included = (item: NavigationItem) => !item.feature || can(context.tier, item.feature);
   const countFor = (item: NavigationItem) => (item.count ? counts[item.count] : 0);
 
   return (
@@ -158,7 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {!sidebarCollapsed ? <div><strong>{context.siteName}</strong><small>Open pit</small></div> : null}
           </div>
           <nav className="sidebar__nav" aria-label="Primary workspaces">
-            {primaryNavigation.map((item) => {
+            {primaryNavigation.filter(included).map((item) => {
               const count = countFor(item);
               return (
                 <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
@@ -172,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {!sidebarCollapsed ? contextualNavigation.map((group) => (
             <div className="sidebar__group" key={group.label}>
               <p>{group.label}</p>
-              {group.items.map((rawItem) => {
+              {group.items.filter(included).map((rawItem) => {
                 const item = rawItem.label === "Shift handover" && currentShift ? { ...rawItem, href: `/shifts/${currentShift.id}/handover` } : rawItem;
                 const count = countFor(item);
                 return (

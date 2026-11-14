@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { demoFetch } from "@/lib/api";
+import { can } from "@/lib/entitlements";
 import type { EquipmentView } from "@/lib/equipment-rules";
 import { needsAttention } from "@/lib/needs-attention";
 import { homeRole, plannerHome, storesHome, supervisorHome } from "@/lib/role-home";
@@ -62,7 +63,11 @@ export function OverviewScreen() {
   if (query.isPending) return <LoadingState label="Loading the command centre" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
 
-  const { context, priorityIssue, issues, areas, equipment, readiness, shifts, now } = query.data;
+  const { context, priorityIssue, issues, areas, equipment, readiness: allReadiness, shifts, now } = query.data;
+  // Resource Readiness and detailed handovers are Operations capabilities. Without them their records and tiles are left out.
+  const readinessIncluded = can(signedIn.tier, "resource_readiness");
+  const handoverIncluded = can(signedIn.tier, "shift_handover");
+  const readiness = readinessIncluded ? allReadiness : [];
   const role = homeRole(signedIn.role);
   if (role !== "manager") {
     const home = { issues, equipment, readiness, shifts, now };
@@ -165,8 +170,8 @@ export function OverviewScreen() {
         <article className="metric-card"><span><Gauge /></span><div><small>Production</small><strong>156,200 <em>t</em></strong><p>Reported · current shift</p></div></article>
         <article className="metric-card"><span><Target /></span><div><small>Plan</small><strong>162,000 <em>t</em></strong><p>Target</p></div></article>
         <article className="metric-card"><span><Wrench /></span><div><small>Equipment availability</small><strong>92<em>%</em></strong><p>Of tracked equipment</p></div></article>
-        <article className="metric-card"><span><Box /></span><div><small>Readiness risks</small><strong>{readiness.filter((item) => item.status !== "ready").length}</strong><p>{awaitingConfirmation === 0 ? "None waiting on confirmation" : `${awaitingConfirmation} needs confirming`}</p></div></article>
-        <article className="metric-card"><span><Clock3 /></span><div><small>Open handover items</small><strong>{currentShift?.unresolved ?? 0}</strong><p>Carried to the next shift</p></div></article>
+        {readinessIncluded ? (<article className="metric-card"><span><Box /></span><div><small>Readiness risks</small><strong>{readiness.filter((item) => item.status !== "ready").length}</strong><p>{awaitingConfirmation === 0 ? "None waiting on confirmation" : `${awaitingConfirmation} needs confirming`}</p></div></article>) : null}
+        {handoverIncluded ? (<article className="metric-card"><span><Clock3 /></span><div><small>Open handover items</small><strong>{currentShift?.unresolved ?? 0}</strong><p>Carried to the next shift</p></div></article>) : null}
       </section>
 
       <section className="operational-grid">

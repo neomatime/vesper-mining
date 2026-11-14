@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
-import { entitlementsFor } from "@/lib/entitlements";
+import { canSeeReport } from "@/lib/entitlements";
 import type { ReportView } from "@/lib/reports";
 import { useDemoContext } from "@/stores/demo-context";
 import { EntitlementGate } from "./entitlement-gate";
@@ -30,11 +30,11 @@ export function ReportDetailScreen({ reportKey }: { reportKey: string }) {
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   const report = query.data;
 
-  if (report.advanced && !entitlementsFor(context.tier).advancedAnalytics) {
+  if (!canSeeReport(context.tier, report.level)) {
     return (
       <div className="workspace-page">
         <Link href="/reports" className="back-link"><ArrowLeft /> Reports</Link>
-        <EntitlementGate capability="advancedAnalytics" />
+        <EntitlementGate capability={report.level === "advanced" ? "advancedAnalytics" : "operationalReporting"} />
       </div>
     );
   }

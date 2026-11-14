@@ -52,7 +52,11 @@ describe("required fields", () => {
       ["hosting", "provider"],
       ["hosting", "projectName"],
       ["environments", "uat", "databaseRef"],
+      ["environments", "uat", "branch"],
+      ["environments", "uat", "variables"],
       ["environments", "production", "databaseRef"],
+      ["environments", "production", "branch"],
+      ["environments", "production", "variables"],
       ["status"],
     ];
     for (const path of required) {
@@ -120,6 +124,35 @@ describe("UAT and production", () => {
 
   it("keep UAT access restricted", () => {
     expect(validateClientDeployment(make((d) => (d.environments.uat.accessControl = "public"))).ok).toBe(false);
+  });
+});
+
+describe("UAT from a staging branch with its own variables", () => {
+  it("deploys UAT from a dedicated staging branch and production from the production branch", () => {
+    expect(example.environments.uat.branch).toBe("staging");
+    expect(example.environments.production.branch).toBe("main");
+    expect(validateClientDeployment(example).ok).toBe(true);
+  });
+
+  it("refuses UAT on the production branch, or on main", () => {
+    expect(mentions(make((d) => (d.environments.uat.branch = "main")), /UAT needs its own branch/)).toBe(true);
+    expect(mentions(make((d) => { d.environments.production.branch = "release"; d.environments.uat.branch = "main"; }), /UAT cannot deploy from main/)).toBe(true);
+  });
+
+  it("keeps environment-specific configuration to variable names, the same in both environments, with no values", () => {
+    expect(mentions(make((d) => d.environments.uat.variables.pop()), /same variable names/)).toBe(true);
+    expect(mentions(make((d) => d.environments.uat.variables.push(d.environments.uat.variables[0])), /unique|same variable names/)).toBe(true);
+    expect(validateClientDeployment(make((d) => (d.environments.uat.variables[0] = "database url"))).ok).toBe(false);
+    expect(validateClientDeployment(make((d) => (d.environments.uat.variables[0] = "VESPER_DATABASE_URL=postgres://x:y@h/db"))).ok).toBe(false);
+  });
+});
+
+describe("Group licensed and activated sites", () => {
+  it("accepts a Group that licenses 10 sites and starts with 4, and refuses more than the licence", () => {
+    const four = make((d) => { d.subscription = { id: "group", edition: "enterprise", contractedSites: 10 }; d.sites = ["a", "b", "c", "d"].map((code) => ({ code: `site-${code}`, name: `Site ${code.toUpperCase()}` })); });
+    expect(validateClientDeployment(four).ok).toBe(true);
+    const eleven = make((d) => { d.subscription = { id: "group", edition: "enterprise", contractedSites: 10 }; d.sites = Array.from({ length: 11 }, (_, i) => ({ code: `site-${i}`, name: `Site ${i}` })); });
+    expect(mentions(eleven, /11 sites are listed but the subscription allows 10/)).toBe(true);
   });
 });
 

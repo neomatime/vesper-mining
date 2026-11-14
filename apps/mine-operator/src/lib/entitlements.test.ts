@@ -1,8 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
-import { DEMO_GROUP_CONTRACTED_SITES, accessFor, can, changeSubscription, demoSubscription, entitlementRows, entitlementsFor, siteCapacity, tierThatIncludes } from "./entitlements";
+import { DEMO_GROUP_CONTRACTED_SITES, accessFor, can, canSeeReport, changeSubscription, demoEntitlementRecord, demoSubscription, entitlementRows, entitlementsFor, siteCapacity, tierThatIncludes } from "./entitlements";
 import { demoDomain } from "./demo-store";
 import { tiers } from "./personas";
+import { reportCatalogue } from "./reports";
+import { validateClientEntitlementRecord } from "@vesper/api-contracts";
 
 const everyTier = ["core", "operations_single", "operations", "enterprise", "group"] as const;
 
@@ -28,7 +30,7 @@ describe("entitlements as the screens see them", () => {
     expect(entitlementsFor("operations_single").sites).toBe("1 site");
     expect(entitlementsFor("operations").sites).toBe("Up to 3 sites");
     expect(entitlementsFor("enterprise").sites).toBe("Up to 6 sites");
-    expect(entitlementsFor("group").sites).toBe(`${DEMO_GROUP_CONTRACTED_SITES} sites (contracted)`);
+    expect(entitlementsFor("group").sites).toBe(`${DEMO_GROUP_CONTRACTED_SITES} sites (licensed)`);
     expect(demoSubscription("group").contractedSites).toBe(DEMO_GROUP_CONTRACTED_SITES);
     expect(demoSubscription("core").contractedSites).toBeNull();
   });
@@ -42,9 +44,11 @@ describe("entitlements as the screens see them", () => {
   });
 
   it("let the interface read one feature across subscriptions, without comparing subscriptions itself", () => {
-    expect(can("core", "reports")).toBe(true);
+    expect(can("core", "issue_tracking")).toBe(true);
+    expect(can("core", "resource_readiness")).toBe(false);
+    expect(can("operations_single", "resource_readiness")).toBe(true);
     expect(can("core", "advanced_analytics")).toBe(false);
-    expect(can("group", "group_reporting")).toBe(true);
+    expect(can("group", "group_dashboards")).toBe(true);
     expect(entitlementRows.find((row) => row.label === "VESPER Mobile")?.read("core")).toBe("Included");
     expect(entitlementRows.find((row) => row.label === "Advanced analytics")?.read("operations")).toBe("Not included");
   });
@@ -54,6 +58,35 @@ describe("entitlements as the screens see them", () => {
     for (const tier of tiers) {
       expect(tier.mobile).toBe(entitlementsFor(tier.value).mobile);
       expect(tier.advancedAnalytics).toBe(entitlementsFor(tier.value).advancedAnalytics);
+    }
+  });
+});
+
+describe("reports by level", () => {
+  it("show Core the essential reports, Operations the operational ones, and only Enterprise and Group the advanced ones", () => {
+    expect(canSeeReport("core", "essential")).toBe(true);
+    expect(canSeeReport("core", "operational")).toBe(false);
+    expect(canSeeReport("operations_single", "operational")).toBe(true);
+    expect(canSeeReport("operations", "advanced")).toBe(false);
+    expect(canSeeReport("enterprise", "advanced")).toBe(true);
+    expect(canSeeReport("group", "advanced")).toBe(true);
+  });
+
+  it("give every report a level, so no report escapes the entitlement rules", () => {
+    const levels = Object.fromEntries(reportCatalogue.map((report) => [report.key, report.level]));
+    expect(levels).toEqual({ "production-vs-plan": "essential", "operational-exceptions": "essential", "equipment-delay-stages": "operational", "resource-readiness": "operational", "recurring-causes": "operational", "delay-analytics": "advanced" });
+    expect(reportCatalogue.filter((report) => report.advanced).map((report) => report.key)).toEqual(["delay-analytics"]);
+  });
+});
+
+describe("the demonstration's mock entitlement records", () => {
+  it("are complete valid records, one per subscription, with no feature overrides", () => {
+    for (const tier of everyTier) {
+      const record = demoEntitlementRecord(tier);
+      expect(validateClientEntitlementRecord(record).ok, tier).toBe(true);
+      expect(record.featureOverrides, tier).toEqual([]);
+      expect(record.agreementReference).toMatch(/^DEMO-AGREEMENT-/);
+      expect(record.auditHistory[0]?.action).toBe("created");
     }
   });
 });
@@ -92,7 +125,7 @@ describe("switching the subscription in the prototype", () => {
 
   it("describes the upgrades that matter, from the same rules the plans use", () => {
     expect(changeSubscription("operations_single", "operations")).toMatchObject({ direction: "upgrade", siteAllowanceFrom: 1, siteAllowanceTo: 3 });
-    expect(changeSubscription("core", "operations").gained).toContain("mobile_field_expanded");
+    expect(changeSubscription("core", "operations").gained).toEqual(expect.arrayContaining(["resource_readiness", "shift_handover", "equipment_maintenance"]));
     expect(changeSubscription("enterprise", "group")).toMatchObject({ direction: "upgrade", siteAllowanceTo: DEMO_GROUP_CONTRACTED_SITES });
   });
 });

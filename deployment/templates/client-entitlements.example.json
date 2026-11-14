@@ -1,0 +1,33 @@
+{
+  "organisationId": "example-mining",
+  "subscriptionId": "operations",
+  "contractedSites": null,
+  "agreementReference": "EX-2026-014",
+  "effectiveDate": "2026-03-01",
+  "featureOverrides": [
+    {
+      "feature": "advanced_analytics",
+      "enabled": true,
+      "reason": "Advanced analytics are included in the agreement for the first twelve months."
+    }
+  ],
+  "approval": {
+    "approvedBy": "A. Example",
+    "role": "HIMARK Commercial Lead",
+    "approvedAt": "2026-02-20T10:00:00+02:00"
+  },
+  "auditHistory": [
+    {
+      "at": "2026-02-18T09:00:00+02:00",
+      "actor": "B. Example",
+      "action": "created",
+      "detail": "Record created from agreement EX-2026-014."
+    },
+    {
+      "at": "2026-02-20T10:00:00+02:00",
+      "actor": "A. Example",
+      "action": "approved",
+      "detail": "Override for advanced analytics approved."
+    }
+  ]
+}

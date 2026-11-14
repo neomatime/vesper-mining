@@ -1,6 +1,7 @@
 # VESPER subscription architecture
 
 **Status:** implemented for the prototype. Production enforcement is not built and not authorised.
+**Updated:** 14 November 2026, after the product owner defined Core, Operations, Enterprise and Group, the Group licensing rule and client-specific overrides.
 
 ## 1. The model
 
@@ -12,108 +13,169 @@ VESPER is **one product**. There are five commercial subscriptions and three fun
 | VESPER Operations – Single Site | `operations_single` | Operations | 1 | Operational |
 | VESPER Operations | `operations` | Operations | 3 | Operational |
 | VESPER Enterprise | `enterprise` | Enterprise | 6 | Advanced |
-| VESPER Group | `group` | Enterprise foundation | **Contracted** (at least 7) | Group-level |
+| VESPER Group | `group` | Enterprise foundation | **Licensed**: 7 or more, maximum set by the agreement | Group-level |
 
-- Operations – Single Site and Operations are **the same product**. Only the site allowance differs.
-- Group is not a separate edition. It is the Enterprise foundation plus the Group entitlements, with a site allowance set by the client agreement. It is **never unlimited by default**: a Group subscription without a valid contracted number is rejected.
-- Every subscription includes VESPER Web and VESPER Mobile. This is enforced by the plan schema (`webAccess` and `mobileAccess` can only be `true`).
+- **Core is operational visibility. Operations is operational coordination.** Operations – Single Site and Operations have **identical functionality**. Only the site allowance differs.
+- **Group is not a separate edition or application.** It is the Enterprise foundation plus the Group capabilities.
+- **Group licensing.** The minimum of seven is a commercial licensing threshold, not a requirement that seven sites are active. A Group client may license 10 and activate 4. The **licensed maximum is enforced**. A Group subscription without a valid licensed number is rejected. It is never unlimited by default.
+- Every subscription includes VESPER Web and VESPER Mobile (the plan schema allows no plan without them).
 
 ## 2. Where it lives
 
-`packages/api-contracts/src/subscription/`, framework-free, with no dependency beyond Zod.
+`packages/api-contracts/src/subscription/`, framework-free, depending only on Zod.
 
 | File | Contents |
 | --- | --- |
-| `types.ts` | The shapes: subscription identifier, edition, reporting level, feature code, site allowance, plan, and the stored organisation subscription |
-| `plans.ts` | The five plans as data, one feature list per edition, the Group minimum, labels |
-| `entitlements.ts` | The checks (below) |
+| `types.ts` | The shapes: subscription identifier, edition, feature codes, site allowance, plan |
+| `plans.ts` | The five plans as data, one feature list per edition, the Group minimum |
+| `features.ts` | The **feature catalogue**: what each feature is, whether it is built, and whether the interface enforces it |
+| `entitlements.ts` | The checks (section 5) |
+| `overrides.ts` | The client entitlement record, its validation and its resolution (section 6) |
 
-The deployment manifest rules are in `packages/api-contracts/src/deployment.ts` and use the same plans.
+## 3. The features, by edition
 
-## 3. Features
+Codes are stable. Status is the truth about the prototype today, recorded as data in `features.ts` and checked by a test.
 
-Feature codes are stable and name what a client can use. The navigation, a workflow check and a future backend all use the same code.
+### Core: operational visibility
 
-| Feature code | What it covers | In the prototype |
+| Feature | Intended entitlement | Status in the prototype |
 | --- | --- | --- |
-| `overview`, `operational_map`, `work_exceptions`, `equipment_maintenance`, `resource_readiness`, `shift_control`, `reports`, `administration` | The eight workspaces | Built. In every subscription |
-| `mobile_field_essential` | My Shift, My Work, Report, Notifications | Built. In every subscription |
-| `mobile_field_expanded` | Expanded field workflows such as digital inspections (PRD VES-BR-015: "Operations and above may unlock") | **Not built.** Defined as Operations and above |
-| `advanced_analytics` | Advanced analytical reports (VES-BR-016) | Built (`delay-analytics`). Enterprise and Group |
-| `group_reporting` | Group-level reporting | **Not built.** Group only |
+| `overview` | Operational overview | Built |
+| `operational_map` | Basic live operational map | Built |
+| `issue_tracking` | Report and track operational issues | Built |
+| `equipment_visibility` | Essential equipment visibility | Built |
+| `assigned_tasks` | Assigned tasks and work updates | Built |
+| `shift_basic` | Basic shift information | Built |
+| `administration` | Administration (not named in either list; assumed needed by all) | Built |
+| `mobile_field_essential` | Essential VESPER Mobile (cannot be overridden off) | Built |
+| (reporting level) | Essential reporting | Built: two essential reports |
 
-Editions add to each other: Core, then Operations (adds `mobile_field_expanded`), then Enterprise (adds `advanced_analytics`), then Group (adds `group_reporting`).
+### Operations: operational coordination (everything in Core, plus)
 
-**No commercial restriction has been invented.** Every workspace is in every subscription, because none has been approved otherwise.
+| Feature | Intended entitlement | Status | Enforced in the interface |
+| --- | --- | --- | --- |
+| `work_coordination` | Action ownership, dependencies and escalation | Built | **No.** Part of the issue lifecycle. See section 8 |
+| `shift_handover` | Detailed shift handovers | Built | **Yes**: the handover page, links and tiles |
+| `equipment_maintenance` | Downtime and maintenance coordination | Built | **Yes**: the equipment sections and the maintenance and service-request routes |
+| `resource_readiness` | Resource Readiness and spare-parts early warnings | Built | **Yes**: the workspace, navigation, tiles and readiness items |
+| `digital_inspections` | Structured digital inspections and checklists | **Not built** | Nothing to enforce |
+| `mobile_field_expanded` | Expanded Mobile workflows | **Not built** | Nothing to enforce |
+| (reporting level) | Detailed operational reporting | Built: operational reports | **Yes** |
 
-## 4. The checks
+### Enterprise (everything in Operations, plus)
 
-All are plain functions in `entitlements.ts`:
+| Feature | Intended entitlement | Status |
+| --- | --- | --- |
+| `advanced_analytics` | Advanced operational analytics | Partial: one advanced report (Delay analytics, indicative data). Enforced |
+| `multi_site_comparison` | Multi-site performance comparisons | **Not built** |
+| `management_oversight` | Advanced reporting and management oversight | **Not built** beyond the advanced report |
+| `contracted_integrations` | Support for contracted integrations | **Not built**. Connectors are excluded from the current phase |
+| `customer_configurations` | Approved customer-specific configurations | Partial: the client entitlement record exists with mock records (section 6) |
+
+### Group (everything in Enterprise, plus)
+
+| Feature | Intended entitlement | Status |
+| --- | --- | --- |
+| `group_dashboards` | Consolidated group-level dashboards | **Not built** |
+| `cross_site_oversight` | Cross-site performance oversight | **Not built** |
+| `group_administration` | Group-level administration and governance | **Not built** |
+| `contracted_extensions` | Contractually agreed enterprise extensions | Partial: carried by the same client record. No extension exists |
+
+**Nothing was built to tell the subscriptions apart.** The plan configuration records the intended entitlements. The interface responds where a clean boundary already exists, and the rest is listed as outstanding.
+
+## 4. How the interface responds
+
+All through one reader (`apps/mine-operator/src/lib/entitlements.ts`). No component compares subscription names.
+
+| Place | What changes without the feature |
+| --- | --- |
+| Navigation | Resource Readiness, Readiness risks and Shift handover are not shown |
+| `/resources` and its records | A "not part of your subscription" screen that names the feature and the subscription that includes it |
+| Overview and shared data | Readiness records and tiles, and the handover tile, are left out. Readiness is also left out of search and role homes |
+| Equipment page | The Downtime, Maintenance plans, Service history and Service requests sections, and "Log service", are not shown. Details, availability, readings and linked issues stay |
+| Shift page and handover route | The handover card, link and page are not available. Shifts, crew, tasks, calendar and the allocation sheet stay |
+| Reports | Each report has a level (essential, operational, advanced). Core sees two of six, Operations five, Enterprise and Group all six |
+
+This is presentation for the prototype. It is **not production access control**.
+
+## 5. The checks
+
+Plain functions in `entitlements.ts`:
 
 | Function | Answers |
 | --- | --- |
-| `resolveSubscription` | Is this stored subscription valid, and what is its site allowance? |
-| `planAllows` | Does the subscription include a feature? |
-| `reportingAllows` | Does reporting reach a level (essential, operational, advanced, group)? |
+| `resolveSubscription` | Is this stored subscription valid, and what is its allowance? |
+| `planAllows` | Does the client have a feature (plan plus approved overrides)? |
+| `reportAllowed` | May a report at this level be seen? (advanced follows the feature, so an override can grant it) |
 | `canAddSite` | Can the organisation add another mining site, given how many it has? |
-| `lowestPlanWith` | Which is the lowest subscription with a feature? (for "included from" text) |
+| `lowestPlanWith` | Which is the lowest subscription with a feature? |
 | `evaluateAccess` | Does this person get this feature, with the subscription gate and the role and site gate kept apart? |
 | `describeChange` | What does changing subscription do, and is it blocked? |
 
-### Two gates, never one
+**Two gates, never one.** A subscription entitlement is not a user permission. `evaluateAccess` takes the result of the caller's own role and site rules and reports which gate refused: `subscription`, `role` or `site`.
 
-A subscription entitlement is **not** a user permission. A person needs both. `evaluateAccess` takes the result of the caller's own role and site rules and reports which gate refused: `subscription`, `role` or `site`. A generous role never overrides a missing feature, and an included feature never overrides a missing role.
+## 6. Client-specific entitlements
 
-## 5. How the app uses it
+A client's agreement must never mean editing the source. One **client entitlement record** per organisation holds:
 
-| App file | Role |
+| Field | Purpose |
 | --- | --- |
-| `src/lib/entitlements.ts` | Turns the prototype's selected subscription into a stored subscription and answers in the screens' words (`entitlementsFor`, `can`, `siteCapacity`, `accessFor`, `changeSubscription`). The only place that knows the demonstration Group contract (10 sites) |
-| `src/lib/personas.ts` | The presenter console's list of subscriptions, **built from the central plans** |
-| Components | Ask `entitlementsFor` or `can`. None compares subscription names |
-| `demoContextSchema.tier` | Now the same identifier list, not a second copy |
+| `organisationId` | The client |
+| `subscriptionId` | The plan |
+| `contractedSites` | The licensed maximum. Required for Group. For other plans empty, or equal to the fixed allowance |
+| `featureOverrides` | Approved overrides: a feature, whether it is granted or removed, and the reason |
+| `agreementReference` | The commercial agreement the record comes from |
+| `effectiveDate` | The first day the record applies |
+| `approval` | Who approved it, in what role, and when |
+| `auditHistory` | Everything that has happened to the record, in order |
 
-Frontend checks here are for navigation and presentation only. They are **not** production access control.
+**Overrides are explicit, validated and traceable.** The validator refuses a record without an agreement reference, an effective date, approval or audit history. An override needs a reason. It must change something (granting a feature the plan already has, or removing one it lacks, is refused). A feature cannot be overridden twice. The essential mobile experience can never be switched off. The audit history must start with creation, run in order and show the approval when there are overrides. Approval must be on or before the effective date. Unknown fields are refused. Each problem is reported against the field it concerns.
 
-## 6. Upgrades
+`resolveClientEntitlements(record, date)` returns what the client has on that date: the plan's features, changed by the overrides. It throws, rather than guesses, if the record is invalid or does not yet apply.
 
-A change of subscription changes **entitlements and site capacity only**. The application, the database schema and the client's data are untouched.
+The prototype uses **mock records**: one valid record per subscription with no overrides, and `deployment/templates/client-entitlements.example.json` as the model, which a test validates. **In production these records are stored securely and enforced by the backend.** A record read in the browser is not access control.
+
+## 7. Upgrades
+
+A change of subscription changes **entitlements and site capacity only**. The application, the schema and the data are untouched.
 
 | Change | What changes |
 | --- | --- |
 | Operations – Single Site to Operations | Allowance 1 to 3. Nothing else |
-| Core to Operations | Gains `mobile_field_expanded` |
-| Enterprise to Group | Gains `group_reporting`. Allowance 6 to the contracted number |
+| Core to Operations | Gains the six Operations capabilities |
+| Enterprise to Group | Gains the four Group capabilities. Allowance 6 to the licensed number |
 | Any downgrade | Blocked while the client uses more sites than the new allowance. Data is kept |
 
-`describeChange` returns the direction, the features gained and lost, both allowances, and a `blockedBy` message. The prototype presenter console can switch subscriptions at any time, and a browser test proves operational records survive every switch.
+The presenter console can switch subscriptions at any time. A browser test proves operational records survive every switch.
 
-**Production requirements for a subscription change:** an authorised, audited action by HIMARK staff (not self-service), a recorded effective date, a recorded reason, a site-count check before applying a downgrade, a rule for data created under a feature the client no longer has, and no automatic billing coupling until billing is approved.
+**Production requirements:** an authorised, audited action by HIMARK staff (not self-service), with reason and effective date, a site-count check before a downgrade, a rule for data created under a feature the client no longer has, and no billing coupling until billing is approved.
 
-## 7. Enterprise and Group extensibility
+## 8. Known limits of the prototype's enforcement
 
-Enterprise and Group clients may need tailoring. It must not fork the codebase. The order of preference:
+1. **Work coordination in Core.** Action ownership, dependencies and escalation are part of the issue lifecycle: an issue cannot move or close without its actions. Core therefore still has them. A Core-specific lifecycle is needed to separate them, and is a design decision.
+2. **Closing a shift in Core.** A shift with unresolved items asks for a handover, which Core does not have. A rule for closing a shift without a handover is needed.
+3. **Equipment register columns** such as maintenance due are still shown in Core.
+4. **Mobile.** Every subscription has the four mobile screens. There are no expanded mobile workflows to differ.
 
-1. **Configuration.** A new capability becomes a feature code and an entry in the plan or an agreed per-client override. The code ships to everyone, and entitlements decide who sees it.
-2. **Reusable components** that the standard product also uses.
-3. **A defined extension point** (a named integration adapter, a report definition, a workflow setting) added to the standard product when a second client needs it, not before.
+## 9. Enterprise and Group extensibility
 
-A customisation is allowed only if it keeps working across releases and is covered by the compatibility tests in the deployment architecture. No plugin framework is proposed: the code does not yet show a need for one.
+Tailoring is controlled configuration of the standard product, never a fork. In order of preference:
 
-## 8. Pending decisions (not resolved here)
+1. **A client entitlement record**: an approved override of a feature already in the product.
+2. **A new feature code** in the plan configuration, shipped to everyone and entitled by plan or override.
+3. **A defined extension point** (a named integration adapter, a report definition, a workflow setting) added to the standard product when a second client needs it.
 
-1. **Where Core ends and Operations begins.** Today they differ only in the unbuilt `mobile_field_expanded`. Document the intended commercial difference before restricting anything.
-2. **What the expanded field workflows are** (digital inspections and which others).
-3. **What Enterprise and Group include beyond the advanced and group-level reports.** Only those two are built.
-4. **The Group minimum.** The code uses 7, from the PRD's "7+". Confirm or change it.
-5. **Per-client overrides.** Whether a client agreement can add or remove a feature outside its plan, and how that is recorded.
-6. **Prices and the HIMARK Reserve licence.** Out of scope for code. The PRD marks them provisional.
-7. **Whether the plan configuration in code or the database table is the source of default entitlements.** This work assumes code, with the database holding the client's subscription and any agreed overrides.
+A customisation is allowed only if it keeps working across releases and is covered by the compatibility tests in the deployment architecture. No plugin framework is proposed.
 
-## 9. Required before production
+## 10. Remaining decisions
 
-- Server-side enforcement of every entitlement, site limit and role on every API call.
-- A stored organisation subscription with an audit trail.
-- A site-creation action that calls `canAddSite` on the server.
-- A tested downgrade and data-retention rule.
-- Entitlement changes recorded and reviewable by HIMARK.
+1. The two Core rules in section 8 (the lifecycle and closing a shift).
+2. What the digital inspections and expanded mobile workflows are, before they are built.
+3. What the contracted integrations include for each Enterprise client.
+4. How a downgrade treats data created under a feature the client no longer has.
+5. Where and how production overrides are stored, and who may approve them.
+6. Whether administration should be in every subscription (assumed yes).
+
+## 11. Required before production
+
+Server-side enforcement of every entitlement, site limit and role on every request. Secure storage for client entitlement records with an immutable audit trail. A site-creation action that calls `canAddSite` on the server. A tested downgrade and retention rule. Entitlement changes recorded and reviewable by HIMARK.

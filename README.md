@@ -41,7 +41,7 @@ pnpm dev            # http://localhost:3000
 | Shift Control & Handover | Shifts with crew and work, calendar (month, week, day), tasks marked done with an optional note and evidence, **handover draft built from the shift's records**, publish and acknowledge, and a printable **allocation sheet** |
 | Reports | Six reports including **Recurring causes** (primary and secondary) |
 | Administration | People, roles and rights, service providers, site and company details |
-| Subscriptions | Five subscriptions on one product and one schema, defined once in `packages/api-contracts/src/subscription/` (feature entitlements, site allowances, upgrade rules), with a deployment manifest template for per-client instances. See `docs/architecture/` |
+| Subscriptions | Five subscriptions on one product and one schema, defined once in `packages/api-contracts/src/subscription/` (feature entitlements, site allowances, upgrade rules, validated client-specific overrides), with a deployment manifest template for per-client instances. See `docs/architecture/` |
 | Experience | Light and dark themes, Inter at a light weight scale, one soft radius scale, a floating top bar, phone and tablet layouts |
 
 Quality: unit tests for the rules and the mock domain, and Playwright tests for the main journeys, run by CI on every change.

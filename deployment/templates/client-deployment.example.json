@@ -19,17 +19,35 @@
   "environments": {
     "uat": {
       "url": null,
+      "branch": "staging",
       "databaseRef": "example-mining-uat-db",
-      "accessControl": "restricted"
+      "accessControl": "restricted",
+      "variables": [
+        "VESPER_ENVIRONMENT",
+        "VESPER_ORGANISATION_ID",
+        "VESPER_DATABASE_URL"
+      ]
     },
     "production": {
       "url": null,
-      "databaseRef": "example-mining-prod-db"
+      "branch": "main",
+      "databaseRef": "example-mining-prod-db",
+      "variables": [
+        "VESPER_ENVIRONMENT",
+        "VESPER_ORGANISATION_ID",
+        "VESPER_DATABASE_URL"
+      ]
     }
   },
   "sites": [
-    { "code": "north-pit", "name": "North Pit" },
-    { "code": "south-plant", "name": "South Processing Plant" }
+    {
+      "code": "north-pit",
+      "name": "North Pit"
+    },
+    {
+      "code": "south-plant",
+      "name": "South Processing Plant"
+    }
   ],
   "status": "draft"
 }

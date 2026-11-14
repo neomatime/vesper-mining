@@ -15,22 +15,37 @@ export const editionSchema = z.enum(["core", "operations", "enterprise"]);
 export const reportingLevelSchema = z.enum(["essential", "operational", "advanced", "group"]);
 
 /**
- * Stable feature codes. They name what a client may use, not how the interface is laid out, so the same code serves the
+ * Stable feature codes, grouped by the edition that introduces them. They name what a client may use, not how the interface is laid out, so the same code serves the
  * navigation, a workflow check and (later) the backend. A conceptual feature table in the backend schema keys on these.
  */
 export const featureCodeSchema = z.enum([
+  // Core: operational visibility
   "overview",
   "operational_map",
-  "work_exceptions",
-  "equipment_maintenance",
-  "resource_readiness",
-  "shift_control",
-  "reports",
+  "issue_tracking",
+  "equipment_visibility",
+  "assigned_tasks",
+  "shift_basic",
   "administration",
   "mobile_field_essential",
+  // Operations: operational coordination
+  "work_coordination",
+  "shift_handover",
+  "equipment_maintenance",
+  "resource_readiness",
+  "digital_inspections",
   "mobile_field_expanded",
+  // Enterprise
   "advanced_analytics",
-  "group_reporting",
+  "multi_site_comparison",
+  "management_oversight",
+  "contracted_integrations",
+  "customer_configurations",
+  // Group
+  "group_dashboards",
+  "cross_site_oversight",
+  "group_administration",
+  "contracted_extensions",
 ]);
 
 /** A fixed allowance (Core, Operations, Enterprise) or one set by the client's agreement (Group). Group is never unlimited by default. */
