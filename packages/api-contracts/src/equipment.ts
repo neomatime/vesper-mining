@@ -17,6 +17,17 @@ export const equipmentCategorySchema = z.enum([
 
 export const equipmentStateSchema = z.enum(["available", "unavailable"]);
 
+/** Why equipment was reported unavailable. A short list people can pick from in one tap. */
+export const downtimeReasonSchema = z.enum([
+  "mechanical_fault",
+  "electrical_fault",
+  "waiting_parts",
+  "waiting_contractor",
+  "planned_maintenance",
+  "operating_conditions",
+  "other",
+]);
+
 export const maintenancePlanSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -51,6 +62,9 @@ export const equipmentEventSchema = z.object({
     "retired",
     "restored",
   ]),
+  /** For an availability change: the state it was reported as, and why. Older events have neither. */
+  state: equipmentStateSchema.nullish(),
+  reason: downtimeReasonSchema.nullish(),
   summary: z.string().min(1),
   actor: z.string().min(1),
   actorRole: z.string().min(1),
@@ -87,6 +101,7 @@ export const equipmentSchema = z.object({
 
 export type EquipmentCategory = z.infer<typeof equipmentCategorySchema>;
 export type EquipmentState = z.infer<typeof equipmentStateSchema>;
+export type DowntimeReason = z.infer<typeof downtimeReasonSchema>;
 export type MaintenancePlan = z.infer<typeof maintenancePlanSchema>;
 export type ServiceEntry = z.infer<typeof serviceEntrySchema>;
 export type EquipmentEvent = z.infer<typeof equipmentEventSchema>;

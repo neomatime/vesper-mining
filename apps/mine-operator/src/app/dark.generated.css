@@ -2137,3 +2137,12 @@
 :root[data-theme="dark"] .handover-sources a:hover {
   background: var(--surface-hover, var(--surface-muted));
 }
+:root[data-theme="dark"] .downtime-summary small {
+  color: var(--text-secondary);
+}
+:root[data-theme="dark"] .downtime-reasons li {
+  border-bottom: 1px solid var(--border-subtle);
+}
+:root[data-theme="dark"] .downtime-note {
+  color: var(--text-secondary);
+}

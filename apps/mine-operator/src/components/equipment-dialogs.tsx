@@ -1,12 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { MaintenancePlan } from "@vesper/api-contracts";
+import type { DowntimeReason, MaintenancePlan } from "@vesper/api-contracts";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { fromLocalInput, toLocalInput } from "@/lib/demo-clock";
-import { categories, categoryLabels, type EquipmentView } from "@/lib/equipment-rules";
+import { categories, categoryLabels, downtimeReasonLabels, downtimeReasons, type EquipmentView } from "@/lib/equipment-rules";
 import type { EquipmentFormInput, PlanInput, ServiceInput } from "./use-equipment-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
@@ -154,13 +154,15 @@ export function StateDialog({
 }: {
   item: EquipmentView;
   pending: boolean;
-  onSave: (input: { state: "available" | "unavailable"; note?: string }) => void;
+  onSave: (input: { state: "available" | "unavailable"; note?: string; reason?: DowntimeReason }) => void;
   onClose: () => void;
 }) {
   const [state, setState] = useState<"available" | "unavailable">(item.state === "available" ? "unavailable" : "available");
   const [note, setNote] = useState("");
+  const [reason, setReason] = useState<DowntimeReason | "">("");
   const [touched, setTouched] = useState(false);
   const noteInvalid = state === "unavailable" && note.trim().length < 8;
+  const reasonInvalid = state === "unavailable" && reason === "";
 
   return (
     <Dialog
@@ -172,7 +174,7 @@ export function StateDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" disabled={pending} onClick={() => (noteInvalid ? setTouched(true) : onSave({ state, note: note.trim() || undefined }))}>{pending ? "Saving…" : "Save"}</button>
+          <button className="button button--primary" disabled={pending} onClick={() => (noteInvalid || reasonInvalid ? setTouched(true) : onSave({ state, note: note.trim() || undefined, reason: state === "unavailable" && reason ? reason : undefined }))}>{pending ? "Saving…" : "Save"}</button>
         </>
       }
     >
@@ -186,7 +188,15 @@ export function StateDialog({
             </label>
           ))}
         </fieldset>
-        <Field label={state === "unavailable" ? "Reason" : "Note (optional)"} error={touched && noteInvalid ? "Add at least eight characters." : undefined}>
+        {state === "unavailable" ? (
+          <Field label="Reason" error={touched && reasonInvalid ? "Choose the closest reason." : undefined}>
+            <Select value={reason} onChange={(event) => setReason(event.target.value as DowntimeReason | "")} aria-invalid={touched && reasonInvalid}>
+              <option value="">Choose a reason</option>
+              {downtimeReasons.map((value) => <option key={value} value={value}>{downtimeReasonLabels[value]}</option>)}
+            </Select>
+          </Field>
+        ) : null}
+        <Field label={state === "unavailable" ? "Details" : "Note (optional)"} error={touched && noteInvalid ? "Add at least eight characters." : undefined}>
           <textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} aria-invalid={touched && noteInvalid} />
         </Field>
       </div>

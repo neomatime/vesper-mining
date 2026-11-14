@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentCategory, IssueWorkflowState, MaintenancePlan, ReadinessActivity } from "@vesper/api-contracts";
+import type { DowntimeReason, Equipment, EquipmentCategory, IssueWorkflowState, MaintenancePlan, ReadinessActivity } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 
 export const categoryLabels: Record<EquipmentCategory, string> = {
@@ -163,6 +163,17 @@ export function mostUrgent(statuses: PlanStatus[]): PlanStatus | null {
 }
 
 export const stateLabels = { available: "Available", unavailable: "Unavailable" } as const;
+
+export const downtimeReasonLabels: Record<DowntimeReason, string> = {
+  mechanical_fault: "Mechanical fault",
+  electrical_fault: "Electrical or control fault",
+  waiting_parts: "Waiting for parts",
+  waiting_contractor: "Waiting for a contractor or team",
+  planned_maintenance: "Planned maintenance",
+  operating_conditions: "Operating conditions",
+  other: "Other",
+};
+export const downtimeReasons = Object.keys(downtimeReasonLabels) as DowntimeReason[];
 
 /** Maps a plan state onto the shared status marks. */
 export const planTone: Record<PlanState, string> = { ok: "on_plan", due_soon: "at_risk", overdue: "blocked", unknown: "unknown" };

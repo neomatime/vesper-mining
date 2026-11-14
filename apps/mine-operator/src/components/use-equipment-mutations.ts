@@ -95,7 +95,7 @@ export function useEquipmentMutations(item: EquipmentView) {
     });
 
   const update = useMutation(make<Partial<EquipmentFormInput>>("", "PATCH", "Changes saved"));
-  const setState = useMutation(make<{ state: "available" | "unavailable"; note?: string }>("/state", "POST", "Availability updated", (result) => (result.state === "unavailable" ? "Reported unavailable. This is a report, not a verified status." : "Reported available.")));
+  const setState = useMutation(make<{ state: "available" | "unavailable"; note?: string; reason?: string }>("/state", "POST", "Availability updated", (result) => (result.state === "unavailable" ? "Reported unavailable. This is a report, not a verified status." : "Reported available.")));
   const recordReading = useMutation(make<{ hours: number; correction?: boolean; note?: string }>("/readings", "POST", "Meter reading recorded", (result) => result.nextService?.label));
   const addPlan = useMutation(make<PlanInput>("/plans", "POST", "Maintenance plan added", (result) => result.nextService?.label));
   const logService = useMutation(make<ServiceInput>("/services", "POST", "Entry logged", (result) => result.nextService?.label));

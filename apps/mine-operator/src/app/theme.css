@@ -1021,3 +1021,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .handover-sources ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .handover-sources a { display: inline-block; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); padding: 2px 8px; color: var(--text-primary); font-size: 12.5px; text-decoration: none; }
 .handover-sources a:hover { background: var(--surface-hover, var(--surface-muted)); }
+
+/* Equipment downtime */
+.downtime-summary { display: flex; flex-wrap: wrap; gap: 8px 36px; margin: 4px 0 14px; padding-inline: 30px; }
+.downtime-summary strong { display: block; font-size: 24px; font-weight: var(--weight-light); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.downtime-summary small { color: var(--text-secondary); font-size: 12.5px; }
+.downtime-reasons { display: grid; gap: 4px; margin: 0 0 14px; padding: 0 30px; list-style: none; }
+.downtime-reasons li { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border-subtle); padding: 6px 0; font-size: 14px; }
+.downtime-reasons b { font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.downtime-note { display: block; color: var(--text-secondary); font-size: 12.5px; }

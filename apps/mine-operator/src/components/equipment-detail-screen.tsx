@@ -18,7 +18,8 @@ import { useState } from "react";
 import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
-import { canActOnEquipment, categoryLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
+import { downtimePeriods, downtimeWithin, formatDuration } from "@/lib/downtime";
+import { canActOnEquipment, categoryLabels, downtimeReasonLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
 import { stateLabels as issueStateLabels } from "@/lib/issue-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { ConfirmDialog } from "./dialog";
@@ -40,6 +41,56 @@ type DialogState =
   | { kind: "service"; planId?: string }
   | { kind: "retire" }
   | { kind: "delete" };
+
+const DAY = 86_400_000;
+
+/** Downtime built from the availability changes people report, so there is no separate log to keep. */
+function DowntimeCard({ item, now }: { item: EquipmentView; now: string }) {
+  const periods = downtimePeriods(item, now);
+  const from = new Date(Date.parse(now) - 7 * DAY).toISOString();
+  const week = downtimeWithin(periods, from, now);
+  const recent = [...periods].reverse().slice(0, 5);
+  const current = periods.find((period) => period.end === null);
+
+  return (
+    <article className="card detail-card" aria-labelledby="downtime-heading">
+      <header className="card__header">
+        <div><span className="eyebrow">Last 7 days</span><h2 id="downtime-heading">Downtime</h2></div>
+      </header>
+      {periods.length === 0 ? (
+        <div className="empty-inline"><strong>No downtime reported</strong><span>When availability is reported as unavailable, the time and the reason are kept here.</span></div>
+      ) : (
+        <>
+          <div className="downtime-summary">
+            <div><strong>{formatDuration(week.total)}</strong><small>reported unavailable in the last 7 days</small></div>
+            {current ? <div><strong>{formatDuration(current.minutes)}</strong><small>unavailable now, since {formatDemoDateTime(current.start)}</small></div> : null}
+          </div>
+          {week.byReason.length > 0 ? (
+            <ul className="downtime-reasons" aria-label="Downtime by reason">
+              {week.byReason.map((row) => (
+                <li key={row.reason}><span>{row.reason === "unrecorded" ? "Reason not recorded" : downtimeReasonLabels[row.reason]}</span><b>{formatDuration(row.minutes)}</b></li>
+              ))}
+            </ul>
+          ) : null}
+          <table className="data-table" aria-label="Recent downtime periods">
+            <thead><tr><th>From</th><th>To</th><th>Length</th><th>Reason</th></tr></thead>
+            <tbody>
+              {recent.map((period) => (
+                <tr key={period.start}>
+                  <td>{formatDemoDateTime(period.start)}</td>
+                  <td>{period.end ? formatDemoDateTime(period.end) : <span className="muted">Still unavailable</span>}</td>
+                  <td>{formatDuration(period.minutes)}</td>
+                  <td>{period.reason ? downtimeReasonLabels[period.reason] : <span className="muted">Not recorded</span>}{period.note ? <small className="downtime-note">{period.note}</small> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="card__footnote">Times and reasons are as reported. They are not measured by the machine, and waiting is not judged avoidable.</p>
+        </>
+      )}
+    </article>
+  );
+}
 
 const serviceTypeLabel = { service: "Service", inspection: "Inspection", repair: "Repair" } as const;
 
@@ -126,6 +177,8 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
             </dl>
             {item.notes ? <p className="card__footnote">{item.notes}</p> : null}
           </article>
+
+          <DowntimeCard item={item} now={shell?.now ?? item.stateUpdatedAt} />
 
           <article className="card detail-card">
             <header className="card__header">

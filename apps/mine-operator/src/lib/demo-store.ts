@@ -1,4 +1,5 @@
 import type {
+  DowntimeReason,
   Action,
   Company,
   Quote,
@@ -27,6 +28,7 @@ import type {
   ShiftEvent,
   ShiftWork,
 } from "@vesper/api-contracts";
+import { downtimeReasonSchema } from "@vesper/api-contracts";
 import {
   areas,
   defaultContext,
@@ -270,10 +272,12 @@ function assertActiveEquipment(item: Equipment) {
   if (item.retiredAt) fail(409, "READ_ONLY", "Retired equipment is read-only. Restore it to make changes.");
 }
 
-function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: string, at: string, note?: string | null): EquipmentEvent {
+function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: string, at: string, note?: string | null, extra?: { state?: EquipmentEvent["state"]; reason?: EquipmentEvent["reason"] }): EquipmentEvent {
   return {
     id: nextId("equipmentEvent", "eqev"),
     type,
+    state: extra?.state ?? null,
+    reason: extra?.reason ?? null,
     summary,
     actor: actor.name,
     actorRole: actor.role,
@@ -282,9 +286,9 @@ function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: str
   };
 }
 
-function recordEquipment(item: Equipment, actor: Actor, event: { type: EquipmentEvent["type"]; summary: string; note?: string | null }) {
+function recordEquipment(item: Equipment, actor: Actor, event: { type: EquipmentEvent["type"]; summary: string; note?: string | null; state?: EquipmentEvent["state"]; reason?: EquipmentEvent["reason"] }) {
   const at = tick();
-  item.events = [...item.events, equipmentEvent(actor, event.type, event.summary, at, event.note)];
+  item.events = [...item.events, equipmentEvent(actor, event.type, event.summary, at, event.note, { state: event.state, reason: event.reason })];
   item.version += 1;
 }
 
@@ -1146,13 +1150,16 @@ export const demoDomain = {
     return presentEquipment(item);
   },
 
-  setEquipmentState(id: string, input: { state?: unknown; note?: unknown; version?: number }, actor: Actor) {
+  setEquipmentState(id: string, input: { state?: unknown; note?: unknown; reason?: unknown; version?: number }, actor: Actor) {
     const item = findEquipment(id);
     assertEquipmentCan("state", actor);
     assertEquipmentVersion(item, input.version);
     assertActiveEquipment(item);
     if (input.state !== "available" && input.state !== "unavailable") fail(400, "VALIDATION_ERROR", "Choose available or unavailable.");
     const note = input.state === "unavailable" ? requireText(input.note, "The reason", 8) : text(input.note) || null;
+    const reasons = downtimeReasonSchema.options as readonly string[];
+    if (input.reason !== undefined && input.reason !== null && input.reason !== "" && !reasons.includes(String(input.reason))) fail(400, "VALIDATION_ERROR", "Choose a reason from the list.");
+    const reason = input.state === "unavailable" && input.reason ? (input.reason as DowntimeReason) : null;
     item.state = input.state;
     item.stateNote = note;
     item.stateQuality = "reported";
@@ -1161,6 +1168,8 @@ export const demoDomain = {
       type: "state_changed",
       summary: input.state === "unavailable" ? "Reported unavailable" : "Reported available",
       note,
+      state: input.state,
+      reason,
     });
     return presentEquipment(item);
   },

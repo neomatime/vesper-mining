@@ -79,6 +79,14 @@ describe("availability and readings", () => {
     rejects(() => demoDomain.setEquipmentState("eq-ex204", { state: "available" }, field), 403);
   });
 
+  it("keeps the reason from a list on the availability change, and rejects one that is not on it", () => {
+    rejects(() => demoDomain.setEquipmentState("eq-ex204", { state: "unavailable", note: "Hydraulic leak at the boom cylinder.", reason: "bored" }, supervisor), 400, /reason from the list/i);
+    const down = demoDomain.setEquipmentState("eq-ex204", { state: "unavailable", note: "Hydraulic leak at the boom cylinder.", reason: "mechanical_fault" }, supervisor);
+    expect(down.events.at(-1)).toMatchObject({ type: "state_changed", state: "unavailable", reason: "mechanical_fault" });
+    const up = demoDomain.setEquipmentState("eq-ex204", { state: "available", reason: "mechanical_fault" }, supervisor);
+    expect(up.events.at(-1)).toMatchObject({ state: "available", reason: null });
+  });
+
   it("only lets the meter go down as a correction with a reason", () => {
     rejects(() => demoDomain.recordReading("eq-ex204", { hours: 790 }, field), 409, /lower than the last reading/);
     rejects(() => demoDomain.recordReading("eq-ex204", { hours: 790, correction: true }, field), 400, /reason/i);

@@ -68,10 +68,14 @@ test.describe("equipment management", () => {
     await page.getByRole("button", { name: "Update availability" }).click();
     await dialog(page).getByLabel("Unavailable").check();
     await dialog(page).getByRole("button", { name: "Save" }).click();
+    await expect(dialog(page).getByText("Choose the closest reason.")).toBeVisible();
     await expect(dialog(page).getByText("Add at least eight characters.")).toBeVisible();
-    await dialog(page).getByLabel("Reason").fill("Hydraulic leak at the boom cylinder.");
+    await dialog(page).getByLabel("Reason").click();
+    await page.getByRole("option", { name: "Mechanical fault" }).click();
+    await dialog(page).getByLabel("Details").fill("Hydraulic leak at the boom cylinder.");
     await dialog(page).getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("heading", { name: "Unavailable" })).toBeVisible();
+    await expect(page.getByRole("table", { name: "Recent downtime periods" })).toContainText("Mechanical fault");
     await expect(page.getByText(/Reported · /)).toBeVisible();
   });
 
