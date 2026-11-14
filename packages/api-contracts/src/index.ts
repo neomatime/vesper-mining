@@ -122,6 +122,21 @@ export const verificationSchema = z.object({
   verifiedAt: timestampSchema,
 });
 
+/** What the reporter noticed on a piece of equipment, and whether it is still working as they see it. A report, not a decision. */
+export const defectSymptomSchema = z.enum([
+  "leak",
+  "noise_or_vibration",
+  "overheating",
+  "electrical_or_control",
+  "hydraulic_or_drive",
+  "tyres_tracks_or_wear",
+  "structural_damage",
+  "warning_or_alarm",
+  "other",
+]);
+export const defectOperabilitySchema = z.enum(["operating", "limited", "stopped", "unsure"]);
+export const issueDefectSchema = z.object({ symptom: defectSymptomSchema, operability: defectOperabilitySchema });
+
 export const operationalIssueSchema = z.object({
   id: z.string().min(1),
   organisationId: z.string().min(1),
@@ -131,6 +146,7 @@ export const operationalIssueSchema = z.object({
   description: z.string().min(1),
   equipmentId: z.string().nullable(),
   areaId: z.string().nullable(),
+  defect: issueDefectSchema.nullish(),
   priority: z.enum(["low", "medium", "high", "critical"]),
   workflowState: issueWorkflowStateSchema,
   quality: informationQualitySchema,
@@ -238,6 +254,9 @@ export type IssueVerification = z.infer<typeof verificationSchema>;
 export type ReadinessDecision = z.infer<typeof readinessDecisionSchema>;
 export type ReadinessReview = z.infer<typeof readinessReviewSchema>;
 export type OperationalIssue = z.infer<typeof operationalIssueSchema>;
+export type DefectSymptom = z.infer<typeof defectSymptomSchema>;
+export type DefectOperability = z.infer<typeof defectOperabilitySchema>;
+export type IssueDefect = z.infer<typeof issueDefectSchema>;
 export type MapArea = z.infer<typeof mapAreaSchema>;
 export type ReadinessActivity = z.infer<typeof readinessActivitySchema>;
 export type DemoContext = z.infer<typeof demoContextSchema>;

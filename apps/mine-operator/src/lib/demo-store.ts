@@ -28,7 +28,7 @@ import type {
   ShiftEvent,
   ShiftWork,
 } from "@vesper/api-contracts";
-import { downtimeReasonSchema } from "@vesper/api-contracts";
+import { downtimeReasonSchema, issueDefectSchema } from "@vesper/api-contracts";
 import {
   areas,
   defaultContext,
@@ -270,6 +270,15 @@ function assertEquipmentVersion(item: Equipment, version: number | undefined) {
 
 function assertActiveEquipment(item: Equipment) {
   if (item.retiredAt) fail(409, "READ_ONLY", "Retired equipment is read-only. Restore it to make changes.");
+}
+
+/** Defect details only make sense for equipment, and only from the known lists. */
+function readDefect(value: unknown, equipmentId: string | null): OperationalIssue["defect"] {
+  if (value === undefined || value === null) return null;
+  if (!equipmentId) fail(400, "VALIDATION_ERROR", "Defect details can only be added when equipment is selected.");
+  const parsed = issueDefectSchema.safeParse(value);
+  if (!parsed.success) fail(400, "VALIDATION_ERROR", "Choose what was noticed and whether the equipment is still working, from the lists.");
+  return parsed.data;
 }
 
 function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: string, at: string, note?: string | null, extra?: { state?: EquipmentEvent["state"]; reason?: EquipmentEvent["reason"] }): EquipmentEvent {
@@ -660,6 +669,8 @@ export const demoDomain = {
     const priority = ["low", "medium", "high", "critical"].includes(String(input.priority))
       ? (input.priority as OperationalIssue["priority"])
       : "medium";
+    const equipmentId = typeof input.equipmentId === "string" && input.equipmentId ? input.equipmentId : null;
+    const defect = readDefect(input.defect, equipmentId);
     const at = tick();
     state.counters.issue += 1;
     const issue: OperationalIssue = {
@@ -669,8 +680,9 @@ export const demoDomain = {
       issueNumber: `RIV-2025-${String(state.counters.issue).padStart(3, "0")}`,
       title,
       description,
-      equipmentId: typeof input.equipmentId === "string" && input.equipmentId ? input.equipmentId : null,
+      equipmentId,
       areaId: typeof input.areaId === "string" && input.areaId ? input.areaId : null,
+      defect,
       priority,
       workflowState: "reported",
       quality: "reported",

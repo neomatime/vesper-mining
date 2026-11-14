@@ -54,6 +54,16 @@ describe("issue lifecycle", () => {
     rejects(() => demoDomain.createIssue({ title: "ab", description: "short" }, field), 400, /title/i);
   });
 
+  it("keeps defect details with the issue when equipment is chosen, and rejects anything off the lists", () => {
+    const base = { title: "Hydraulic leak on EX-204", description: "A hydraulic leak was observed during pre-start.", equipmentId: "eq-ex204" };
+    const issue = demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "limited" } }, field);
+    expect(issue.defect).toEqual({ symptom: "leak", operability: "limited" });
+    expect(demoDomain.createIssue(base, field).defect).toBeNull();
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "mystery", operability: "limited" } }, field), 400, /from the lists/i);
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "fine" } }, field), 400, /from the lists/i);
+    rejects(() => demoDomain.createIssue({ title: base.title, description: base.description, defect: { symptom: "leak", operability: "limited" } }, field), 400, /equipment is selected/i);
+  });
+
   it("walks the contract path and keeps verification independent", () => {
     const started = startedIssue();
     expect(started.workflowState).toBe("in_progress");
