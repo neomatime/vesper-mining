@@ -2124,3 +2124,16 @@
 :root[data-theme="dark"] .home-row__copy small {
   color: var(--text-secondary);
 }
+:root[data-theme="dark"] .handover-draft small {
+  color: var(--text-secondary);
+}
+:root[data-theme="dark"] .handover-sources small {
+  color: var(--text-secondary);
+}
+:root[data-theme="dark"] .handover-sources a {
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+:root[data-theme="dark"] .handover-sources a:hover {
+  background: var(--surface-hover, var(--surface-muted));
+}

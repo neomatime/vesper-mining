@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  FileText,
   Link2,
   Lock,
   Pencil,
@@ -25,6 +26,7 @@ import { demoFetch } from "@/lib/api";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { openDependencies } from "@/lib/issue-rules";
 import { formatDay, remaining, shiftTimes } from "@/lib/shift-format";
+import { draftShiftReport, reportSources, reportToText } from "@/lib/shift-report";
 import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { ConfirmDialog } from "./dialog";
@@ -255,8 +257,10 @@ function HandoverView({ shift }: { shift: ShiftView }) {
   const { context } = useDemoContext();
   const actor = { name: context.persona, role: context.role };
   const mutations = useShiftMutations(shift);
+  const { data: shell } = useShellData();
   const { handover } = shift;
   const [notes, setNotes] = useState(handover.notes);
+  const [sources, setSources] = useState<{ href: string; label: string }[]>([]);
   const [confirm, setConfirm] = useState<"withdraw" | null>(null);
 
   const canHandOver = canActOnShift("handover", actor, shift).allowed;
@@ -265,6 +269,15 @@ function HandoverView({ shift }: { shift: ShiftView }) {
   const dirty = notes !== handover.notes;
   const canEditNotes = canHandOver && handover.state === "draft" && shift.state !== "cancelled";
   const isPublisher = handover.publishedBy === actor.name;
+
+  // Builds the report from records already in VESPER. It is added to the notes as editable text, below anything already written.
+  const prepareDraft = () => {
+    if (!shell) return;
+    const draft = draftShiftReport({ shift, issues: shell.issues, equipment: shell.equipment, now: shell.now });
+    const text = reportToText(draft, shift.name);
+    setNotes(notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text);
+    setSources(reportSources(draft));
+  };
 
   const steps = [
     { key: "draft", label: "Draft", detail: handover.notesUpdatedAt ? `Saved ${formatDemoDateTime(handover.notesUpdatedAt)}` : "Not saved yet" },
@@ -319,7 +332,7 @@ function HandoverView({ shift }: { shift: ShiftView }) {
           <article className="card handover-notes">
             <label>
               <span>Notes for {shift.next ? shift.next.name : "the next shift"}</span>
-              <textarea rows={6} value={notes} onChange={(event) => setNotes(event.target.value)} readOnly={!canEditNotes} aria-describedby="handover-note-help" />
+              <textarea rows={Math.min(32, Math.max(6, notes.split("\n").length + 4))} value={notes} onChange={(event) => setNotes(event.target.value)} readOnly={!canEditNotes} aria-describedby="handover-note-help" />
             </label>
             <p id="handover-note-help">
               {handover.state !== "draft"
@@ -330,6 +343,18 @@ function HandoverView({ shift }: { shift: ShiftView }) {
                     ? "Write what the incoming shift must know."
                     : `Viewing as ${context.role}. The handover belongs to ${shift.supervisor ?? "this shift's supervisor"} or the Mine Manager.`}
             </p>
+            {canEditNotes ? (
+              <div className="handover-draft">
+                <button type="button" className="button button--quiet" onClick={prepareDraft} disabled={!shell}><FileText /> Prepare draft from shift records</button>
+                <small>Adds what VESPER already knows: work done, issues that moved, equipment changes and what carries over. You review and edit it before publishing.</small>
+              </div>
+            ) : null}
+            {sources.length > 0 ? (
+              <div className="handover-sources" aria-label="Records the draft draws on">
+                <small>Drawn from</small>
+                <ul>{sources.map((source) => <li key={source.href}><Link href={source.href}>{source.label}</Link></li>)}</ul>
+              </div>
+            ) : null}
             {canEditNotes ? (
               <div className="button-row button-row--end">
                 <button className="button button--quiet" disabled={!dirty || mutations.saveNotes.isPending} onClick={() => mutations.saveNotes.mutate(notes)}>{mutations.saveNotes.isPending ? "Saving…" : dirty ? "Save draft" : "Saved"}</button>

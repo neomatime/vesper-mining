@@ -1012,3 +1012,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .needs-now__main--wide .hero-card__facts small { white-space: nowrap; }
 
 :root { --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 20px; }
+
+/* Handover: prepare a draft from the shift's own records */
+.handover-draft { display: grid; gap: 6px; justify-items: start; margin-top: 12px; }
+.handover-draft small { color: var(--text-secondary); font-size: 12.5px; max-width: 62ch; }
+.handover-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.handover-sources small { color: var(--text-secondary); font-size: 12.5px; }
+.handover-sources ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.handover-sources a { display: inline-block; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); padding: 2px 8px; color: var(--text-primary); font-size: 12.5px; text-decoration: none; }
+.handover-sources a:hover { background: var(--surface-hover, var(--surface-muted)); }
