@@ -1,17 +1,20 @@
 "use client";
 
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { safeNext } from "@/lib/accounts";
 import { passwordProblem } from "@/lib/organisation-rules";
 import { entitlementsFor } from "@/lib/entitlements";
+import { currentEnvironment, environmentDetails } from "@/lib/environments";
 import { useDemoContext } from "@/stores/demo-context";
 import { exit, useAccount, useSession } from "@/stores/session";
 
 export function SignInScreen() {
   const router = useRouter();
+  const environment = currentEnvironment();
   const next = safeNext(useSearchParams().get("next"));
   const account = useAccount();
   const signIn = useSession((state) => state.signIn);
@@ -112,6 +115,10 @@ export function SignInScreen() {
       </header>
 
       <section className="login__card">
+        <p className="login__environment">
+          <span>{environmentDetails[environment].title} · {environmentDetails[environment].badge}</span>
+          <Link href="/">← Change environment</Link>
+        </p>
         <form className="login__form" onSubmit={submit} noValidate>
           {step === "credentials" ? (
             <>

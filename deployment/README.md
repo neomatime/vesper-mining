@@ -53,6 +53,20 @@ The rules are in `packages/api-contracts/src/deployment.ts` (`validateClientDepl
 
 What it enforces: the subscription exists, the edition matches it, a Group has a valid licensed number, the listed sites fit the licence (fewer is fine), UAT and production have separate databases, branches and addresses, the variable names match, no field holds a secret, and there is no database or environment per site.
 
+## Environment selection page
+
+The entry page (`/`) asks the visitor to choose UAT or Production, then goes to that environment's own `/sign-in`. Nothing is switched in the browser: each environment is a separate deployment with its own sessions and storage.
+
+Set these as build-time variables in each deployment (they are public addresses, never secrets):
+
+| Variable | Meaning |
+| --- | --- |
+| `NEXT_PUBLIC_VESPER_ENVIRONMENT` | `uat` or `production`: what this deployment is. Default `production`. Shown on the sign-in page |
+| `NEXT_PUBLIC_VESPER_PRODUCTION_URL` | Production origin, for example `https://app.client.example`. Unset: this deployment is Production |
+| `NEXT_PUBLIC_VESPER_UAT_URL` | UAT origin. Unset: the UAT option is shown disabled, never routed elsewhere |
+
+Set all three identically in the UAT and Production deployments so both pages offer the same two destinations. Until a UAT deployment exists and `NEXT_PUBLIC_VESPER_UAT_URL` is supplied, the UAT option stays disabled.
+
 ## Client entitlements
 
 A client's entitlements are data, not code. Copy `client-entitlements.example.json` and fill in the organisation, plan, licensed sites (Group), agreement reference, effective date, any approved feature overrides with a reason each, the approval, and the audit history. `validateClientEntitlementRecord` (in `packages/api-contracts/src/subscription/overrides.ts`) refuses an override with no agreement, approval or audit trail, an override that changes nothing, a duplicate, one that removes the essential mobile experience, or an unknown field. In production these records are stored securely and enforced by the backend. The prototype uses mock records.
