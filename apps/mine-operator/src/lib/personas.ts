@@ -1,4 +1,4 @@
-import type { DemoContext } from "@vesper/api-contracts";
+import { reportingLevelLabels, siteAllowanceLabel, subscriptionPlans, type DemoContext } from "@vesper/api-contracts";
 
 export type Persona = {
   name: string;
@@ -18,20 +18,22 @@ export const personas: Persona[] = [
 
 type Tier = DemoContext["tier"];
 
+/** The subscriptions as the launcher and menus list them, built from the central plans. */
 export const tiers: {
   value: Tier;
   label: string;
   sites: string;
   mobile: boolean;
-  reporting: "Essential" | "Operational" | "Advanced" | "Group-level";
+  reporting: string;
   advancedAnalytics: boolean;
-}[] = [
-  { value: "core", label: "Core", sites: "1 site", mobile: false, reporting: "Essential", advancedAnalytics: false },
-  { value: "operations_single", label: "Operations — Single Site", sites: "1 site", mobile: true, reporting: "Operational", advancedAnalytics: false },
-  { value: "operations", label: "Operations", sites: "Up to 3 sites", mobile: true, reporting: "Operational", advancedAnalytics: false },
-  { value: "enterprise", label: "Enterprise", sites: "Up to 6 sites", mobile: true, reporting: "Advanced", advancedAnalytics: true },
-  { value: "group", label: "Group", sites: "7+ sites", mobile: true, reporting: "Group-level", advancedAnalytics: true },
-];
+}[] = subscriptionPlans.map((plan) => ({
+  value: plan.id,
+  label: plan.label,
+  sites: siteAllowanceLabel(plan),
+  mobile: plan.features.includes("mobile_field_essential"),
+  reporting: reportingLevelLabels[plan.reporting],
+  advancedAnalytics: plan.features.includes("advanced_analytics"),
+}));
 
 export const scenarios: { value: DemoContext["scenario"]; label: string }[] = [
   { value: "equipment_breakdown", label: "Equipment Breakdown" },

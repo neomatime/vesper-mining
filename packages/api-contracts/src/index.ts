@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { primaryCauseIds } from "./causes";
+import { subscriptionIdSchema } from "./subscription/types";
 
 export const operationalStatusSchema = z.enum([
   "on_plan",
@@ -210,7 +211,7 @@ export const demoContextSchema = z.object({
   role: z.string().min(1),
   siteId: z.string().min(1),
   siteName: z.string().min(1),
-  tier: z.enum(["core", "operations_single", "operations", "enterprise", "group"]),
+  tier: subscriptionIdSchema,
   scenario: z.enum([
     "normal_operations",
     "equipment_breakdown",
@@ -256,6 +257,8 @@ export type ReadinessActivity = z.infer<typeof readinessActivitySchema>;
 export type DemoContext = z.infer<typeof demoContextSchema>;
 
 export * from "./causes";
+export * from "./deployment";
+export * from "./subscription";
 export * from "./equipment";
 export * from "./shift";
 export * from "./organisation";

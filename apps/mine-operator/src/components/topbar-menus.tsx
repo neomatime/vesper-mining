@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { entitlementsFor } from "@/lib/entitlements";
 import { canManageOrganisation } from "@/lib/organisation-rules";
-import { initials, tierLabel, tiers } from "@/lib/personas";
+import { initials, tierLabel } from "@/lib/personas";
 import { useDemoContext } from "@/stores/demo-context";
 import { useSession } from "@/stores/session";
 import { NotificationList, useNotifications } from "./notification-list";
@@ -24,7 +24,7 @@ function useMenu() {
 export function SiteMenu() {
   const { open, setOpen, close, ref } = useMenu();
   const { context } = useDemoContext();
-  const tier = tiers.find((item) => item.value === context.tier);
+  const plan = entitlementsFor(context.tier);
 
   return (
     <div className="popover-anchor" ref={ref}>
@@ -55,7 +55,7 @@ export function SiteMenu() {
             </button>
           </div>
           <p className="menu-note">
-            {tier ? `${tierLabel(context.tier)} includes ${tier.sites.toLowerCase()}. ` : ""}
+            {`${plan.label} includes ${plan.sites.toLowerCase()}. `}
             Your other sites will appear here once they are added.
           </p>
         </div>

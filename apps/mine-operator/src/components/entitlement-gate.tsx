@@ -9,8 +9,8 @@ type Capability = "mobile" | "advancedAnalytics";
 
 const copy: Record<Capability, { title: string; body: string }> = {
   mobile: {
-    title: "VESPER Mobile is not part of this subscription",
-    body: "Field reporting, My Work and mobile notifications are included from the Operations subscriptions. Web workflows stay available.",
+    title: "VESPER Mobile is not available on this account",
+    body: "Every VESPER subscription includes the field workflows: My Shift, My Work, Report and Notifications. If you cannot see them, ask your administrator. Web workflows stay available.",
   },
   advancedAnalytics: {
     title: "Advanced analytics are part of Enterprise and Group",
