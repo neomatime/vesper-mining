@@ -3,6 +3,8 @@ import { openAs, signIn, signInHere } from "./support";
 
 test("signs in, shows no prototype labels, and lands on the command centre", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Select an Environment" })).toBeVisible();
+  await page.getByRole("link", { name: /Production Environment/ }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 
