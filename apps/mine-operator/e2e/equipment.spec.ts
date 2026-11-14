@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). Equipment management: adding, editing, availability, readings, maintenance plans, service history and retirement.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { actAs, openAs, pick } from "./support";
 

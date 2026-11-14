@@ -1,3 +1,8 @@
+/**
+ * Rules for service providers and requests: who may manage providers or request quotes, status labels, whether a provider
+ * is approved for a category, and money formatting. Approval is shown with its expiry, so an expired approval is never presented
+ * as current.
+ */
 import type { EquipmentCategory, InviteState, RequestStatus, ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 

@@ -1,3 +1,6 @@
+/**
+ * Draws a role's home from the model built in lib/role-home.ts.
+ */
 import { ArrowRight, Clock3, Target, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { formatDay } from "@/lib/shift-format";

@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * One person's profile as an administrator sees it: details, the rights that come from their role, and their account history.
+ */
 import { ArrowLeft, Check, KeyRound, Lock, Minus, Pencil, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

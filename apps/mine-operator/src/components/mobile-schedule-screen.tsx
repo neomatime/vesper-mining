@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The phone's schedule view of shifts.
+ */
 import { useMemo, useState } from "react";
 import { shiftsByDay, siteDate } from "@/lib/shift-calendar";
 import { useDemoContext } from "@/stores/demo-context";

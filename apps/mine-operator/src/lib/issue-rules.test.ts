@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The issue lifecycle: who can do what, and the data conditions for each move.
+ */
 import { describe, expect, it } from "vitest";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import {

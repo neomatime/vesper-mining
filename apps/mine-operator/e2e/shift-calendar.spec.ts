@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). The shift calendar: month, week and day views and navigation.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test } from "@playwright/test";
 import { openAs } from "./support";
 

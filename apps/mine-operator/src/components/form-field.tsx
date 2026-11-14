@@ -1,3 +1,6 @@
+/**
+ * A label, a control and its error message, wired together for accessibility.
+ */
 export function Field({
   label,
   error,

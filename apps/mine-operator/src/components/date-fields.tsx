@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Date, time and date-time inputs that work in site time and accept what people type, normalising it. They look and behave the
+ * same on every device and work with react-hook-form: the value they hold is always a clean yyyy-mm-dd date or HH:mm time.
+ */
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock3 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { DEMO_NOW } from "@/lib/demo-data";

@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The presenter launcher at /demo: opens the product, or the sign-in page when nobody is signed in.
+ */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { demoFetch } from "@/lib/api";

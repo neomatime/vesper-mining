@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The one modal dialog (and its confirm variant). Focus moves into the dialog and returns to the control that opened it.
+ * Every form in a dialog uses this so they all behave the same.
+ */
 import { X } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";

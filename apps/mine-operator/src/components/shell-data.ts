@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * The data every page shell needs (navigation counts, search records, who is on shift), shared as one cached query so the
+ * counts stay correct after any change that refreshes it. Features the subscription does not include are stripped here once, so the
+ * rest of the interface cannot show them by accident.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { MapArea, Member, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { demoFetch } from "@/lib/api";

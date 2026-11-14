@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Reads and writes service providers, service requests, quotes and the contractor's own reply page.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 import { useRouter } from "next/navigation";

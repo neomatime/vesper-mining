@@ -1,3 +1,7 @@
+/**
+ * Seed records for the organisation: members (one per fixture account), the company, the site details and recent activity.
+ * Members are derived from accounts.ts so every sign-in has a matching person record.
+ */
 import type { Company, Member, OrganisationEvent, SiteDetails } from "@vesper/api-contracts";
 import { accounts, FIXTURE_PASSWORD } from "./accounts";
 

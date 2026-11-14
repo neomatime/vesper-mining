@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The app's subscription reader: features, reports by level, site capacity and the mock client records.
+ */
 import { beforeEach, describe, expect, it } from "vitest";
 import { DEMO_GROUP_CONTRACTED_SITES, accessFor, can, canSeeReport, changeSubscription, demoEntitlementRecord, demoSubscription, entitlementRows, entitlementsFor, siteCapacity, tierThatIncludes } from "./entitlements";
 import { demoDomain } from "./demo-store";

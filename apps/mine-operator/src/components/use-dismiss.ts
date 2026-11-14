@@ -1,3 +1,6 @@
+/**
+ * Closes a popover when the person presses outside it or presses Escape, and returns focus to the control that opened it.
+ */
 import { useEffect, type RefObject } from "react";
 
 /** Closes a popover on outside pointer press or Escape, returning focus to its trigger. */

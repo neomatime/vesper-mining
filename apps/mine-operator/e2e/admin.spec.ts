@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). Administration: adding people (who choose their own password), their profiles and rights, resetting passwords, and turning access off and on.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_PASSWORD } from "../src/lib/accounts";
 import { openAs, pick } from "./support";

@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * React hook over the subscription check. See lib/entitlements.ts for the rules.
+ */
 import type { FeatureCode } from "@vesper/api-contracts";
 import { can } from "@/lib/entitlements";
 import { useDemoContext } from "@/stores/demo-context";

@@ -1,3 +1,7 @@
+/**
+ * Downtime is derived from availability reports (see the comment on DowntimePeriod). This file turns equipment events into
+ * periods and totals.
+ */
 import type { DowntimeReason, EquipmentEvent } from "@vesper/api-contracts";
 
 /**

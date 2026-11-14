@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The operational map page: the map, a legend explaining the colours, and the list of operating areas with their status.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { MapArea } from "@vesper/api-contracts";
 import { Clock3, Info, Map, MapPin, ShieldAlert } from "lucide-react";

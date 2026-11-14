@@ -1,3 +1,7 @@
+/**
+ * The entry page at "/": the person picks UAT or Production, then goes to that environment's own sign-in.
+ * Addresses come from lib/environments.ts. An environment with no address is shown disabled and is never routed anywhere else.
+ */
 import { ArrowRight, Info, Layers, Server } from "lucide-react";
 import { environmentDetails, environmentIds, signInDestination, type EnvironmentId } from "@/lib/environments";
 

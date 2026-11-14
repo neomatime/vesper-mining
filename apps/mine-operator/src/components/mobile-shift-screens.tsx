@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The phone's My Shift (crew, duty, equipment, briefing) and My Work (tasks owned by the person, with note and evidence on
+ * completion).
+ */
 import { AlertTriangle, ArrowRight, Bell, CalendarDays, Check, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The printable work allocation sheet for a shift (supervisor, briefing, crew with duty and equipment, tasks with owners), with
+ * Print and Copy as text. The sheet always prints on white, in both themes.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, ClipboardList, Copy, Printer } from "lucide-react";
 import Link from "next/link";

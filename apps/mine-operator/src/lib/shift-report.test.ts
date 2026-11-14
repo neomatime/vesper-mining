@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The draft shift report built from recorded events.
+ */
 import type { EquipmentEvent, OperationalIssue, Shift } from "@vesper/api-contracts";
 import { describe, expect, it } from "vitest";
 import { draftShiftReport, reportSources, reportToText } from "./shift-report";

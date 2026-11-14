@@ -1,3 +1,9 @@
+/**
+ * The presenter console's state: which site, persona, role, subscription (tier) and scenario the prototype is showing,
+ * the simulated connectivity (online/offline) and whether the sidebar is collapsed.
+ * Kept in sessionStorage so a new tab starts from the default scenario. Components read it with useDemoContext(). The persona and
+ * role are set by sign-in (session.ts), not chosen freely, so the console can never grant more than the signed-in role allows.
+ */
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { DemoContext } from "@vesper/api-contracts";

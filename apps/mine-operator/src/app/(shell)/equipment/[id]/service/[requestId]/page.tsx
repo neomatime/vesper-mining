@@ -1,3 +1,7 @@
+/**
+ * Route page. Renders one service request with its quotes. Needs equipment_maintenance.
+ * Routes only choose the screen and read the URL; the behaviour lives in the component.
+ */
 import { FeatureGate } from "@/components/entitlement-gate";
 import type { Metadata } from "next";
 import { ServiceRequestScreen } from "@/components/service-request-screens";

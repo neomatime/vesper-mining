@@ -1,3 +1,8 @@
+/**
+ * The fixed "now" of the prototype and the time helpers built on it.
+ * Domain logic never calls Date.now(): it uses demoTimeAt(offset), so every record, the shift calendar and the screenshots agree.
+ * All times are site time (UTC+2, Africa/Johannesburg). Change DEMO_NOW in demo-data.ts to move the whole scenario.
+ */
 import { DEMO_NOW } from "./demo-data";
 
 const MINUTE = 60_000;

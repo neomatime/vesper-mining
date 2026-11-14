@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The cause taxonomy: each primary cause has its own secondary causes.
+ */
 import { describe, expect, it } from "vitest";
 import { causeGroups, isSecondaryOf, primaryCauseIds, secondariesOf } from "@vesper/api-contracts";
 

@@ -1,3 +1,9 @@
+/**
+ * The base stylesheet: Tailwind, the design tokens, and the styles for the app shell and the main screens, in labelled sections.
+ * Load order matters (see app/layout.tsx): globals, then theme (the visual foundation and soft shapes), typography, chrome (top bar
+ * and sidebar), the generated dark theme, dark.css (hand fixes), login and allocation. Later files refine earlier ones.
+ * After changing colours here or in theme.css, run scripts/generate-dark-theme.mjs so the dark theme follows.
+ */
 @import "tailwindcss";
 
 @theme {

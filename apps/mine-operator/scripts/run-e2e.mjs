@@ -1,3 +1,7 @@
+/**
+ * Runs the browser tests: starts the production server, waits until /demo answers, runs Playwright, then stops the server.
+ * Needs a build first (next build). Note it runs the whole suite; to run one file, start the server yourself and call Playwright.
+ */
 import { spawn } from "node:child_process";
 import path from "node:path";
 

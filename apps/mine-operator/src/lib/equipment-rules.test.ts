@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Equipment permissions, code rules and maintenance-plan status.
+ */
 import { describe, expect, it } from "vitest";
 import type { MaintenancePlan } from "@vesper/api-contracts";
 import { canActOnEquipment, isValidCode, mostUrgent, normaliseCode, planStatus } from "./equipment-rules";

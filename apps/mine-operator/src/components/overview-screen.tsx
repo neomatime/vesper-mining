@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * The Overview, the first page after sign-in. It shows the lead issue, the recovery steps (complete, in progress, pending),
+ * what needs attention, readiness and the current shift, all from the same records as the other screens. Roles with their own home
+ * (supervisor, planner, stores) get that home instead. It never shows an unvalidated financial figure ("Opportunity not quantified").
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { MapArea, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import {

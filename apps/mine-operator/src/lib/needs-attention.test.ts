@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The ranked needs-attention list.
+ */
 import { describe, expect, it } from "vitest";
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { needsAttention } from "./needs-attention";

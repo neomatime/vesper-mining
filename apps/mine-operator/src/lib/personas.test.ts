@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Personas, scenarios and tiers.
+ */
 import { describe, expect, it } from "vitest";
 import { personaByName, personas, tierLabel, tiers } from "./personas";
 

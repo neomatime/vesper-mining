@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). The registers, reports, map legend and subscriptions: what each plan shows and hides.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test } from "@playwright/test";
 import { openAs, setPlan, signIn } from "./support";
 

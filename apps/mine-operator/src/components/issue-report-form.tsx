@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The report-an-issue form, used on the web and on the phone. Choosing equipment adds the defect details (what was noticed and
+ * whether it is still working) and a mandatory primary cause with an optional secondary cause from that primary's own list.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CheckCircle2, CloudOff, Send } from "lucide-react";

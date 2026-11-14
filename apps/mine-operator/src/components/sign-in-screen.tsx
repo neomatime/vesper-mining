@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * The sign-in page: email and password, Microsoft sign-in, password visibility, the forced password change for a temporary
+ * password, and the environment line with a way back to the environment page. It calls the session store; the people and their
+ * passwords are checked by the demo API.
+ */
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

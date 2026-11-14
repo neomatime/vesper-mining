@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * The frame around every signed-in page: the top bar (menu button, command search, site, notifications, profile), the collapsible
+ * sidebar, the phone's bottom navigation and the page area.
+ * Navigation is data (the arrays near the top). Each item can name a subscription `feature`; items whose feature the subscription
+ * does not include are filtered out, so a plan change changes the menu without touching this file's markup. Pages under /mobile/
+ * also show the phone navigation (My Shift, My Work, Report, Notifications).
+ */
 import {
   AlertTriangle,
   BarChart3,
@@ -47,6 +54,7 @@ type NavigationItem = {
   feature?: FeatureCode;
 };
 
+/** The main workspaces, in the order they appear in the sidebar. `feature` hides an item the subscription does not include; `count` shows a live number. */
 const primaryNavigation: NavigationItem[] = [
   { label: "Overview", href: "/overview", icon: LayoutDashboard },
   { label: "Operational Map", href: "/map", icon: Map },
@@ -57,6 +65,7 @@ const primaryNavigation: NavigationItem[] = [
   { label: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
+/** Shortcut groups in the sidebar below the workspaces. */
 const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
   {
     label: "Workflow",
@@ -76,6 +85,7 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
   },
 ];
 
+/** The four tabs of the phone experience (pages under /mobile/). */
 const mobileNavigation: NavigationItem[] = [
   { label: "My Shift", href: "/mobile/my-shift", icon: HardHat },
   { label: "My Work", href: "/mobile/my-work", icon: ClipboardCheck },
@@ -83,6 +93,7 @@ const mobileNavigation: NavigationItem[] = [
   { label: "Notifications", href: "/mobile/notifications", icon: Bell },
 ];
 
+/** True while the person is typing in a field, so a keyboard shortcut such as '/' does not steal the keystroke. */
 function isTypingTarget(target: EventTarget | null) {
   const element = target as HTMLElement | null;
   if (!element) return false;
@@ -112,6 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // A sidebar item is active on its own page and on pages beneath it. Items with a query string (filters) are never marked active.
   const active = (href: string) => {
     if (href.includes("?")) return false;
     return pathname === href || (href !== "/overview" && pathname.startsWith(`${href}/`));

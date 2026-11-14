@@ -1,3 +1,8 @@
+/**
+ * Rules for equipment: who may change what, the equipment categories, code validation, maintenance-plan status and the
+ * EquipmentView shape the screens use. Capability checks return a Check ({allowed, reason}) so the interface can explain a
+ * refusal instead of silently hiding a control. Availability is as reported by a person and is never shown as verified.
+ */
 import type { DowntimeReason, Equipment, EquipmentCategory, IssueWorkflowState, MaintenancePlan, ReadinessActivity } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 

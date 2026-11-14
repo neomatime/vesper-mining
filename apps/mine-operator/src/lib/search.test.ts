@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Command search ranking.
+ */
 import { describe, expect, it } from "vitest";
 import { rankRecords, type SearchRecord } from "./search";
 import { initials } from "./personas";

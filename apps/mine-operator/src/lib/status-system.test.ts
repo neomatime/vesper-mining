@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Status families, shapes and tones.
+ */
 import { describe, expect, it } from "vitest";
 import { statusFamily, statusTone } from "./status-system";
 

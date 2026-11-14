@@ -32,6 +32,11 @@ export type IssueCapability =
   | "reopen"
   | "comment";
 
+/**
+ * Who may do each thing to an issue, as data. `roles` lists the roles allowed ('any' means everyone) and `message` is
+ * the plain-words reason shown when someone else tries. Change who can do what here: the buttons, the server checks and
+ * the rights matrix on the Administration page all read this table.
+ */
 const roleRequirement: Record<IssueCapability, { roles: string[] | "any"; message: string }> = {
   review: { roles: MANAGEMENT, message: "Reviewing is done by a Shift Supervisor or Mine Manager." },
   assign: { roles: MANAGEMENT, message: "Assigning an owner is done by a Shift Supervisor or Mine Manager." },
@@ -46,6 +51,7 @@ const roleRequirement: Record<IssueCapability, { roles: string[] | "any"; messag
   comment: { roles: "any", message: "" },
 };
 
+/** Closed, cancelled and duplicate issues are history: they are read-only and leave the open lists. */
 export function isFinished(state: IssueWorkflowState) {
   return state === "closed" || state === "cancelled" || state === "duplicate";
 }
@@ -55,18 +61,25 @@ export function isOpen(issue: Pick<OperationalIssue, "workflowState">) {
   return !isFinished(issue.workflowState) && issue.workflowState !== "verified";
 }
 
+/** Actions that have not been removed. A removed action stays on the record (it has `removedAt`) so history is complete. */
 export function activeActions(issue: Pick<OperationalIssue, "actions">): Action[] {
   return issue.actions.filter((action) => !action.removedAt);
 }
 
+/** Dependencies still waiting on something. Work cannot resume or be reported resolved while any are open. */
 export function openDependencies(issue: Pick<OperationalIssue, "dependencies">): IssueDependency[] {
   return issue.dependencies.filter((dependency) => dependency.state === "open");
 }
 
+/** The person owns the issue, or owns one of its actions. Owners may move their own work forward. */
 function ownsWork(issue: OperationalIssue, actor: Actor) {
   return issue.owner === actor.name || activeActions(issue).some((action) => action.owner === actor.name);
 }
 
+/**
+ * The role check. Returns {allowed, reason} instead of a boolean so the interface can explain a refusal. Owners may also
+ * 'progress' and 'report_resolution' on work they own, even if their role would not otherwise allow it.
+ */
 export function canAct(capability: IssueCapability, actor: Actor, issue?: OperationalIssue): Check {
   const rule = roleRequirement[capability];
   if (rule.roles === "any" || rule.roles.includes(actor.role)) return { allowed: true };
@@ -104,6 +117,11 @@ type TransitionSpec = {
   reference?: boolean;
 };
 
+/**
+ * The issue lifecycle as data: for each workflow state, the moves available from it, who may make them (`capability`),
+ * and what the person must supply (a note, or an issue number for a duplicate). To change the lifecycle, change this
+ * table and add its data conditions to dataBlocker below. The lifecycle rail on the issue page follows the same states.
+ */
 const transitionTable: Record<IssueWorkflowState, TransitionSpec[]> = {
   reported: [
     { to: "reviewed", label: "Mark reviewed", tone: "primary", capability: "review" },
@@ -159,6 +177,7 @@ function dataBlocker(issue: OperationalIssue, to: IssueWorkflowState, actor: Act
         : null;
     case "resolution_reported":
       return openDependencies(issue).length > 0 ? "Resolve or bypass the open dependency first." : null;
+    // Two people must be involved: whoever reports the resolution cannot also verify it.
     case "verified":
       return issue.resolutionReportedBy === actor.name
         ? "Verification must come from someone other than the person who reported the resolution."
@@ -172,6 +191,11 @@ function dataBlocker(issue: OperationalIssue, to: IssueWorkflowState, actor: Act
   }
 }
 
+/**
+ * Every move from the issue's current state, each marked `permitted` (the role allows it) and `allowed` (the role allows
+ * it and the issue's data allows it). The screen shows blocked moves disabled with their `reason`, so nobody wonders why
+ * a button is missing.
+ */
 export function transitionOptions(issue: OperationalIssue, actor: Actor): TransitionOption[] {
   return transitionTable[issue.workflowState].map((spec) => {
     const permission = canAct(spec.capability, actor, issue);

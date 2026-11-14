@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). Each role's own home page: supervisor, maintenance planner, stores and the Mine Manager's overview.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test } from "@playwright/test";
 import { signIn } from "./support";
 

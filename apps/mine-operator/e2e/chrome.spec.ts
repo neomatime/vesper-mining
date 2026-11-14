@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). The application frame: the top bar and sidebar are one family of surface, readable text, hairline edges and hover behaviour.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./support";
 

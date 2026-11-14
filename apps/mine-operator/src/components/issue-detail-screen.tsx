@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * One operational issue: its lifecycle, the actions that are open, the dependencies, the cause, the equipment it concerns and
+ * the history. The buttons offered are the transitions lib/issue-rules.ts allows for the signed-in person, each with the reason when
+ * it is refused.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { Action, IssueDependency, OperationalIssue } from "@vesper/api-contracts";
 import {

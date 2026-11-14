@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The dialogs on an issue: edit its details, add or change an action, add or resolve a dependency, and move it to another
+ * workflow state. Moving state asks for what the rules require (for example, a reason).
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Action, IssueDependency, OperationalIssue } from "@vesper/api-contracts";
 import { useState } from "react";

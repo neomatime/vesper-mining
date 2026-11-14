@@ -1,3 +1,9 @@
+/**
+ * Who is signed in. Sign-in, Microsoft sign-in and password change all call the demo API (/session), which checks the
+ * people in the organisation record, so a person added or changed in Administration can sign in at once.
+ * Persisted in localStorage so a refresh keeps the session. The `exit` flag marks a deliberate sign-out, so the route guard does not
+ * bounce the person back to the page they just left. This is a prototype session, not real authentication.
+ */
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoSend } from "@/lib/api";
@@ -20,6 +26,7 @@ type SessionStore = {
 /** Set when someone signs out on purpose, so the guard does not send them back to the page they left. */
 export const exit = { explicit: false };
 
+/** The signed-in person. Sign-in actions call the demo API and, on success, set the persona and role in the console state. */
 export const useSession = create<SessionStore>()(
   persist(
     (set) => ({

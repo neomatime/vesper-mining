@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * One screen for the four registers (issues, equipment, resources, shifts). The WorkspaceKey picks the endpoint and the columns;
+ * the screen supplies the summary tiles, filters and search, and opens a record from anywhere in its row.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { CalendarDays, CirclePlus, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";

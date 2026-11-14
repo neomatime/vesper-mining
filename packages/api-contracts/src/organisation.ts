@@ -1,3 +1,7 @@
+/**
+ * The organisation: company, site details, members (people with a role and status) and the
+ * organisation's activity log.
+ */
 import { z } from "zod";
 
 const timestamp = z.string().datetime({ offset: true });

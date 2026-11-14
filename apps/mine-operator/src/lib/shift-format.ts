@@ -1,3 +1,6 @@
+/**
+ * Formatting helpers for shifts: day and time labels in site time, remaining time, and a sensible next-shift suggestion.
+ */
 import type { Shift } from "@vesper/api-contracts";
 import { formatDemoTime } from "./demo-clock";
 

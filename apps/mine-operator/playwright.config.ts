@@ -1,3 +1,7 @@
+/**
+ * Browser test configuration: two projects (desktop Chrome and a Pixel 7 phone), run one at a time against a production
+ * build served on 127.0.0.1:3000. Build first (next build); scripts/run-e2e.mjs starts the server and runs the tests.
+ */
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({

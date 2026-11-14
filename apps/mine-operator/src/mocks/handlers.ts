@@ -1,3 +1,9 @@
+/**
+ * The demo API: every route the screens call, as MSW request handlers under /_demo/api/v1.
+ * Handlers stay thin: read the actor header, parse the body, call a function in demo-store.ts, and wrap the result in the standard
+ * { data, meta } envelope (or a DemoError in an error envelope). Business rules never live here; put them in demo-store.ts or the
+ * *-rules.ts files so they are shared and tested. To add an endpoint: add the store function, add the handler, call it from a hook.
+ */
 import { http, HttpResponse } from "msw";
 import { ACTOR_HEADER } from "@/lib/api";
 import { workspaceContent } from "@/lib/demo-data";
@@ -7,6 +13,7 @@ import { buildReport, reportCatalogue } from "@/lib/reports";
 
 const API = "/_demo/api/v1";
 
+/** Every response has the same shape: { data, meta }. A real backend should keep this shape so screens need no change. */
 function envelope<T>(data: T, status = 200) {
   return HttpResponse.json(
     { data, meta: { demo: true, generatedAt: demoDomain.now() } },
@@ -14,6 +21,7 @@ function envelope<T>(data: T, status = 200) {
   );
 }
 
+/** Who is making the request, from the actor header the client always sends (see lib/api.ts). Defaults to the demo manager. */
 function actorOf(request: Request): Actor {
   const header = request.headers.get(ACTOR_HEADER);
   if (header) {
@@ -27,6 +35,7 @@ function actorOf(request: Request): Actor {
   return { name: "John Dlamini", role: "Mine Manager" };
 }
 
+/** The JSON body, or an empty object when there is none, so handlers can read fields without checking first. */
 async function bodyOf<T = Record<string, unknown>>(request: Request): Promise<T> {
   try {
     return (await request.json()) as T;
@@ -53,6 +62,10 @@ function run<T>(operation: () => T, status = 200) {
 type Params = Record<string, string | readonly string[] | undefined>;
 const param = (params: Params, key: string) => String(params[key]);
 
+/**
+ * One handler per endpoint under /_demo/api/v1, grouped by area. The pattern: read the actor and the body, call a
+ * demoDomain method inside run(), and let run() turn the result or the DemoError into the response and save the state.
+ */
 export const handlers = [
   http.get(`${API}/bootstrap`, () => envelope(demoDomain.get().context)),
 

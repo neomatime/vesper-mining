@@ -1,3 +1,6 @@
+/**
+ * Helpers shared by the browser tests: signing in as a named demo person (signIn, openAs, actAs), choosing from custom dropdowns (pick) and switching subscription (setPlan).
+ */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { accounts, FIXTURE_PASSWORD } from "../src/lib/accounts";
 

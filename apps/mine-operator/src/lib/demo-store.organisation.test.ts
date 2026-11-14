@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The domain store: people, roles, passwords, company and site.
+ */
 import { beforeEach, describe, expect, it } from "vitest";
 import { FIXTURE_PASSWORD } from "./accounts";
 import { DemoError, demoDomain } from "./demo-store";

@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The deployment manifest rules and the templates in deployment/.
+ */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { clientDeploymentSchema, findSecrets, validateClientDeployment } from "@vesper/api-contracts";

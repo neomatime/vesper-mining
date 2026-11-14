@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The home page model for each role.
+ */
 import { beforeEach, describe, expect, it } from "vitest";
 import { demoDomain } from "./demo-store";
 import { homeRole, plannerHome, storesHome, supervisorHome, type HomeData } from "./role-home";

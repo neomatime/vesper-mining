@@ -1,3 +1,6 @@
+/**
+ * Shifts: crew with duty and equipment, work items with their completion and evidence, the handover, and the events recorded against a shift.
+ */
 import { z } from "zod";
 
 const timestamp = z.string().datetime({ offset: true });

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * One Resource Readiness activity: its parts with stock position (unknown is not zero), inbound stock, the equipment and work it
+ * supports, and the indicative order-by date. Needs the resource_readiness feature.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReadinessActivity, ReadinessDecision } from "@vesper/api-contracts";
 import { ArrowLeft, CalendarClock, CheckCircle2, PackageCheck, Pencil, Truck, Warehouse } from "lucide-react";

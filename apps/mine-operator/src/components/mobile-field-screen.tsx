@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The phone's simple tabs for field roles: My Shift, My Work, Notifications and Profile.
+ */
 import { CheckCircle2, ShieldAlert, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initials, tierLabel } from "@/lib/personas";

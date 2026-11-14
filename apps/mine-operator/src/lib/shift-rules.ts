@@ -1,3 +1,7 @@
+/**
+ * Rules for shifts: states and labels, who may act on a shift, overlap checks, current-shift lookup, and the ShiftView shape
+ * the screens use (crew duties, people on shift).
+ */
 import type { OperationalIssue, Shift, ShiftState } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 

@@ -1,3 +1,7 @@
+/**
+ * Builds the home page for each role (supervisor, planner, stores and so on) from the same records as the rest of VESPER.
+ * A role's home is a model (figures, rows, panels, one lead item), not markup, so it can be tested without rendering.
+ */
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { formatDemoDateTime } from "./demo-clock";
 import { planTone, type EquipmentView } from "./equipment-rules";

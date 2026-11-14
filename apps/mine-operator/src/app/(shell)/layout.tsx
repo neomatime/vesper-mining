@@ -1,3 +1,7 @@
+/**
+ * The layout for every signed-in page: RequireSession sends visitors without a session to sign-in, and AppShell draws the top
+ * bar, navigation and page frame around the screen.
+ */
 import { AppShell } from "@/components/app-shell";
 import { RequireSession } from "@/components/require-session";
 

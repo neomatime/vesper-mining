@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Calendar arithmetic in site time.
+ */
 import { describe, expect, it } from "vitest";
 import { addDays, addMonths, dayBlock, dayLabel, dayPosition, shiftsOnDay, endsNextDay, isSameMonth, monthGrid, monthLabel, shiftsByDay, siteDate, startOfWeek, weekDays, weekLabel } from "./shift-calendar";
 

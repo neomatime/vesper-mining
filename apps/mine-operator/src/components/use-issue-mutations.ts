@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Write operations for operational issues: move between workflow states, actions, dependencies, details and attachments.
+ * Each refreshes the Overview, the issue and the map, because one issue change shows up in all three.
+ */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { IssueAttachment, IssueWorkflowState, OperationalIssue } from "@vesper/api-contracts";
 import { ApiError, demoSend } from "@/lib/api";

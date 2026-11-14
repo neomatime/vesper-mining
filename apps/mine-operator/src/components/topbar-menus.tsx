@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The three menus in the top bar: site, notifications and profile.
+ */
 import { Bell, Check, ChevronDown, ChevronRight, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

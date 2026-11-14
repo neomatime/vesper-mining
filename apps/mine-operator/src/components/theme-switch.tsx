@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The Light / Dark / Device choice. The choice is stored on this device (lib/theme.ts).
+ */
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { applyTheme, readThemeChoice, setThemeChoice, subscribeThemeChoice, themeChoices, type ThemeChoice } from "@/lib/theme";

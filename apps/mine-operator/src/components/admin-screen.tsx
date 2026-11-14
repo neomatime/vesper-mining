@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Administration: employees, user rights, the site and the plan.
+ * It is for the Mine Manager; other roles see a page that explains why they cannot open it.
+ */
 import { Check, Lock, Minus, Pencil, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";

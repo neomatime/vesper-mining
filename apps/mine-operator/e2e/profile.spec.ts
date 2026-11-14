@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). A person's own profile: opening it, editing their phone number, changing their password, and changing another employee's role.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_PASSWORD } from "../src/lib/accounts";
 import { openAs, pick } from "./support";

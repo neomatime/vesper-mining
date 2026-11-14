@@ -1,11 +1,17 @@
 "use client";
 
+/**
+ * Starts everything the app needs before the first screen: the TanStack Query client (30 second freshness, no automatic
+ * retries) and the mock service worker that answers the demo API. Children render only when the worker is ready, so no screen
+ * can call an API that is not there yet. A failed start shows an error screen instead of a half-working app.
+ */
 import { BrandLoader } from "./brand-loader";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "./toast-provider";
 import { reactivateDemoWorker } from "@/lib/demo-worker";
 
+/** The shared data cache for every screen. Data is fresh for 30 seconds; failures show an error state instead of retrying silently. */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -19,8 +25,13 @@ const queryClient = new QueryClient({
 
 type BootstrapState = "loading" | "ready" | "error";
 
+/** The worker starts once per page load. The promise is shared because development runs effects twice. */
 let workerStartPromise: Promise<unknown> | undefined;
 
+/**
+ * Starts the mock service worker that answers /_demo/api/v1. Only requests under that path are checked; everything else
+ * (pages, fonts, images) goes to the server as normal.
+ */
 function startDemoWorker() {
   workerStartPromise ??= import("@/mocks/browser").then(({ worker }) =>
     worker.start({
