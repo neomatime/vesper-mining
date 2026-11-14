@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "organisation": {
+    "id": "example-mining",
+    "displayName": "Example Mining (Pty) Ltd"
+  },
+  "subscription": {
+    "id": "operations",
+    "edition": "operations",
+    "contractedSites": null
+  },
+  "release": {
+    "appVersion": "0.1.0"
+  },
+  "hosting": {
+    "provider": "vercel",
+    "projectName": "vesper-example-mining"
+  },
+  "environments": {
+    "uat": {
+      "url": null,
+      "databaseRef": "example-mining-uat-db",
+      "accessControl": "restricted"
+    },
+    "production": {
+      "url": null,
+      "databaseRef": "example-mining-prod-db"
+    }
+  },
+  "sites": [
+    { "code": "north-pit", "name": "North Pit" },
+    { "code": "south-plant", "name": "South Processing Plant" }
+  ],
+  "status": "draft"
+}

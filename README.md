@@ -41,6 +41,7 @@ pnpm dev            # http://localhost:3000
 | Shift Control & Handover | Shifts with crew and work, calendar (month, week, day), tasks marked done with an optional note and evidence, **handover draft built from the shift's records**, publish and acknowledge, and a printable **allocation sheet** |
 | Reports | Six reports including **Recurring causes** (primary and secondary) |
 | Administration | People, roles and rights, service providers, site and company details |
+| Subscriptions | Five subscriptions on one product and one schema, defined once in `packages/api-contracts/src/subscription/` (feature entitlements, site allowances, upgrade rules), with a deployment manifest template for per-client instances. See `docs/architecture/` |
 | Experience | Light and dark themes, Inter at a light weight scale, one soft radius scale, a floating top bar, phone and tablet layouts |
 
 Quality: unit tests for the rules and the mock domain, and Playwright tests for the main journeys, run by CI on every change.
@@ -119,7 +120,9 @@ VESPER/
 │       ├── src/mocks/        # MSW handlers: the in-browser mock API
 │       ├── e2e/              # Playwright tests
 │       └── public/           # Brand images, fonts and the fictional site plan
+├── deployment/               # Client deployment template, README and checklist (no provisioning)
 ├── docs/                     # The five specifications and the reference image
+│   └── architecture/         # Current-state audit, subscription, database and deployment architecture
 ├── infrastructure/           # Placeholder only; not permission for live infrastructure
 ├── packages/
 │   └── api-contracts/        # Zod contracts and the cause lists shared by app and tests

@@ -52,20 +52,42 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByText("Indicative trend data. Not measured delay")).toBeVisible();
   });
 
-  test("keeps VESPER Mobile out of Core and brings it back on Operations", async ({ page }) => {
-    await setPlan(page, "Core");
+  test("includes VESPER Mobile in every subscription, Core included", async ({ page }) => {
     await signIn(page);
-    await page.getByRole("button", { name: /Account menu/ }).click();
-    await expect(page.getByText(/Not included in Core/)).toBeVisible();
-    await page.keyboard.press("Escape");
+    for (const plan of ["Core", "Operations — Single Site", "Operations", "Enterprise", "Group"]) {
+      await setPlan(page, plan);
+      await page.goto("/mobile/my-shift");
+      await expect(page.getByRole("heading", { name: /Good morning/ }), plan).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Field navigation" }), plan).toBeVisible();
+    }
+  });
 
-    await page.goto("/mobile/my-shift");
-    await expect(page.getByRole("heading", { name: /VESPER Mobile is not part of this subscription/ })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Field navigation" })).toHaveCount(0);
+  test("shows each subscription's site allowance from the central plans, with Group from its contract", async ({ page }) => {
+    const expected: Record<string, string> = { Core: "1 site", "Operations — Single Site": "1 site", Operations: "Up to 3 sites", Enterprise: "Up to 6 sites", Group: "10 sites (contracted)" };
+    await signIn(page);
+    for (const [plan, sites] of Object.entries(expected)) {
+      await setPlan(page, plan);
+      await page.goto("/admin");
+      await page.getByRole("tab", { name: "Plan and usage" }).click();
+      await expect(page.getByRole("heading", { name: plan, exact: true }), plan).toBeVisible();
+      await expect(page.getByText(sites, { exact: true }).first(), plan).toBeVisible();
+    }
+  });
 
-    await setPlan(page, "Operations");
-    await page.goto("/mobile/my-shift");
-    await expect(page.getByRole("heading", { name: /Good morning/ })).toBeVisible();
+  test("keeps every operational record when the subscription changes", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/exceptions/new");
+    await page.getByLabel("Issue title").fill("Conveyor belt mistracking");
+    await page.getByLabel("Observed condition").fill("The feed conveyor belt is mistracking to the left side.");
+    await page.getByRole("button", { name: "Record issue" }).click();
+    await expect(page.getByRole("heading", { name: "Conveyor belt mistracking" })).toBeVisible();
+
+    for (const plan of ["Core", "Enterprise", "Operations — Single Site", "Group", "Operations"]) {
+      await setPlan(page, plan);
+      await page.goto("/exceptions");
+      await expect(page.getByText("Conveyor belt mistracking").first(), plan).toBeVisible();
+      await expect(page.getByText(/Crusher C-02/).first(), plan).toBeVisible();
+    }
   });
 
   test("shows the client their own plan, people and connections, not every tier", async ({ page }) => {

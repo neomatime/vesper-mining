@@ -12,9 +12,9 @@ describe("personas", () => {
     expect(personaByName("Nobody")).toBeUndefined();
   });
 
-  it("labels every subscription tier and keeps Core without mobile", () => {
+  it("labels every subscription tier, and every tier includes mobile", () => {
     expect(tierLabel("operations_single")).toBe("Operations — Single Site");
-    expect(tiers.find((tier) => tier.value === "core")?.mobile).toBe(false);
-    expect(tiers.filter((tier) => tier.value !== "core").every((tier) => tier.mobile)).toBe(true);
+    expect(tiers.find((tier) => tier.value === "core")?.mobile).toBe(true);
+    expect(tiers.every((tier) => tier.mobile)).toBe(true);
   });
 });
