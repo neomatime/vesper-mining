@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The dialogs on a service request: schedule the work, record completion, and cancel.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";

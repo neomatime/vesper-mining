@@ -1,3 +1,6 @@
+/**
+ * Service providers, service requests, invitations and quotes: the records behind asking approved contractors to quote.
+ */
 import { z } from "zod";
 import { equipmentCategorySchema } from "./equipment";
 

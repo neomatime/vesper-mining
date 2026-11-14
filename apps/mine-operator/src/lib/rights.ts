@@ -1,3 +1,8 @@
+/**
+ * The rights matrix shown on the Administration page: for each role, whether an action is allowed, allowed on their own
+ * records only, or not allowed. It is built by calling the real permission functions (canAct, canActOnEquipment, ...), so the table
+ * cannot drift from what the product actually enforces.
+ */
 import { canActOnEquipment } from "./equipment-rules";
 import { canAct } from "./issue-rules";
 import { canManageOrganisation, roleNames } from "./organisation-rules";

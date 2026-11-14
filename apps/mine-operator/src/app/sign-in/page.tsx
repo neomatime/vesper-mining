@@ -1,3 +1,6 @@
+/**
+ * The sign-in route. All the behaviour is in SignInScreen.
+ */
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SignInScreen } from "@/components/sign-in-screen";

@@ -1,3 +1,7 @@
+/**
+ * Rules for people and roles: the role catalogue and each role's home, who can administer the organisation, email and
+ * password validation, and the "last Mine Manager" protection. Used by Administration and by sign-in.
+ */
 import type { Member } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 

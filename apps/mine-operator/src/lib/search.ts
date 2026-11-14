@@ -1,3 +1,7 @@
+/**
+ * Ranking for the command search in the top bar. It scores records by title, subtitle and keywords and returns the best
+ * matches. Pure and synchronous: the caller supplies the records.
+ */
 export type SearchKind = "Issue" | "Equipment" | "Operating area" | "Readiness" | "Shift" | "Workspace";
 
 export type SearchRecord = {

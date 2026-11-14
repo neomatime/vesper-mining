@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). Theme choice, resolution and persistence.
+ */
 import { describe, expect, it } from "vitest";
 import { THEME_KEY, isThemeChoice, resolveTheme, themeInitScript } from "./theme";
 

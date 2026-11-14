@@ -1,3 +1,8 @@
+/**
+ * The report catalogue and the builder that turns live records into each report's figures. Every report has a level
+ * (essential, operational, advanced) that decides which subscriptions can open it. Reports are computed from the same records the
+ * screens use, so a report cannot disagree with the screen it summarises.
+ */
 import type { IssueWorkflowState, OperationalIssue, ReadinessActivity, ReportingLevel } from "@vesper/api-contracts";
 import { potentiallyAllocable } from "./calculations";
 import { primaryCauseLabel, secondaryCauseLabel, stateLabels } from "./issue-rules";

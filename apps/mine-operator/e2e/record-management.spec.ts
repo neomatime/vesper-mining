@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). Managing records: an issue from report to close, cancelled issues as read-only history, dependencies, undoing a removed action, and records surviving a refresh.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { actAs, openAs, pick } from "./support";
 

@@ -1,3 +1,7 @@
+/**
+ * Route page. Renders the shift page opened on its handover. Needs shift_handover.
+ * Routes only choose the screen and read the URL; the behaviour lives in the component.
+ */
 import { FeatureGate } from "@/components/entitlement-gate";
 import { ShiftDetailScreen } from "@/components/shift-detail-screen";
 

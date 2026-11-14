@@ -1,3 +1,7 @@
+/**
+ * The presenter console's personas, scenarios and subscription tiers. Tiers come from the central plans in
+ * packages/api-contracts, so this file never defines what a subscription includes.
+ */
 import { reportingLevelLabels, siteAllowanceLabel, subscriptionPlans, type DemoContext } from "@vesper/api-contracts";
 
 export type Persona = {

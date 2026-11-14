@@ -1,3 +1,13 @@
+/**
+ * The in-browser domain store: the prototype's stand-in for a backend database and its business rules.
+ * It holds every record (issues, equipment, shifts, people, providers, service requests), applies each change as one transaction,
+ * enforces permissions and version checks, and persists to localStorage under a single versioned key so a refresh keeps the work.
+ * The mock handlers (src/mocks/handlers.ts) are a thin HTTP layer over the functions exported here.
+ *
+ * Guidance when changing it: validate and authorise first, then mutate, then record an event or audit entry, then save. Fail with
+ * a DemoError (it carries a code) rather than a thrown string, so screens can tell a conflict from a permission problem. Bump the
+ * storage key when the stored shape changes, so old browsers start clean instead of loading a shape the code no longer reads.
+ */
 import type {
   DowntimeReason,
   Action,
@@ -80,6 +90,10 @@ import {
   type ShiftView,
 } from "./shift-rules";
 
+/**
+ * A failed request. `status` is the HTTP status the mock API returns; `code` lets a screen tell cases apart
+ * (NOT_FOUND, FORBIDDEN, VALIDATION_ERROR, VERSION_CONFLICT, READ_ONLY); `message` is plain words for the person.
+ */
 export class DemoError extends Error {
   constructor(
     public status: number,
@@ -90,16 +104,22 @@ export class DemoError extends Error {
   }
 }
 
+/** Throws a DemoError. Typed `never`, so it can end an expression: `return found ?? fail(404, ...)`. */
 function fail(status: number, code: string, message: string): never {
   throw new DemoError(status, code, message);
 }
 
 type DemoNotification = (typeof notifications)[number] & { recipient: string | null };
 
+/** A deep copy, so seed data is never shared with (or changed through) the working state. */
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
+/**
+ * Everything the store holds, seeded from demo-data.ts, organisation-data.ts and service-data.ts. `clock` counts writes
+ * (see tick). `counters` give each kind of record its next readable id (for example issue-043), so ids are stable.
+ */
 const initialState = {
   context: defaultContext,
   issues: [primaryIssue, secondaryIssue],
@@ -121,6 +141,7 @@ const initialState = {
 
 export type DemoDomainState = typeof initialState;
 
+/** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
 const STORAGE_KEY = "vesper-demo-state-v4";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
@@ -146,6 +167,7 @@ function saveState() {
   }
 }
 
+/** The working state: restored from localStorage if it is valid, otherwise a copy of the seed. Mutated in place by demoDomain. */
 let state: DemoDomainState = loadState() ?? clone(initialState);
 
 // When another tab saves, take its version so this tab never overwrites a provider's reply.
@@ -157,11 +179,16 @@ if (typeof window !== "undefined") {
   });
 }
 
+/**
+ * Domain time. It starts at the scenario's fixed 'now' and moves on one minute for every change (tick), so events from one
+ * session are always in order and never share a timestamp. Nothing here reads the real clock.
+ */
 const now = () => demoTimeAt(state.clock);
 const tick = () => {
   state.clock += 1;
   return now();
 };
+/** The next readable id for a kind of record, for example nextId('issue', 'issue-riv') gives 'issue-riv-043'. */
 const nextId = (key: keyof DemoDomainState["counters"], prefix: string) => {
   state.counters[key] += 1;
   return `${prefix}-${String(state.counters[key]).padStart(3, "0")}`;
@@ -176,28 +203,41 @@ function present(issue: OperationalIssue): OperationalIssue {
   };
 }
 
+/** Finds a record, or fails with 404. The find* helpers below do the same for each kind of record. */
 function findIssue(id: string) {
   const issue = state.issues.find((item) => item.id === id);
   return issue ?? fail(404, "NOT_FOUND", "This issue could not be found.");
 }
 
+/** Finished issues are read-only history. The person must reopen one before changing it. */
 function assertEditable(issue: OperationalIssue) {
   if (isFinished(issue.workflowState)) {
     fail(409, "READ_ONLY", `${stateLabels[issue.workflowState]} issues are read-only history.${issue.workflowState === "closed" ? " Reopen the issue to change it." : ""}`);
   }
 }
 
+/**
+ * Optimistic concurrency. The screen sends the `version` it loaded; if the record has changed since, the change is refused
+ * with VERSION_CONFLICT rather than silently overwriting someone else's edit. Every change bumps `version`.
+ * The assert*Version helpers for equipment, shifts, requests and records work the same way.
+ */
 function assertVersion(issue: OperationalIssue, version: number | undefined) {
   if (version !== undefined && version !== issue.version) {
     fail(409, "VERSION_CONFLICT", "This issue changed while you were editing. Reload to see the latest version, then try again.");
   }
 }
 
+/** The role check from issue-rules.ts, turned into a 403. The same function drives the interface, so they cannot disagree. */
 function assertCan(capability: Parameters<typeof canAct>[0], actor: Actor, issue?: OperationalIssue) {
   const check = canAct(capability, actor, issue);
   if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
 }
 
+/**
+ * Appends an event to an issue's history and bumps its version. Every issue change goes through here, so the history
+ * (who, what, when, from which state to which) is complete. recordEquipment, recordShift, logRequest and logOrganisation
+ * do the same for their records.
+ */
 function record(
   issue: OperationalIssue,
   actor: Actor,
@@ -227,6 +267,7 @@ function record(
   return entry;
 }
 
+/** Adds a notification for one person, or for everyone when `recipient` is null. Newest first. */
 function notify(recipient: string | null, title: string, detail: string, href: string, category: string) {
   state.notifications = [
     {
@@ -245,6 +286,7 @@ function notify(recipient: string | null, title: string, detail: string, href: s
 
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
+/** Trims a value and requires a minimum length, failing with a VALIDATION_ERROR that names the field. */
 function requireText(value: unknown, label: string, min = 3) {
   const result = text(value);
   if (result.length < min) fail(400, "VALIDATION_ERROR", `${label} needs at least ${min} characters.`);
@@ -379,6 +421,10 @@ function equipmentBlockers(item: Equipment) {
   return blockers;
 }
 
+/**
+ * Adds the worked-out fields to an equipment record for the screens: maintenance status per plan, what blocks retirement,
+ * and so on. Stored equipment is never changed by presenting it.
+ */
 function presentEquipment(item: Equipment): EquipmentView {
   const current = now();
   const maintenance = item.plans.map((plan) => planStatus(plan, item, current));
@@ -480,6 +526,7 @@ function assertPeopleFree(people: string[], times: { startsAt: string; endsAt: s
   }
 }
 
+/** Adds the worked-out fields to a shift for the screens, for example its neighbouring shifts and unresolved items. */
 function presentShift(shift: Shift): ShiftView {
   const issues = state.issues.filter(isOpen).map(present);
   const unresolved = issues.length + issues.reduce((total, issue) => total + openDependencies(issue).length, 0);
@@ -533,6 +580,7 @@ function replyToken(n: number) {
   return `r${n.toString(36)}${(Math.imul(n + 7, 2654435761) >>> 0).toString(36)}${(Math.imul(n + 31, 40503) >>> 0).toString(36)}`;
 }
 
+/** A provider's reply link carries a token instead of a sign-in; the token finds the one invitation it belongs to. */
 function findByToken(token: string) {
   for (const request of state.serviceRequests) {
     const invite = request.invites.find((item) => item.token === token);
@@ -665,6 +713,11 @@ export type OrganisationView = {
   activity: OrganisationEvent[];
 };
 
+/**
+ * The store's public face, grouped by area (issues, actions, dependencies, equipment, shifts, providers, requests,
+ * organisation, notifications). Each method validates, authorises, changes the records, records history and returns the
+ * result. The mock handlers call these; nothing else changes the state. After a change, handlers call `save`.
+ */
 export const demoDomain = {
   get: () => state,
   now,

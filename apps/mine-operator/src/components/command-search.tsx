@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The search in the top bar (also opened with a keyboard shortcut). It searches issues, equipment, operating areas, readiness,
+ * shifts and the workspaces, ranks the results with lib/search.ts, and works from the keyboard (arrow keys and Enter).
+ */
 import {
   AlertTriangle,
   BarChart3,

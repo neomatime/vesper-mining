@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Write operations for equipment (create, edit, availability, readings, maintenance plans, service history, retire/restore).
+ * Each calls the demo API, then refreshes the queries that show that equipment, and reports the outcome with a toast. Screens call
+ * these hooks instead of calling the API, so every change refreshes the same things.
+ */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ApiError, demoSend } from "@/lib/api";

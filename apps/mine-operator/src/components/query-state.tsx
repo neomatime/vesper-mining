@@ -1,3 +1,6 @@
+/**
+ * The loading, error and empty states used by every screen that reads data, so they look and read the same everywhere.
+ */
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 
 export function LoadingState({ label = "Loading" }: { label?: string }) {

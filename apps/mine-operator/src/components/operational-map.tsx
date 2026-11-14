@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The map itself: a schematic plan of the site on a simple 1000 by 600 coordinate grid (not a geographic map), with operating
+ * areas coloured by status. Positions are fictional.
+ */
 import L, { type LatLngBoundsExpression, type LatLngExpression } from "leaflet";
 import { ImageOverlay, MapContainer, Polygon, Tooltip, ZoomControl } from "react-leaflet";
 import type { MapArea } from "@vesper/api-contracts";

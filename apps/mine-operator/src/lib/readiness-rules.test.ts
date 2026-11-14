@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Readiness: part positions, status and the indicative order-by date.
+ */
 import { describe, expect, it } from "vitest";
 import type { ReadinessActivity } from "@vesper/api-contracts";
 import { deriveReadinessStatus, indicativeOrderBy, partPosition } from "./readiness-rules";

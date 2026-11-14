@@ -1,3 +1,6 @@
+/**
+ * A status shown by colour, shape and words together, so no status depends on colour alone (see lib/status-system.ts).
+ */
 import { formatStatus } from "@/lib/calculations";
 import { statusFamily, statusTone } from "@/lib/status-system";
 

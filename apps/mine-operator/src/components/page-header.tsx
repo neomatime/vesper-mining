@@ -1,3 +1,6 @@
+/**
+ * The title block at the top of a page: eyebrow, title, description and the page's actions.
+ */
 import type { LucideIcon } from "lucide-react";
 
 export function PageHeader({

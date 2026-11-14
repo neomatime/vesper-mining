@@ -1,3 +1,10 @@
+/**
+ * The browser's client for the demo API.
+ * Every screen reads and writes through demoFetch / demoSend, never through fetch directly. Requests go to /_demo/api/v1/*, which the
+ * mock service worker (src/mocks) answers from the in-browser store (demo-store.ts). The signed-in person is sent in the actor
+ * header, so the same permission rules run for every request. When a real backend exists, this file is the seam to replace:
+ * screens only know the ApiEnvelope shape and ApiError.
+ */
 import { useDemoContext } from "@/stores/demo-context";
 import { reactivateDemoWorker } from "./demo-worker";
 

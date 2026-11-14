@@ -1,3 +1,6 @@
+/**
+ * Seed service providers and service requests. The providers are fictional and already approved to work at the mine.
+ */
 import type { ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 
 const created = "2025-01-13T08:00:00+02:00";

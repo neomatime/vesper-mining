@@ -1,3 +1,7 @@
+/**
+ * Regenerates src/app/dark.generated.css from globals.css and theme.css (the colour rules are mapped by dark-theme.mjs).
+ * Run it after changing colours in those two files; never edit the generated file by hand.
+ */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

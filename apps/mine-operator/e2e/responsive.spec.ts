@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). Layout at desktop, tablet and phone sizes, and the sign-in page's composition.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test } from "@playwright/test";
 import { openAs } from "./support";
 

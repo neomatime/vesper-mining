@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). Report building from live records.
+ */
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildReport, delayStages, reportCatalogue } from "./reports";
 import { demoDomain } from "./demo-store";

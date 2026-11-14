@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Names that can own work or supervise a shift, taken from the organisation's people, with the contractor team added.
+ */
 import { owners as fallbackOwners } from "@/lib/personas";
 import { useShellData } from "./shell-data";
 

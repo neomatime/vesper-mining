@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The dialogs for equipment: add or edit, report availability (with a reason), record a reading, set up a maintenance plan, log
+ * a service, and retire or restore. Reported availability is never marked as verified.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { DowntimeReason, MaintenancePlan } from "@vesper/api-contracts";
 import { useState } from "react";

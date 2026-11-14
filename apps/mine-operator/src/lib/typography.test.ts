@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The type system's stylesheet and font files.
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";

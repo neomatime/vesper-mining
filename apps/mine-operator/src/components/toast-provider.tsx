@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Short messages that confirm or explain the result of an action (useToast). Hooks call these after every write.
+ */
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 

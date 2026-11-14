@@ -1,3 +1,6 @@
+/**
+ * Unit test configuration: jsdom, the @ alias for src, and the shared setup file.
+ */
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";

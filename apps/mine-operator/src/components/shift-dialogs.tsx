@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The dialogs on a shift: create or edit, add or change crew, add work, and cancel.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import { useState } from "react";

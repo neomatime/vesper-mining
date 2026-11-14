@@ -1,3 +1,8 @@
+/**
+ * Small, pure calculations shared by several screens: the recovery-progress sentence, how much of a part can still be
+ * allocated, and how an operating area's status follows from the issues in it. No state and no I/O, so each is easy to test.
+ * Rule to keep: unknown stock is never treated as zero.
+ */
 import type { Action, InformationQuality, OperationalStatus } from "@vesper/api-contracts";
 
 export function recoverySummary(actions: Action[]) {

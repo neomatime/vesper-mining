@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Where each environment's sign-in lives, and that a missing address is never invented.
+ */
 import { describe, expect, it } from "vitest";
 import { currentEnvironment, parseOrigin, signInDestination } from "./environments";
 

@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The last-resort error screen for a route that fails to render. It offers a reload instead of a blank page.
+ */
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <main className="bootstrap-state" role="alert">

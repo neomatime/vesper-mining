@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The API client: how it recovers when the mock service worker has stopped.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const reactivate = vi.fn<() => Promise<boolean>>();

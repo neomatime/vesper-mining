@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Explains a feature the subscription does not include, instead of showing a broken page. FeatureGate wraps a route and shows
+ * the explanation (naming the subscription that includes the feature) when the feature is missing. This is presentation only; real
+ * enforcement belongs on the server in production.
+ */
 import type { FeatureCode } from "@vesper/api-contracts";
 import { Lock } from "lucide-react";
 import Link from "next/link";

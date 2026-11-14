@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Loads the map on the client only. The map library needs the browser, so it is imported dynamically and never rendered on
+ * the server.
+ */
 import type { MapArea } from "@vesper/api-contracts";
 import dynamic from "next/dynamic";
 

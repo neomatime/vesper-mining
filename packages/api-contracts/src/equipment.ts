@@ -1,3 +1,7 @@
+/**
+ * Equipment records: categories, reported state, downtime reasons, maintenance plans, service entries and events.
+ * Availability is what a person reported; it is never a verified fact. Records carry a `version` for change checks.
+ */
 import { z } from "zod";
 
 const timestamp = z.string().datetime({ offset: true });

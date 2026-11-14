@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Reads and writes the organisation record: company, site details, people, roles and passwords (Administration).
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Company, Member, SiteDetails } from "@vesper/api-contracts";
 import { ApiError, demoFetch, demoSend } from "@/lib/api";

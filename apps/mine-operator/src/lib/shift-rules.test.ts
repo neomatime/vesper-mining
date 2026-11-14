@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Shift permissions, overlap and current-shift lookup.
+ */
 import { describe, expect, it } from "vitest";
 import { buildShiftTimes, canActOnShift, currentShiftFor, peopleOn, shiftHours, shiftsOverlap } from "./shift-rules";
 

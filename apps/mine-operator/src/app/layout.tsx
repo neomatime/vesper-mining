@@ -1,3 +1,7 @@
+/**
+ * The root layout: the HTML shell, the fonts, the style sheets in the order they must load, and the providers that start the
+ * demo API. The inline theme script in the head sets light or dark before the first paint, so there is no flash.
+ */
 import type { Metadata, Viewport } from "next";
 import { DemoProviders } from "@/components/demo-providers";
 import { themeInitScript } from "@/lib/theme";

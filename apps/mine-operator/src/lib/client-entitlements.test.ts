@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The feature catalogue and the client entitlement record: validation, overrides, effective dates and audit rules.
+ */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {

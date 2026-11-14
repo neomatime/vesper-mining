@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). The dark theme: it follows the device, can be chosen, is remembered, and keeps text readable.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./support";
 

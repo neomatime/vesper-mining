@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The signed-in person's own profile: their details and password change.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, KeyRound, Minus, Pencil } from "lucide-react";
 import { useState } from "react";

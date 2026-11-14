@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The status badge shows its meaning in words and shape, not colour alone.
+ */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StatusBadge } from "./status-badge";

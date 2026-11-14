@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Write operations for shifts: create and edit, crew, work items, tasks, handover, allocation and closing.
+ * Each refreshes the queries that display the shift.
+ */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ApiError, demoSend } from "@/lib/api";

@@ -1,3 +1,6 @@
+/**
+ * The page for an address that does not exist.
+ */
 import Link from "next/link";
 
 export default function NotFound() {

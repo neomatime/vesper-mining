@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The list of reports, showing only those the subscription's reporting level can open.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { reportingLevelLabels } from "@vesper/api-contracts";
 import { BarChart3, Gauge, Layers3, LineChart, Lock, PackageCheck, Repeat2, ShieldAlert } from "lucide-react";

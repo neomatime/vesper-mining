@@ -1,3 +1,7 @@
+/**
+ * Builds the "needs attention" list on the Overview and the role homes. It turns issues, readiness activities, service
+ * requests and handovers into one ranked list, each item with a single next step and a link.
+ */
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import type { EquipmentView } from "./equipment-rules";
 import { isOpen } from "./issue-rules";

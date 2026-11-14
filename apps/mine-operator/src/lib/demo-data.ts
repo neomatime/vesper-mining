@@ -1,3 +1,9 @@
+/**
+ * The seed data for the fictional Riverside Mine scenario (the Crusher C-02 breakdown, North Pit, readiness activities,
+ * shifts and notifications). demo-store.ts copies these into the working store on first load.
+ * All names, sites and figures are fictional. Keep the scenario coherent: one set of records feeds the Overview, the map,
+ * equipment, shifts and reports, so changing one fact here changes it everywhere.
+ */
 import type {
   DemoContext,
   Equipment,

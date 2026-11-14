@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Notifications for the signed-in person, shared by the top-bar menu and the phone's notifications page.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Check, Undo2, X } from "lucide-react";
 import Link from "next/link";

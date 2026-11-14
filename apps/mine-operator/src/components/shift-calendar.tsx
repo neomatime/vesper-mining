@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The shift calendar: month, week and day views over the same shifts, with the toolbar and keyboard navigation. Date arithmetic
+ * is in lib/shift-calendar.ts, so days always follow site time.
+ */
 import { CalendarPlus, ChevronLeft, ChevronRight, Moon, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";

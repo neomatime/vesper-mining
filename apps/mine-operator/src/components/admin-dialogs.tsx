@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * The dialogs on the Administration page: add or edit a person, show a temporary password once, edit company and site
+ * details, and change a person's role. Each validates in the form and shows the server's refusal (for example, the last Mine Manager).
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Company, Member, SiteDetails } from "@vesper/api-contracts";
 import { useState } from "react";

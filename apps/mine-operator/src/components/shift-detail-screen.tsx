@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * One shift: state, times, crew and duties, work and tasks, the handover and the history. The handover card is hidden when the
+ * subscription lacks shift_handover.
+ */
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,

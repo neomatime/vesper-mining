@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * One report: its table and chart, built by lib/reports.ts from the live records. Opens only if the report's level is allowed
+ * by the subscription.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BarChart3, Database, Info, TriangleAlert } from "lucide-react";
 import Link from "next/link";

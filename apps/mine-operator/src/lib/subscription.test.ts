@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The central subscription model: plans, features, site allowances, upgrades and the two access gates.
+ */
 import {
   GROUP_MINIMUM_SITES,
   SubscriptionConfigError,

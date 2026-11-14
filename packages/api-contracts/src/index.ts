@@ -1,3 +1,13 @@
+/**
+ * The shared contracts: the shape of every record that crosses between the screens, the demo API and (later) a real backend.
+ * Each record is a Zod schema, and its TypeScript type is inferred from it (`z.infer`), so the validation and the type cannot
+ * disagree. Both the app and, in future, the backend import this package; neither redefines a record.
+ *
+ * This file holds the issue, readiness, map and demo-context records and the API envelope. The other files hold equipment,
+ * shifts, service, the organisation, root causes, the subscription model and the deployment manifest. Names and statuses follow the
+ * Backend Schema Document in docs/. Keep operational status (on plan, at risk, blocked) separate from information quality
+ * (reported, verified, stale): they answer different questions.
+ */
 import { z } from "zod";
 import { primaryCauseIds } from "./causes";
 import { subscriptionIdSchema } from "./subscription/types";

@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). The work allocation sheet and its text version.
+ */
 import type { Shift } from "@vesper/api-contracts";
 import { describe, expect, it } from "vitest";
 import { allocationSheet, allocationToText } from "./shift-allocation";

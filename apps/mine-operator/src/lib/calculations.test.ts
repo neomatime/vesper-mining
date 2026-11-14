@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Recovery summary, allocable stock and area status calculations.
+ */
 import { describe, expect, it } from "vitest";
 import type { Action } from "@vesper/api-contracts";
 import { deriveAreaStatus, potentiallyAllocable, recoverySummary } from "./calculations";

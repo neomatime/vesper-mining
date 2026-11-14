@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Downtime periods derived from availability reports.
+ */
 import { describe, expect, it } from "vitest";
 import { downtimePeriods, downtimeWithin, formatDuration } from "./downtime";
 

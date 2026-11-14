@@ -1,3 +1,7 @@
+/**
+ * Browser test (Playwright, desktop Chrome and a phone). The Overview: it leads with what needs the person now, keeps the evidence limits visible, and tells shift states apart by shape.
+ * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
+ */
 import { expect, test } from "@playwright/test";
 import { openAs } from "./support";
 

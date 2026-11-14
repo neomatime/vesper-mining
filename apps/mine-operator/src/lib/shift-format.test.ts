@@ -1,3 +1,6 @@
+/**
+ * Unit tests (Vitest). Shift day and time formatting.
+ */
 import { describe, expect, it } from "vitest";
 import { formatDay, remaining, shiftTimes, suggestNextShift, toDateTimeParts } from "./shift-format";
 

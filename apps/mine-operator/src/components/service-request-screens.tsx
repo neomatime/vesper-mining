@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Creating a service request (choosing among approved providers) and viewing one with its invitations and quotes.
+ * Needs the equipment_maintenance feature.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { ServiceRequest } from "@vesper/api-contracts";
 import { ArrowLeft, CalendarCheck, CheckCircle2, Send, Wrench, XCircle } from "lucide-react";

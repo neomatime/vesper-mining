@@ -1,3 +1,7 @@
+/**
+ * Derives Resource Readiness: each part's position (covered, needs inbound, short, unknown) and the activity's status.
+ * Stock that is not known is "unknown", never zero, and an indicative order-by date is only ever indicative.
+ */
 import type { ReadinessActivity } from "@vesper/api-contracts";
 import { potentiallyAllocable } from "./calculations";
 

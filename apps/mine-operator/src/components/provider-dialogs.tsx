@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * The dialog for adding or editing an approved service provider.
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ServiceProvider } from "@vesper/api-contracts";
 import { useForm } from "react-hook-form";

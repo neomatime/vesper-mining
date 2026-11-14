@@ -1,4 +1,8 @@
 // @vitest-environment node
+
+/**
+ * Unit tests (Vitest). The domain store: equipment rules, permissions and version checks.
+ */
 import { beforeEach, describe, expect, it } from "vitest";
 import { DemoError, demoDomain } from "./demo-store";
 import type { Actor } from "./issue-rules";

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * One piece of equipment: details, availability, readings, downtime, maintenance plans, service requests and history, and the
+ * issues linked to it. Sections that need the equipment_maintenance feature are hidden when the subscription lacks it.
+ */
 import { useQuery } from "@tanstack/react-query";
 import type { MaintenancePlan } from "@vesper/api-contracts";
 import {
