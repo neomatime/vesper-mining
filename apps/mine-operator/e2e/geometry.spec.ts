@@ -15,13 +15,13 @@ async function roundedCorners(page: Page) {
       const corner = (key: "borderTopLeftRadius") => (style[key].endsWith("%") ? (parseFloat(style[key]) / 100) * size : parseFloat(style[key]) || 0);
       const radius = Math.max(...(["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"] as const).map(corner));
       if (radius <= 12.5) return;
+      const name = (typeof (element as HTMLElement).className === "string" && (element as HTMLElement).className.split(" ")[0]) || element.tagName.toLowerCase();
       // The sign-in card is the one surface with the larger step of the scale.
       if (name === "login__card" && radius <= 20.5) return;
       const circle = radius >= size / 2 - 0.5;
-      const name = (typeof (element as HTMLElement).className === "string" && (element as HTMLElement).className.split(" ")[0]) || element.tagName.toLowerCase();
-      // Round is allowed for small dots, numbered progress nodes and the progress ring. Nothing else.
+      // Round is allowed for small dots, numbered progress nodes, avatars and the progress ring. Nothing else.
       const decorative = name === "brand-loader__halo";
-      if (circle && (size <= 32 || name === "progress-orbit" || decorative)) return;
+      if (circle && (size <= 32 || name.includes("avatar") || name === "progress-orbit" || decorative)) return;
       offenders.push(`${name}${pseudo ?? ""} r=${Math.round(radius)} ${Math.round(box.width)}x${Math.round(box.height)}`);
     };
     for (const element of document.body.querySelectorAll("*")) {

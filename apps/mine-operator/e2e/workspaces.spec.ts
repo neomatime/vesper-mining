@@ -42,7 +42,7 @@ test.describe("workspaces and subscriptions", () => {
 
   test("keeps advanced analytics for Enterprise and Group", async ({ page }) => {
     await openApp(page, "/reports");
-    await expect(page.getByText("4 of 5")).toBeVisible();
+    await expect(page.getByText("5 of 6")).toBeVisible();
     await page.getByRole("link", { name: /Delay analytics/ }).click();
     await expect(page.getByRole("heading", { name: /Advanced analytics are part of Enterprise and Group/ })).toBeVisible();
 

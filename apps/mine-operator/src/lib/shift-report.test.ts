@@ -32,6 +32,14 @@ describe("draftShiftReport", () => {
     expect(draft.sections.find((s) => s.key === "work_open")?.lines[0]?.href).toBe("/exceptions/issue-1");
   });
 
+  it("names the downtime reason on an availability change and on equipment that is unavailable now", () => {
+    const changes = [event({ type: "state_changed", state: "unavailable", reason: "waiting_parts", summary: "Reported unavailable", note: "Liner kit not in stock" })] as unknown as EquipmentEvent[];
+    const equipment = [{ id: "eq-1", code: "CR-02", name: "Crusher C-02", state: "unavailable" as const, stateNote: "Liner kit not in stock", events: changes }];
+    const text = draftShiftReport({ shift, issues: [], equipment, now }).sections.find((s) => s.key === "equipment")!.lines.map((l) => l.text).join(" | ");
+    expect(text).toContain("Reported unavailable, waiting for parts (09:00, Liner kit not in stock)");
+    expect(text).toContain("CR-02 Crusher C-02 is reported unavailable (waiting for parts): Liner kit not in stock");
+  });
+
   it("includes only issue activity from inside the shift, and links to the record", () => {
     const inside = issue({ events: [event({ type: "reported", occurredAt: "2025-04-24T07:10:00+02:00" }), event({ nextState: "action_assigned", occurredAt: "2025-04-24T08:00:00+02:00" })] });
     const outside = issue({ id: "issue-2", issueNumber: "RIV-002", events: [event({ type: "reported", occurredAt: "2025-04-23T07:10:00+02:00" })] });

@@ -38,7 +38,7 @@ test.describe("shift management", () => {
     await dialog(page).getByLabel("What was done (optional)").fill("Spoke to stores, part confirmed.");
     await dialog(page).getByRole("button", { name: "Mark done" }).click();
     await expect(page.getByText(/1 of 1 finished/)).toBeVisible();
-    await expect(page.getByText("Spoke to stores, part confirmed.")).toBeVisible();
+    await expect(page.getByText("Spoke to stores, part confirmed.").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Remove Thabo Molefe from the shift" }).click();
     await expect(page.getByText("Drill operator · Track Dozer DZ-017")).toHaveCount(0);

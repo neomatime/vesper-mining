@@ -6,7 +6,7 @@ import { useState } from "react";
 import { formatDemoTime, formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isOpen } from "@/lib/issue-rules";
 import { remaining, shiftTimes } from "@/lib/shift-format";
-import type { ShiftView } from "@/lib/shift-rules";
+import { currentShiftFor, type ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { LoadingState } from "./query-state";
 import { useNotifications } from "./notification-list";
@@ -16,12 +16,6 @@ import { useShiftMutations } from "./use-shift-mutations";
 import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 
 const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
-
-/** The shift a person is on right now, or the next one they are on. */
-function myShift(shifts: ShiftView[], name: string) {
-  const mine = shifts.filter((shift) => (shift.state === "in_progress" || shift.state === "scheduled") && (shift.supervisor === name || shift.crew.some((member) => member.name === name)));
-  return mine.find((shift) => shift.state === "in_progress") ?? mine.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
-}
 
 function greeting(now: string) {
   const hour = Number(formatDemoTime(now).slice(0, 2));
@@ -34,7 +28,7 @@ export function MyShiftScreen() {
   const notifications = useNotifications();
   if (!data) return <LoadingState />;
 
-  const shift = myShift(data.shifts, context.persona);
+  const shift = currentShiftFor(data.shifts, context.persona);
   const first = context.persona.split(" ")[0];
 
   if (!shift) {
@@ -136,7 +130,7 @@ export function MyWorkScreen() {
   const { data } = useShellData();
   if (!data) return <LoadingState />;
 
-  const shift = myShift(data.shifts, context.persona);
+  const shift = currentShiftFor(data.shifts, context.persona);
   const mine = data.issues
     .filter(isOpen)
     .flatMap((issue) => activeActions(issue).filter((action) => action.owner === context.persona && action.state !== "complete").map((action) => ({ issue, action })));

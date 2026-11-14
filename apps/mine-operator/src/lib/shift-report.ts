@@ -1,5 +1,6 @@
 import type { EquipmentEvent, OperationalIssue, Shift } from "@vesper/api-contracts";
 import { formatDemoTime } from "./demo-clock";
+import { downtimeReasonLabels } from "./equipment-rules";
 import { stateLabels } from "./issue-rules";
 
 /**
@@ -19,6 +20,12 @@ const within = (iso: string, start: number, end: number) => {
 };
 
 const clean = (value: string) => value.replace(/\s+/g, " ").trim();
+
+/** The reason given the last time this equipment was reported unavailable, if one was given. */
+function currentReason(item: EquipmentSource) {
+  const last = [...item.events].reverse().find((event) => event.type === "state_changed" && (event.state === "unavailable" || (!event.state && /unavailable/i.test(event.summary))));
+  return last?.reason ?? null;
+}
 
 export function draftShiftReport(input: { shift: Shift; issues: OperationalIssue[]; equipment: EquipmentSource[]; now: string }): ShiftReportDraft {
   const { shift, issues, equipment, now } = input;
@@ -54,11 +61,11 @@ export function draftShiftReport(input: { shift: Shift; issues: OperationalIssue
   const equipmentLines: ReportLine[] = [];
   for (const item of equipment) {
     for (const event of item.events.filter((candidate) => candidate.type === "state_changed" && within(candidate.occurredAt, start, end))) {
-      equipmentLines.push({ text: `${item.code} ${item.name}: ${clean(event.summary)} (${formatDemoTime(event.occurredAt)}${event.note ? `, ${clean(event.note)}` : ""})`, href: `/equipment/${item.id}`, label: item.code });
+      equipmentLines.push({ text: `${item.code} ${item.name}: ${clean(event.summary)}${event.reason ? `, ${downtimeReasonLabels[event.reason].toLowerCase()}` : ""} (${formatDemoTime(event.occurredAt)}${event.note ? `, ${clean(event.note)}` : ""})`, href: `/equipment/${item.id}`, label: item.code });
     }
   }
   for (const item of equipment.filter((candidate) => candidate.state === "unavailable")) {
-    equipmentLines.push({ text: `${item.code} ${item.name} is reported unavailable${item.stateNote ? `: ${clean(item.stateNote)}` : ""}`, href: `/equipment/${item.id}`, label: item.code });
+    equipmentLines.push({ text: `${item.code} ${item.name} is reported unavailable${currentReason(item) ? ` (${downtimeReasonLabels[currentReason(item)!].toLowerCase()})` : ""}${item.stateNote ? `: ${clean(item.stateNote)}` : ""}`, href: `/equipment/${item.id}`, label: item.code });
   }
 
   // What carries across: open issues, and the open dependencies holding them

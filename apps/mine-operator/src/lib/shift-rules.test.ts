@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildShiftTimes, canActOnShift, peopleOn, shiftHours, shiftsOverlap } from "./shift-rules";
+import { buildShiftTimes, canActOnShift, currentShiftFor, peopleOn, shiftHours, shiftsOverlap } from "./shift-rules";
 
 const manager = { name: "John Dlamini", role: "Mine Manager" };
 const amina = { name: "Amina Patel", role: "Shift Supervisor" };
@@ -62,5 +62,25 @@ describe("peopleOn", () => {
   it("lists the supervisor and crew once each", () => {
     expect(peopleOn({ supervisor: "Amina Patel", crew: [{ id: "c", name: "Thabo Molefe", duty: "Operator", equipmentId: null }] })).toEqual(["Amina Patel", "Thabo Molefe"]);
     expect(peopleOn({ supervisor: null, crew: [] })).toEqual([]);
+  });
+});
+
+describe("currentShiftFor", () => {
+  const mk = (over: Record<string, unknown>) => ({ state: "in_progress", startsAt: "2025-04-24T06:00:00+02:00", supervisor: "Amina Patel", crew: [], work: [], ...over }) as never;
+
+  it("finds a shift a person supervises, is crew on, or has been given work on, even when not on the crew", () => {
+    expect(currentShiftFor([mk({})], "Amina Patel")).toBeDefined();
+    expect(currentShiftFor([mk({ crew: [{ name: "Thabo Molefe" }] })], "Thabo Molefe")).toBeDefined();
+    expect(currentShiftFor([mk({ work: [{ owner: "Naledi Khoza" }] })], "Naledi Khoza")).toBeDefined();
+    expect(currentShiftFor([mk({})], "Naledi Khoza")).toBeUndefined();
+  });
+
+  it("prefers the shift in progress, then the earliest one still to start, and ignores closed ones", () => {
+    const later = mk({ state: "scheduled", startsAt: "2025-04-24T22:00:00+02:00", crew: [{ name: "Thabo Molefe" }], id: "later" });
+    const sooner = mk({ state: "scheduled", startsAt: "2025-04-24T14:00:00+02:00", crew: [{ name: "Thabo Molefe" }], id: "sooner" });
+    const live = mk({ crew: [{ name: "Thabo Molefe" }], id: "live" });
+    const closed = mk({ state: "closed", crew: [{ name: "Thabo Molefe" }], id: "closed" });
+    expect((currentShiftFor([later, sooner, live, closed], "Thabo Molefe") as unknown as { id: string }).id).toBe("live");
+    expect((currentShiftFor([later, sooner, closed], "Thabo Molefe") as unknown as { id: string }).id).toBe("sooner");
   });
 });

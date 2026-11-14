@@ -163,7 +163,7 @@ test.describe("equipment management", () => {
     await page.getByRole("button", { name: "More actions" }).click();
     await page.getByRole("group", { name: "More actions" }).getByRole("link", { name: /Report an issue/ }).click();
     await expect(page).toHaveURL(/exceptions\/new\?equipmentId=eq-ex204/);
-    await expect(page.getByLabel("Equipment")).toContainText("Hydraulic Excavator EX-204");
+    await expect(page.getByRole("combobox", { name: "Equipment", exact: true })).toContainText("Hydraulic Excavator EX-204");
   });
 
   test("shows new equipment in search and as a choice when reporting an issue", async ({ page }) => {
