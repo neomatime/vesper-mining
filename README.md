@@ -4,7 +4,46 @@
 **HIMARK SGC**  
 *Identify delays. Prevent avoidable waiting. Recover productive time.*
 
-> **Current status (3 November 2026):** Atlas reports that documentation reconciliation is complete: all five authoritative specifications are now **v1.1** in the real project `docs/` directory. **All five still await formal approval**, and technical-lead sign-off for architecture decision ADR-11 remains pending. The VESPER workspace remains an empty monorepo scaffold, not a runnable application. **This README does not authorise application development.** The next delivery target, once separately approved, is an interactive UI/UX prototype using fictional, clearly labelled simulated data.
+> **Current status (14 November 2026):** VESPER is a **working, interactive front-end prototype** on simulated data: a Next.js app in `apps/mine-operator/` with shared contracts in `packages/api-contracts/`, deployed from `main`. There is **no backend**: the data is a deterministic in-browser mock. The five specifications in `docs/` are still **approval-pending** and the technical-lead sign-off for ADR-11 is still outstanding; nothing in this README records an approval. This README does not authorise production infrastructure or real mine data.
+
+## Quick start
+
+Requires Node.js 22 or later and pnpm (the version is pinned in `package.json`).
+
+```bash
+pnpm install
+pnpm dev            # http://localhost:3000
+```
+
+| Command | What it does |
+| --- | --- |
+| `pnpm typecheck` | Type-checks the shared contracts and the app |
+| `pnpm lint` | ESLint with zero warnings allowed |
+| `pnpm test` | Unit tests (Vitest) |
+| `pnpm build` | Production build |
+| `pnpm test:e2e` | Builds, serves and runs the Playwright browser tests (desktop Chrome and a Pixel 7 phone) |
+
+**Signing in.** The app starts at `/sign-in`. Six fictional accounts cover every role (Mine Manager, two Shift Supervisors, Maintenance Planner, Stores / Inventory Controller, Field Employee). Their emails and the demonstration password are in `apps/mine-operator/src/lib/accounts.ts`. Data is kept in the browser's local storage, so each browser has its own copy. Use the Administration area or `/demo` to reset it.
+
+**Styles.** After editing `globals.css` or `theme.css`, regenerate the dark theme with `node apps/mine-operator/scripts/generate-dark-theme.mjs`. A unit test fails if the committed `dark.generated.css` is out of date. Hand-written dark rules belong in `dark.css`.
+
+**Do not run the app from inside a OneDrive-synced folder** for day-to-day development: `node_modules` and build output cause sync conflicts. Keep a local checkout and push to Git.
+
+## What is built
+
+| Area | What works |
+| --- | --- |
+| Sign in and roles | Email and password sign-in, first-sign-in password change, five desk roles on a role-specific Overview, Field Employees on VESPER Mobile, sign out |
+| Overview | "Needs you now" decision screen ranked from real records, with a role lens per role |
+| Work & Exceptions | Report, assign, act, depend, verify, close and reopen issues. Equipment issues carry a **primary cause and a secondary cause from that primary's own list** (`packages/api-contracts/src/causes.ts`) and whether the unit is still working, as the reporter sees it |
+| Equipment & Maintenance | Full equipment register, maintenance plans, service log, meter readings, availability reports with a reason, a **Downtime** card, and contractor service requests with quote comparison and a reply link |
+| Resource Readiness | Parts against planned work, with unknown stock kept separate from zero, and review decisions |
+| Shift Control & Handover | Shifts with crew and work, calendar (month, week, day), tasks marked done with an optional note and evidence, **handover draft built from the shift's records**, publish and acknowledge, and a printable **allocation sheet** |
+| Reports | Six reports including **Recurring causes** (primary and secondary) |
+| Administration | People, roles and rights, service providers, site and company details |
+| Experience | Light and dark themes, Inter at a light weight scale, one soft radius scale, a floating top bar, phone and tablet layouts |
+
+Quality: unit tests for the rules and the mock domain, and Playwright tests for the main journeys, run by CI on every change.
 
 ## 1. What VESPER is
 
@@ -67,24 +106,24 @@ A persistent **`DEMO / SIMULATED DATA`** indicator must appear throughout a futu
 
 ## 4. Repository map
 
-This is the **existing monorepo scaffold** reported by Atlas, with intended responsibilities. Subdirectories shown below the scaffold may not exist yet; **do not treat this diagram as evidence of created code**.
+The monorepo has two workspaces: the app and the shared contracts.
 
 ```text
 VESPER/
-├── .github/                  # Reserved for approved workflows and PR templates
+├── .github/workflows/        # CI: typecheck, lint, unit tests, build and browser tests
 ├── apps/
-│   └── mine-operator/        # Intended single VESPER frontend (currently a scaffold)
-├── docs/
-│   ├── VESPER_3.0_Product_Requirements.md
-│   ├── VESPER_3.0_Technical_Requirements.md
-│   ├── HIMARK_VESPER_3.0_Backend_Schema.md
-│   ├── VESPER_3.0_Application_Flow.md
-│   ├── VESPER_3.0_UI_UX_Design_Specification.md
-│   └── VESPER v3.0 Operational Recovery Dashboard.png
-├── infrastructure/           # Scaffold only; not permission for live infrastructure
+│   └── mine-operator/        # The single VESPER frontend (Next.js App Router)
+│       ├── src/app/          # Routes, layouts and the style sheets
+│       ├── src/components/   # Screens, dialogs and shared UI
+│       ├── src/lib/          # Rules, selectors, reports and the mock domain store
+│       ├── src/mocks/        # MSW handlers: the in-browser mock API
+│       ├── e2e/              # Playwright tests
+│       └── public/           # Brand images, fonts and the fictional site plan
+├── docs/                     # The five specifications and the reference image
+├── infrastructure/           # Placeholder only; not permission for live infrastructure
 ├── packages/
-│   └── api-contracts/        # Approved shared typed/Zod contract location (ADR-12); no code yet
-├── tests/                    # Reserved for cross-module and acceptance tests
+│   └── api-contracts/        # Zod contracts and the cause lists shared by app and tests
+├── tests/                    # Placeholder for cross-module acceptance tests
 ├── AGENTS.md                 # Mandatory rules for any implementation agent
 ├── CLAUDE.md                 # Atlas / Claude-specific work instructions
 └── README.md                 # This project orientation
@@ -92,7 +131,7 @@ VESPER/
 
 The versionless Backend Schema filename shown here reflects the completed v1.1 reconciliation. Verify actual files before relying on links; do not invent missing files. The folder `apps/mine-operator` is a location, **not** a distinct VESPER-branded product.
 
-**Recorded technical placement (ADR-11 and ADR-12; technical-lead sign-off for ADR-11 still pending):** app routes, UI components, features, demo service, MSW fixtures and E2E screens belong in `apps/mine-operator/`; reusable business entity schemas and Zod contracts belong in `packages/api-contracts/`. Do not create a database or actual API server to populate these folders. No code has been created yet.
+**Recorded technical placement (ADR-11 and ADR-12; technical-lead sign-off for ADR-11 still pending):** app routes, UI components, features, demo service, MSW fixtures and E2E screens belong in `apps/mine-operator/`; reusable business entity schemas and Zod contracts belong in `packages/api-contracts/`. Do not create a database or actual API server to populate these folders.
 
 ### Workspace location and OneDrive
 
@@ -125,20 +164,22 @@ The approved *direction* for design review is a **premium, predominantly light e
 - Soft, shallow shadows; clear typography, readable status labels, consistent iconography and motion.
 - Accessible warning, blocked and unknown states; colour alone never conveys status.
 
+**As built (14 November 2026), directed by the product owner:** the top bar is a white surface that follows the light or dark theme rather than obsidian; type is Inter at a light weight scale (300 to 500); corners use one soft radius scale (4, 6, 8 and 12 px, with 20 px for the sign-in card); and the sign-in page is a full-screen photograph with a single card. These changes are not yet reflected in the UI/UX specification.
+
 Only **one desktop Overview screenshot** has been provided; do not claim that tablet/mobile reference designs already exist. Desktop visual fidelity must not override documented business rules, safety constraints or mobile usability.
 
-## 7. Proposed frontend architecture (not yet installed)
+## 7. Frontend architecture
 
-The TRD's greenfield reference architecture includes:
+What is installed and in use (see `apps/mine-operator/package.json`):
 
-- **Next.js App Router, React, strict TypeScript, Node.js LTS and pnpm** in a single workspace/lockfile.
-- **Tailwind CSS v4**, HIMARK-owned **shadcn/ui/Radix** components and **Lucide React** icons.
-- **Motion for React** for controlled transitions; **Recharts** for charts; **Leaflet CRS.Simple** over a local fictional site-plan image.
-- **TanStack Query** for query/cache management and **Zustand** for UI and demo controls.
-- **Mock Service Worker (MSW)** with typed, deterministic in-memory simulation and **Zod** schema validation.
-- **React Hook Form**, **Vitest/Testing Library**, **Playwright** and **Storybook**.
+- **Next.js 16 App Router, React 19, strict TypeScript and pnpm** in one workspace and lockfile.
+- **Tailwind CSS v4** plus hand-written CSS layers (`globals.css`, `theme.css`, `typography.css`, `chrome.css`, `login.css`, `allocation.css`, `dark.css`), **Lucide React** icons and **Motion** for controlled transitions.
+- **Recharts** for charts and **Leaflet** over a local fictional site-plan image for the Operational Map.
+- **TanStack Query** for data fetching and caching and **Zustand** for session and demo controls.
+- **Mock Service Worker (MSW)** serving a typed, deterministic in-browser API, with **Zod** contracts shared through `packages/api-contracts`, and **React Hook Form** for forms.
+- **Vitest and Testing Library** for unit tests and **Playwright** for browser tests.
 
-The Stage 0 read-only audit reported no existing application framework to preserve; **Next.js within the existing monorepo is now the recorded architecture decision (ADR-11)**, subject to outstanding technical-lead sign-off. **Do not claim dependencies are installed, tests are running or a development server is available.** There are no valid project run commands to document until Stage 1 actually creates and verifies the manifest/scripts.
+Not installed: shadcn/ui and Radix (the components are hand-built), and Storybook. The TRD lists them as options, not as built.
 
 ### Simulation integrity
 
@@ -163,6 +204,8 @@ The TRD describes a gated Stage 0-7 sequence. The list below is a plan, **not a 
 | **6 - Continuity and intelligence** | Shift handover, Reports, notifications and demo entitlements | Handover, tier and deep-link tests pass |
 | **7 - Refinement** | Accessibility, responsiveness, visual QA, regression and handover | P0 acceptance criteria and mandatory scenarios pass |
 
+**Where the build stands.** In practice the application covers the stages above through the shell, demo domain, core and preventive workflows, shift continuity, reports, notifications and demo entitlements, with accessibility and visual refinement ongoing. This records what exists. It is **not** a record that any stage gate was formally passed, and the approval-pending status of the specifications is unchanged.
+
 Stages need an explicit task-level go-ahead and scope; do not infer authorisation from this table or from the existence of files. Approved previews require appropriate access protection and demo labelling; a live production release remains prohibited.
 
 ## 9. First steps for a human or AI contributor
@@ -180,4 +223,4 @@ Stages need an explicit task-level go-ahead and scope; do not infer authorisatio
 
 **Maintainer:** HIMARK SGC / VESPER product owner  
 **README status:** Draft for leadership and technical review; no sign-off implied.  
-**Last updated for documentation baseline v1.1:** 3 November 2026
+**Last updated:** 14 November 2026 (build status, run instructions and repository map; documentation baseline v1.1)
