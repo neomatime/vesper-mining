@@ -61,7 +61,7 @@ test.describe("administration", () => {
     await page.getByLabel("New password", { exact: true }).fill("Quarry-Face-2025");
     await page.getByLabel("Confirm new password").fill("Quarry-Face-2025");
     await page.getByRole("button", { name: /Save and continue/ }).click();
-    await expect(page).toHaveURL(/\/equipment/);
+    await expect(page).toHaveURL(/\/overview/);
     await expect(page.getByRole("button", { name: /Account menu for Zanele Mokoena/ })).toBeVisible();
 
     // A planner does not get Administration.

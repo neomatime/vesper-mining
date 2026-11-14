@@ -81,6 +81,19 @@ export function isLive(shift: Pick<Shift, "state">) {
   return shift.state === "scheduled" || shift.state === "in_progress";
 }
 
+/**
+ * The shift a person is on right now, or the next one they are on: they supervise it, are on its crew, or have been given
+ * work on it. Work given to someone who is not on the crew still counts, so it shows on their phone.
+ */
+export function currentShiftFor<T extends Pick<Shift, "state" | "startsAt" | "supervisor" | "crew" | "work">>(shifts: T[], name: string): T | undefined {
+  const mine = shifts.filter(
+    (shift) =>
+      (shift.state === "in_progress" || shift.state === "scheduled") &&
+      (shift.supervisor === name || shift.crew.some((member) => member.name === name) || shift.work.some((item) => item.owner === name)),
+  );
+  return mine.find((shift) => shift.state === "in_progress") ?? [...mine].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
+}
+
 /** A shift as the screens see it, joined to the work it carries forward and its neighbours. */
 export type ShiftView = Shift & {
   /** Open issues and open dependencies that continue past this shift. */
