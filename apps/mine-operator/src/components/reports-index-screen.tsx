@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Gauge, Layers3, LineChart, Lock, PackageCheck, ShieldAlert } from "lucide-react";
+import { BarChart3, Gauge, Layers3, LineChart, Lock, PackageCheck, Repeat2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { demoFetch } from "@/lib/api";
 import { entitlementsFor } from "@/lib/entitlements";
@@ -15,6 +15,7 @@ const icons: Record<ReportKey, typeof BarChart3> = {
   "operational-exceptions": ShieldAlert,
   "equipment-delay-stages": Layers3,
   "resource-readiness": PackageCheck,
+  "recurring-causes": Repeat2,
   "delay-analytics": LineChart,
 };
 

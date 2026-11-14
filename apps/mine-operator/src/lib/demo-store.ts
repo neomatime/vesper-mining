@@ -274,11 +274,13 @@ function assertActiveEquipment(item: Equipment) {
 
 /** Defect details only make sense for equipment, and only from the known lists. */
 function readDefect(value: unknown, equipmentId: string | null): OperationalIssue["defect"] {
+  if (equipmentId && (value === undefined || value === null)) fail(400, "VALIDATION_ERROR", "Choose the primary cause that was noticed.");
   if (value === undefined || value === null) return null;
-  if (!equipmentId) fail(400, "VALIDATION_ERROR", "Defect details can only be added when equipment is selected.");
+  if (!equipmentId) fail(400, "VALIDATION_ERROR", "Cause details can only be added when equipment is selected.");
   const parsed = issueDefectSchema.safeParse(value);
-  if (!parsed.success) fail(400, "VALIDATION_ERROR", "Choose what was noticed and whether the equipment is still working, from the lists.");
-  return parsed.data;
+  if (!parsed.success) fail(400, "VALIDATION_ERROR", "Choose the primary cause, an optional secondary cause and whether the equipment is still working, from the lists.");
+  if (parsed.data.secondary && parsed.data.secondary === parsed.data.symptom) fail(400, "VALIDATION_ERROR", "The secondary cause must differ from the primary cause.");
+  return { symptom: parsed.data.symptom, secondary: parsed.data.secondary ?? null, operability: parsed.data.operability };
 }
 
 function equipmentEvent(actor: Actor, type: EquipmentEvent["type"], summary: string, at: string, note?: string | null, extra?: { state?: EquipmentEvent["state"]; reason?: EquipmentEvent["reason"] }): EquipmentEvent {

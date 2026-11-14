@@ -135,7 +135,7 @@ export const defectSymptomSchema = z.enum([
   "other",
 ]);
 export const defectOperabilitySchema = z.enum(["operating", "limited", "stopped", "unsure"]);
-export const issueDefectSchema = z.object({ symptom: defectSymptomSchema, operability: defectOperabilitySchema });
+export const issueDefectSchema = z.object({ symptom: defectSymptomSchema, secondary: defectSymptomSchema.nullish(), operability: defectOperabilitySchema });
 
 export const operationalIssueSchema = z.object({
   id: z.string().min(1),

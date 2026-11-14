@@ -1,6 +1,6 @@
 import type { IssueWorkflowState, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { potentiallyAllocable } from "./calculations";
-import { stateLabels } from "./issue-rules";
+import { defectSymptomLabels, stateLabels } from "./issue-rules";
 import { partPosition } from "./readiness-rules";
 
 export type ReportKey =
@@ -8,6 +8,7 @@ export type ReportKey =
   | "operational-exceptions"
   | "equipment-delay-stages"
   | "resource-readiness"
+  | "recurring-causes"
   | "delay-analytics";
 
 export type ReportSummary = {
@@ -22,6 +23,7 @@ export const reportCatalogue: ReportSummary[] = [
   { key: "operational-exceptions", title: "Operational exceptions", description: "Where every issue sits in its lifecycle, from live records.", advanced: false },
   { key: "equipment-delay-stages", title: "Delay stages", description: "Time issues have spent in each stage, split into active work, waiting and coordination.", advanced: false },
   { key: "resource-readiness", title: "Resource readiness", description: "Required parts against what could be allocated, with unknown stock kept separate.", advanced: false },
+  { key: "recurring-causes", title: "Recurring causes", description: "The primary and secondary causes reported on equipment issues, ranked by how often they recur.", advanced: false },
   { key: "delay-analytics", title: "Delay analytics", description: "Delay categories compared across weeks. Indicative trend view.", advanced: true },
 ];
 
@@ -162,6 +164,52 @@ export function buildReport(
           owner: issue.owner ?? "Not assigned",
           openActions: issue.actions.filter((action) => !action.removedAt && action.state !== "complete").length,
         })),
+      };
+    }
+
+    case "recurring-causes": {
+      const withCause = issues.filter((issue) => issue.defect);
+      const tally = new Map<string, { primary: number; secondary: number; latest: { at: string; issue: string } }>();
+      const bump = (cause: string, kind: "primary" | "secondary", issue: OperationalIssue) => {
+        const row = tally.get(cause) ?? { primary: 0, secondary: 0, latest: { at: issue.reportedAt, issue: issue.issueNumber } };
+        row[kind] += 1;
+        if (Date.parse(issue.reportedAt) >= Date.parse(row.latest.at)) row.latest = { at: issue.reportedAt, issue: issue.issueNumber };
+        tally.set(cause, row);
+      };
+      for (const issue of withCause) {
+        if (!issue.defect) continue;
+        bump(defectSymptomLabels[issue.defect.symptom], "primary", issue);
+        if (issue.defect.secondary) bump(defectSymptomLabels[issue.defect.secondary], "secondary", issue);
+      }
+      const ranked = [...tally]
+        .map(([label, row]) => ({ label, primary: row.primary, secondary: row.secondary, total: row.primary + row.secondary, latest: row.latest.issue }))
+        .sort((a, b) => b.total - a.total || b.primary - a.primary || a.label.localeCompare(b.label));
+      return {
+        ...base,
+        issues: withCause,
+        period: "Current records · live",
+        quality: "reported",
+        source: "Issue register",
+        definition: "Counts the primary and secondary cause chosen when an issue was reported on equipment. An issue counts once as a primary cause and, if a second was given, once as a secondary cause. Issues reported before causes were captured are not counted.",
+        caveat: "Causes are as reported by the person who raised the issue, not verified. A high count shows where to look first. It is not a confirmed fault pattern.",
+        chart: {
+          title: "Reported causes",
+          unit: "issues",
+          stacked: true,
+          series: [
+            { key: "primary", label: "Primary cause", color: GREEN },
+            { key: "secondary", label: "Secondary cause", color: AMBER },
+          ],
+          data: ranked,
+        },
+        columns: [
+          { key: "label", label: "Cause" },
+          { key: "primary", label: "As primary" },
+          { key: "secondary", label: "As secondary" },
+          { key: "total", label: "Total" },
+          { key: "latest", label: "Latest issue" },
+        ],
+        rows: ranked,
       };
     }
 

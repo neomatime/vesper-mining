@@ -53,3 +53,22 @@ describe("live reports", () => {
     expect(row?.allocable).toBe("Unknown");
   });
 });
+
+describe("recurring causes report", () => {
+  it("counts primary and secondary causes separately, ranks by total, and ignores issues with no cause recorded", () => {
+    const base = { title: "Fault on EX-204", description: "A fault was observed during the pre-start check.", equipmentId: "eq-ex204" };
+    const field = { name: "Thabo Molefe", role: "Field Employee" };
+    demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" } }, field);
+    demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "stopped" } }, field);
+    demoDomain.createIssue({ ...base, defect: { symptom: "overheating", secondary: "leak", operability: "unsure" } }, field);
+    const report = buildReport("recurring-causes", input());
+    expect(report?.rows[0]).toMatchObject({ label: "Leak", primary: 2, secondary: 1, total: 3 });
+    expect(report?.rows.map((row) => row.label)).toEqual(["Leak", "Overheating", "Hydraulic or drive fault"]);
+    expect(report?.issues).toHaveLength(3);
+    expect(report?.caveat).toMatch(/not verified/i);
+  });
+
+  it("is empty, not invented, before any cause has been recorded", () => {
+    expect(buildReport("recurring-causes", input())?.rows).toEqual([]);
+  });
+});
