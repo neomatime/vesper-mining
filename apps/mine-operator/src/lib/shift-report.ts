@@ -29,7 +29,7 @@ export function draftShiftReport(input: { shift: Shift; issues: OperationalIssue
   // Work
   const workDone: ReportLine[] = shift.work
     .filter((item) => item.done)
-    .map((item) => ({ text: `${item.title}${item.owner ? `, ${item.owner}` : ""}${item.doneAt ? ` (done ${formatDemoTime(item.doneAt)})` : ""}`, href: item.issueId ? `/exceptions/${item.issueId}` : undefined, label: item.title }));
+    .map((item) => ({ text: `${item.title}${item.owner ? `, ${item.owner}` : ""}${item.doneAt ? ` (done ${formatDemoTime(item.doneAt)})` : ""}${item.completion?.note ? `: ${clean(item.completion.note)}` : ""}${item.completion?.evidence?.length ? ` [${item.completion.evidence.length} ${item.completion.evidence.length === 1 ? "file" : "files"} attached]` : ""}`, href: item.issueId ? `/exceptions/${item.issueId}` : undefined, label: item.title }));
   const workOpen: ReportLine[] = shift.work
     .filter((item) => !item.done)
     .map((item) => ({ text: `${item.title}${item.owner ? `, ${item.owner}` : ", no owner"}`, href: item.issueId ? `/exceptions/${item.issueId}` : undefined, label: item.title }));

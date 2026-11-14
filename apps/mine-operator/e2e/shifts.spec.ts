@@ -35,7 +35,10 @@ test.describe("shift management", () => {
     await dialog(page).getByRole("button", { name: "Add work" }).click();
     await expect(page.getByText("Follow up: Crusher C-02 — Feed Interruption", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: /Mark done: Follow up/ }).click();
+    await dialog(page).getByLabel("What was done (optional)").fill("Spoke to stores, part confirmed.");
+    await dialog(page).getByRole("button", { name: "Mark done" }).click();
     await expect(page.getByText(/1 of 1 finished/)).toBeVisible();
+    await expect(page.getByText("Spoke to stores, part confirmed.")).toBeVisible();
 
     await page.getByRole("button", { name: "Remove Thabo Molefe from the shift" }).click();
     await expect(page.getByText("Drill operator · Track Dozer DZ-017")).toHaveCount(0);

@@ -104,7 +104,7 @@ export function useShiftMutations(shift: ShiftView) {
     onError,
   });
   const updateWork = useMutation({
-    mutationFn: ({ workId, ...input }: { workId: string; done?: boolean; title?: string; owner?: string | null }) =>
+    mutationFn: ({ workId, ...input }: { workId: string; done?: boolean; title?: string; owner?: string | null; note?: string; evidence?: { name: string; kind: string; sizeLabel: string }[] }) =>
       demoSend<ShiftView>(`${base}/work/${workId}`, "PATCH", { ...input, version }),
     onSuccess: async (result) => {
       await refresh(result);

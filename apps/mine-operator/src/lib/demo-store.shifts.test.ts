@@ -147,6 +147,27 @@ describe("crew and work", () => {
     expect(demoDomain.updateWork(shift.id, task.id, { done: false }, amina).work.find((item) => item.id === task.id)?.done).toBe(false);
   });
 
+  it("keeps a completion note and up to five evidence files with the task, and clears them when it is reopened", () => {
+    const shift = demoDomain.shiftView("shift-a-20250424");
+    const task = shift.work.find((item) => item.owner === "Naledi Khoza")!;
+    const files = Array.from({ length: 7 }, (_, index) => ({ name: `photo-${index}.jpg`, kind: "photo", sizeLabel: "1.2 MB" }));
+    const done = demoDomain.updateWork(shift.id, task.id, { done: true, note: "Counted the liners on the shelf.", evidence: [...files, { name: "  ", kind: "photo", sizeLabel: "1 KB" }] }, stores);
+    const finished = done.work.find((item) => item.id === task.id)!;
+    expect(finished.completion).toMatchObject({ note: "Counted the liners on the shelf.", by: "Naledi Khoza" });
+    expect(finished.completion?.evidence).toHaveLength(5);
+    expect(done.events.at(-1)).toMatchObject({ type: "work_updated", note: "Counted the liners on the shelf." });
+    expect(done.events.at(-1)?.summary).toMatch(/5 files/);
+    const reopened = demoDomain.updateWork(shift.id, task.id, { done: false }, amina);
+    expect(reopened.work.find((item) => item.id === task.id)?.completion).toBeNull();
+  });
+
+  it("takes a task done with no note or evidence, because both are optional", () => {
+    const shift = demoDomain.shiftView("shift-a-20250424");
+    const task = shift.work.find((item) => item.owner === "Naledi Khoza")!;
+    const done = demoDomain.updateWork(shift.id, task.id, { done: true }, stores);
+    expect(done.work.find((item) => item.id === task.id)?.completion).toEqual({ note: null, evidence: [], by: "Naledi Khoza" });
+  });
+
   it("removes a task with a history entry", () => {
     const shift = demoDomain.shiftView("shift-a-20250424");
     const after = demoDomain.removeWork(shift.id, shift.work[0].id, {}, amina);

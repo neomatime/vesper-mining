@@ -11,6 +11,20 @@ export const crewMemberSchema = z.object({
   equipmentId: z.string().nullable(),
 });
 
+/** A file attached as evidence, by name. The file itself is not stored in this build. */
+export const workEvidenceSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(["photo", "document", "other"]),
+  sizeLabel: z.string(),
+});
+
+/** What the person recorded when they finished a task. */
+export const workCompletionSchema = z.object({
+  note: z.string().nullable(),
+  evidence: z.array(workEvidenceSchema),
+  by: z.string().min(1),
+});
+
 export const shiftWorkSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -18,6 +32,7 @@ export const shiftWorkSchema = z.object({
   issueId: z.string().nullable(),
   done: z.boolean(),
   doneAt: timestamp.nullable(),
+  completion: workCompletionSchema.nullish(),
 });
 
 export const handoverSchema = z.object({

@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ArrowRight, Bell, CalendarDays, Check, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { formatDemoTime, formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isOpen } from "@/lib/issue-rules";
 import { remaining, shiftTimes } from "@/lib/shift-format";
@@ -12,6 +13,7 @@ import { useNotifications } from "./notification-list";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useShiftMutations } from "./use-shift-mutations";
+import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 
 const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
@@ -98,19 +100,29 @@ export function MyShiftScreen() {
 
 function ShiftTasks({ shift, name }: { shift: ShiftView; name: string }) {
   const mutations = useShiftMutations(shift);
+  const [completing, setCompleting] = useState<{ id: string; title: string } | null>(null);
   const tasks = shift.work.filter((item) => item.owner === name).sort((a, b) => Number(a.done) - Number(b.done));
   if (tasks.length === 0) return null;
   return (
     <>
+      {completing ? (
+        <TaskCompletionDialog
+          title={completing.title}
+          pending={mutations.updateWork.isPending}
+          onClose={() => setCompleting(null)}
+          onSave={(input) => mutations.updateWork.mutate({ workId: completing.id, done: true, ...input }, { onSuccess: () => setCompleting(null) })}
+        />
+      ) : null}
       <h2>{shift.name} tasks</h2>
       {tasks.map((task) => (
         <article className="mobile-card" key={task.id}>
-          <button className={`check ${task.done ? "check--done" : ""}`} aria-pressed={task.done} aria-label={`${task.done ? "Reopen" : "Mark done"}: ${task.title}`} disabled={mutations.updateWork.isPending || shift.state !== "in_progress"} onClick={() => mutations.updateWork.mutate({ workId: task.id, done: !task.done })}>
+          <button className={`check ${task.done ? "check--done" : ""}`} aria-pressed={task.done} aria-label={`${task.done ? "Reopen" : "Mark done"}: ${task.title}`} disabled={mutations.updateWork.isPending || shift.state !== "in_progress"} onClick={() => (task.done ? mutations.updateWork.mutate({ workId: task.id, done: false }) : setCompleting({ id: task.id, title: task.title }))}>
             {task.done ? <Check /> : null}
           </button>
           <div>
             <strong className={task.done ? "struck" : ""}>{task.title}</strong>
             <p>{task.done && task.doneAt ? `Finished ${formatDemoDateTime(task.doneAt)}` : shift.state === "in_progress" ? "To do" : "Starts with the shift"}</p>
+            <TaskCompletionNote task={task} />
           </div>
           {task.issueId ? <Link href={`/exceptions/${task.issueId}`} aria-label={`Open the issue for ${task.title}`}><ArrowRight /></Link> : null}
         </article>

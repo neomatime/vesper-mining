@@ -272,6 +272,20 @@ function assertActiveEquipment(item: Equipment) {
   if (item.retiredAt) fail(409, "READ_ONLY", "Retired equipment is read-only. Restore it to make changes.");
 }
 
+/** Up to five evidence files, by name, kind and size. Anything else is dropped. */
+function readEvidence(value: unknown): { name: string; kind: "photo" | "document" | "other"; sizeLabel: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 5)
+    .map((file) => file as { name?: unknown; kind?: unknown; sizeLabel?: unknown })
+    .filter((file) => typeof file.name === "string" && file.name.trim() !== "")
+    .map((file) => ({
+      name: String(file.name).trim().slice(0, 120),
+      kind: file.kind === "photo" || file.kind === "document" ? file.kind : ("other" as const),
+      sizeLabel: typeof file.sizeLabel === "string" ? file.sizeLabel.slice(0, 20) : "",
+    }));
+}
+
 /** Defect details only make sense for equipment, and only from the known lists. */
 function readDefect(value: unknown, equipmentId: string | null): OperationalIssue["defect"] {
   if (equipmentId && (value === undefined || value === null)) fail(400, "VALIDATION_ERROR", "Choose the primary cause that was noticed.");
@@ -1536,9 +1550,16 @@ export const demoDomain = {
       assertShiftCan("work", actor, { ...shift, work: [item] });
       const done = input.done === true;
       if (done !== item.done) {
+        const note = text(input.note).slice(0, 500) || null;
+        const evidence = readEvidence(input.evidence);
         item.done = done;
         item.doneAt = done ? tick() : null;
-        recordShift(shift, actor, { type: "work_updated", summary: done ? `Work finished: ${item.title}` : `Work reopened: ${item.title}` });
+        item.completion = done ? { note, evidence, by: actor.name } : null;
+        recordShift(shift, actor, {
+          type: "work_updated",
+          summary: done ? `Work finished: ${item.title}${evidence.length ? ` (${evidence.length} ${evidence.length === 1 ? "file" : "files"})` : ""}` : `Work reopened: ${item.title}`,
+          note: done ? note : null,
+        });
         return presentShift(shift);
       }
     } else {
