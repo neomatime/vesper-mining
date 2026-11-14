@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const app = join(__dirname, "..", "app");
 const read = (name: string) => readFileSync(join(app, name), "utf8");
-const stylesheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "dark.css"];
+const stylesheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css"];
 
 describe("the type system's rules, checked in the stylesheets", () => {
   it("never asks for a font weight above 500, so the interface stays light", () => {
