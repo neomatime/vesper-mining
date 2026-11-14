@@ -55,20 +55,36 @@ describe("live reports", () => {
 });
 
 describe("recurring causes report", () => {
-  it("counts primary and secondary causes separately, ranks by total, and ignores issues with no cause recorded", () => {
-    const base = { title: "Fault on EX-204", description: "A fault was observed during the pre-start check.", equipmentId: "eq-ex204" };
-    const field = { name: "Thabo Molefe", role: "Field Employee" };
-    demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" } }, field);
-    demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "stopped" } }, field);
-    demoDomain.createIssue({ ...base, defect: { symptom: "overheating", secondary: "leak", operability: "unsure" } }, field);
+  const base = { title: "Fault on EX-204", description: "A fault was observed during the pre-start check.", equipmentId: "eq-ex204" };
+  const field = { name: "Thabo Molefe", role: "Field Employee" };
+  const raise = (symptom: string, secondary?: string) => demoDomain.createIssue({ ...base, defect: { symptom, secondary, operability: "unsure" } }, field);
+
+  it("ranks primary causes, and breaks each one down by the secondary causes from its own list", () => {
+    raise("hydraulic", "hose_or_fitting_leak");
+    raise("hydraulic", "hose_or_fitting_leak");
+    raise("hydraulic", "cylinder_or_seal_leak");
+    raise("engine_fuel", "overheating");
+    raise("engine_fuel");
     const report = buildReport("recurring-causes", input());
-    expect(report?.rows[0]).toMatchObject({ label: "Leak", primary: 2, secondary: 1, total: 3 });
-    expect(report?.rows.map((row) => row.label)).toEqual(["Leak", "Overheating", "Hydraulic or drive fault"]);
-    expect(report?.issues).toHaveLength(3);
+    expect(report?.chart.data).toEqual([{ label: "Hydraulic system", issues: 3 }, { label: "Engine and fuel", issues: 2 }]);
+    expect(report?.rows).toEqual([
+      { primary: "Hydraulic system", secondary: "Hose or fitting leak", count: 2, latest: expect.any(String) },
+      { primary: "Hydraulic system", secondary: "Cylinder or seal leak", count: 1, latest: expect.any(String) },
+      { primary: "Engine and fuel", secondary: "No secondary cause", count: 1, latest: expect.any(String) },
+      { primary: "Engine and fuel", secondary: "Overheating", count: 1, latest: expect.any(String) },
+    ]);
+    expect(report?.issues).toHaveLength(5);
     expect(report?.caveat).toMatch(/not verified/i);
   });
 
   it("is empty, not invented, before any cause has been recorded", () => {
     expect(buildReport("recurring-causes", input())?.rows).toEqual([]);
+  });
+
+  it("still reads a record made before secondary causes had their own lists", () => {
+    const issue = raise("hydraulic");
+    issue.defect = { symptom: "leak" as never, secondary: "overheating", operability: "unsure" };
+    const rows = buildReport("recurring-causes", { ...input(), issues: [issue] })?.rows;
+    expect(rows).toEqual([{ primary: "Leak", secondary: "Overheating", count: 1, latest: issue.issueNumber }]);
   });
 });

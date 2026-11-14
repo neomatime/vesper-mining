@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { primaryCauseIds } from "./causes";
 
 export const operationalStatusSchema = z.enum([
   "on_plan",
@@ -122,20 +123,13 @@ export const verificationSchema = z.object({
   verifiedAt: timestampSchema,
 });
 
-/** What the reporter noticed on a piece of equipment, and whether it is still working as they see it. A report, not a decision. */
-export const defectSymptomSchema = z.enum([
-  "leak",
-  "noise_or_vibration",
-  "overheating",
-  "electrical_or_control",
-  "hydraulic_or_drive",
-  "tyres_tracks_or_wear",
-  "structural_damage",
-  "warning_or_alarm",
-  "other",
-]);
+/**
+ * What the reporter noticed on a piece of equipment: a primary cause, optionally one of the secondary causes that belong to it,
+ * and whether it is still working as they see it. A report, not a decision. The lists are in causes.ts.
+ */
+export const primaryCauseSchema = z.enum(primaryCauseIds);
 export const defectOperabilitySchema = z.enum(["operating", "limited", "stopped", "unsure"]);
-export const issueDefectSchema = z.object({ symptom: defectSymptomSchema, secondary: defectSymptomSchema.nullish(), operability: defectOperabilitySchema });
+export const issueDefectSchema = z.object({ symptom: primaryCauseSchema, secondary: z.string().nullish(), operability: defectOperabilitySchema });
 
 export const operationalIssueSchema = z.object({
   id: z.string().min(1),
@@ -254,13 +248,14 @@ export type IssueVerification = z.infer<typeof verificationSchema>;
 export type ReadinessDecision = z.infer<typeof readinessDecisionSchema>;
 export type ReadinessReview = z.infer<typeof readinessReviewSchema>;
 export type OperationalIssue = z.infer<typeof operationalIssueSchema>;
-export type DefectSymptom = z.infer<typeof defectSymptomSchema>;
+export type PrimaryCauseId = z.infer<typeof primaryCauseSchema>;
 export type DefectOperability = z.infer<typeof defectOperabilitySchema>;
 export type IssueDefect = z.infer<typeof issueDefectSchema>;
 export type MapArea = z.infer<typeof mapAreaSchema>;
 export type ReadinessActivity = z.infer<typeof readinessActivitySchema>;
 export type DemoContext = z.infer<typeof demoContextSchema>;
 
+export * from "./causes";
 export * from "./equipment";
 export * from "./shift";
 export * from "./organisation";
