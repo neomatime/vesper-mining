@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  ClipboardList,
   Clock3,
   FileText,
   Link2,
@@ -151,7 +152,10 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
           <article className="card detail-card">
             <header className="card__header">
               <div><span className="eyebrow">{shift.work.length ? `${done} of ${shift.work.length} finished` : "Planned for the shift"}</span><h2>Work</h2></div>
-              {live && canManage ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "work" })}><Plus /> Add work</button> : null}
+              <div className="card__tools">
+                <Link className="button button--quiet button--small" href={`/shifts/${shift.id}/allocation`}><ClipboardList /> Allocation sheet</Link>
+                {live && canManage ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "work" })}><Plus /> Add work</button> : null}
+              </div>
             </header>
             {shift.work.length === 0 ? (
               <div className="empty-inline"><strong>No work planned yet</strong><span>{live && canManage ? "Add tasks, or attach an open issue so it stays in view across shifts." : "The supervisor plans the work for this shift."}</span></div>

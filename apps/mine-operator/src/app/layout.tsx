@@ -9,6 +9,7 @@ import "./chrome.css";
 import "./dark.generated.css";
 import "./dark.css";
 import "./login.css";
+import "./allocation.css";
 
 export const metadata: Metadata = {
   title: {
