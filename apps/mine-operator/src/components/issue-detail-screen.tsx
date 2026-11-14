@@ -173,7 +173,8 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
               <div><dt>Operating area</dt><dd>{issue.areaId ? <Link href="/map">{areaName ?? issue.areaId}</Link> : <span className="muted">None linked</span>}</dd></div>
               {issue.defect ? (
                 <>
-                  <div><dt>What was noticed</dt><dd>{defectSymptomLabels[issue.defect.symptom]}</dd></div>
+                  <div><dt>Primary cause</dt><dd>{defectSymptomLabels[issue.defect.symptom]}</dd></div>
+                  <div><dt>Secondary cause</dt><dd>{issue.defect.secondary ? defectSymptomLabels[issue.defect.secondary] : <span className="muted">None recorded</span>}</dd></div>
                   <div><dt>Still working? (as reported)</dt><dd>{defectOperabilityLabels[issue.defect.operability]}</dd></div>
                 </>
               ) : null}

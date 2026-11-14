@@ -54,14 +54,17 @@ describe("issue lifecycle", () => {
     rejects(() => demoDomain.createIssue({ title: "ab", description: "short" }, field), 400, /title/i);
   });
 
-  it("keeps defect details with the issue when equipment is chosen, and rejects anything off the lists", () => {
+  it("requires a primary cause when equipment is chosen, keeps an optional secondary, and rejects anything off the lists", () => {
     const base = { title: "Hydraulic leak on EX-204", description: "A hydraulic leak was observed during pre-start.", equipmentId: "eq-ex204" };
-    const issue = demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "limited" } }, field);
-    expect(issue.defect).toEqual({ symptom: "leak", operability: "limited" });
-    expect(demoDomain.createIssue(base, field).defect).toBeNull();
+    const issue = demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" } }, field);
+    expect(issue.defect).toEqual({ symptom: "leak", secondary: "hydraulic_or_drive", operability: "limited" });
+    expect(demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "unsure" } }, field).defect).toEqual({ symptom: "leak", secondary: null, operability: "unsure" });
+    rejects(() => demoDomain.createIssue(base, field), 400, /primary cause/i);
+    rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "leak", secondary: "leak", operability: "limited" } }, field), 400, /must differ/i);
     rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "mystery", operability: "limited" } }, field), 400, /from the lists/i);
     rejects(() => demoDomain.createIssue({ ...base, defect: { symptom: "leak", operability: "fine" } }, field), 400, /from the lists/i);
     rejects(() => demoDomain.createIssue({ title: base.title, description: base.description, defect: { symptom: "leak", operability: "limited" } }, field), 400, /equipment is selected/i);
+    expect(demoDomain.createIssue({ title: base.title, description: base.description }, field).defect).toBeNull();
   });
 
   it("walks the contract path and keeps verification independent", () => {

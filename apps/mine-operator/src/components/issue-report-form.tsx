@@ -22,8 +22,12 @@ const reportSchema = z.object({
   equipmentId: z.string().optional(),
   areaId: z.string().optional(),
   symptom: z.string().optional(),
+  secondary: z.string().optional(),
   operability: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "critical"]),
+}).superRefine((value, context) => {
+  if (value.equipmentId && !value.symptom) context.addIssue({ code: "custom", path: ["symptom"], message: "Choose the primary cause that was noticed." });
+  if (value.symptom && value.secondary && value.secondary === value.symptom) context.addIssue({ code: "custom", path: ["secondary"], message: "The secondary cause must differ from the primary cause." });
 });
 
 type ReportInput = z.infer<typeof reportSchema>;
@@ -46,11 +50,13 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
       equipmentId: requestedEquipment,
       areaId: "",
       symptom: "",
+      secondary: "",
       operability: "",
       priority: "medium",
     },
   });
   const chosenEquipment = useWatch({ control: form.control, name: "equipmentId" });
+  const chosenPrimary = useWatch({ control: form.control, name: "symptom" });
   const mutation = useMutation({
     mutationFn: (input: ReportInput) =>
       demoSend<OperationalIssue | PendingResult>("/issues", "POST", {
@@ -59,7 +65,7 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
         equipmentId: input.equipmentId,
         areaId: input.areaId,
         priority: input.priority,
-        defect: input.equipmentId && input.symptom ? { symptom: input.symptom, operability: input.operability || "unsure" } : undefined,
+        defect: input.equipmentId && input.symptom ? { symptom: input.symptom, secondary: input.secondary || null, operability: input.operability || "unsure" } : undefined,
         pendingSync: connectivity === "offline",
       }),
     onSuccess: async (result) => {
@@ -132,11 +138,20 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
           {chosenEquipment ? (
             <>
               <label className="form-field">
-                <span>What was noticed (optional)</span>
-                <Select {...form.register("symptom")}>
-                  <option value="">Not stated</option>
+                <span>Primary cause noticed</span>
+                <Select aria-invalid={Boolean(form.formState.errors.symptom)} {...form.register("symptom")}>
+                  <option value="">Choose the main cause</option>
                   {defectSymptoms.map((value) => <option key={value} value={value}>{defectSymptomLabels[value]}</option>)}
                 </Select>
+                {form.formState.errors.symptom ? <small className="field-error">{form.formState.errors.symptom.message}</small> : null}
+              </label>
+              <label className="form-field">
+                <span>Secondary cause noticed (optional)</span>
+                <Select aria-invalid={Boolean(form.formState.errors.secondary)} {...form.register("secondary")}>
+                  <option value="">None</option>
+                  {defectSymptoms.filter((value) => value !== chosenPrimary).map((value) => <option key={value} value={value}>{defectSymptomLabels[value]}</option>)}
+                </Select>
+                {form.formState.errors.secondary ? <small className="field-error">{form.formState.errors.secondary.message}</small> : <small className="field-hint">The main cause counts in reports. Add a second one if it also contributed.</small>}
               </label>
               <label className="form-field">
                 <span>Is it still working? (as you see it)</span>
