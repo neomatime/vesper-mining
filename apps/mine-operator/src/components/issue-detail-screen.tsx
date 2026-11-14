@@ -26,6 +26,8 @@ import { formatDemoDateTime } from "@/lib/demo-clock";
 import {
   activeActions,
   canAct,
+  defectOperabilityLabels,
+  defectSymptomLabels,
   isFinished,
   lifecycleRail,
   railPosition,
@@ -169,6 +171,12 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
               <div><dt>Reported</dt><dd><Clock3 /> {formatDemoDateTime(issue.reportedAt)}</dd></div>
               <div><dt>Equipment</dt><dd>{issue.equipmentId ? <Link href={`/equipment/${issue.equipmentId}`}>{equipmentName ?? issue.equipmentId}</Link> : <span className="muted">None linked</span>}</dd></div>
               <div><dt>Operating area</dt><dd>{issue.areaId ? <Link href="/map">{areaName ?? issue.areaId}</Link> : <span className="muted">None linked</span>}</dd></div>
+              {issue.defect ? (
+                <>
+                  <div><dt>What was noticed</dt><dd>{defectSymptomLabels[issue.defect.symptom]}</dd></div>
+                  <div><dt>Still working? (as reported)</dt><dd>{defectOperabilityLabels[issue.defect.operability]}</dd></div>
+                </>
+              ) : null}
             </dl>
             <div className="evidence-callout"><ShieldCheck /><div><strong>Reported information is not operational clearance</strong><p>Repair completion, independent verification, authorised release and operation resumption remain distinct events.</p></div></div>
           </article>

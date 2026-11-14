@@ -1,5 +1,7 @@
 import type {
   Action,
+  DefectOperability,
+  DefectSymptom,
   IssueDependency,
   IssueWorkflowState,
   OperationalIssue,
@@ -201,6 +203,28 @@ export function checkTransition(
   if (option.needsReference && !input.reference?.trim()) return "Enter the issue number this duplicates.";
   return null;
 }
+
+export const defectSymptomLabels: Record<DefectSymptom, string> = {
+  leak: "Leak",
+  noise_or_vibration: "Unusual noise or vibration",
+  overheating: "Overheating",
+  electrical_or_control: "Electrical or control fault",
+  hydraulic_or_drive: "Hydraulic or drive fault",
+  tyres_tracks_or_wear: "Tyres, tracks or wear parts",
+  structural_damage: "Structural damage",
+  warning_or_alarm: "Warning light or alarm",
+  other: "Other",
+};
+export const defectSymptoms = Object.keys(defectSymptomLabels) as DefectSymptom[];
+
+/** As the reporter sees it. This is information for the planner and supervisor, not a restriction or a release. */
+export const defectOperabilityLabels: Record<DefectOperability, string> = {
+  operating: "Still working normally",
+  limited: "Working with a limitation",
+  stopped: "Stopped",
+  unsure: "Not sure",
+};
+export const defectOperabilities = Object.keys(defectOperabilityLabels) as DefectOperability[];
 
 export const stateLabels: Record<IssueWorkflowState, string> = {
   reported: "Reported",

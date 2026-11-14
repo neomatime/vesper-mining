@@ -5,11 +5,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CheckCircle2, CloudOff, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useShellData } from "./shell-data";
 import { z } from "zod";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import { demoSend } from "@/lib/api";
+import { defectOperabilities, defectOperabilityLabels, defectSymptomLabels, defectSymptoms } from "@/lib/issue-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
 import { useToast } from "./toast-provider";
@@ -20,6 +21,8 @@ const reportSchema = z.object({
   description: z.string().min(12, "Describe what was observed in a little more detail."),
   equipmentId: z.string().optional(),
   areaId: z.string().optional(),
+  symptom: z.string().optional(),
+  operability: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "critical"]),
 });
 
@@ -42,12 +45,23 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
       description: "",
       equipmentId: requestedEquipment,
       areaId: "",
+      symptom: "",
+      operability: "",
       priority: "medium",
     },
   });
+  const chosenEquipment = useWatch({ control: form.control, name: "equipmentId" });
   const mutation = useMutation({
     mutationFn: (input: ReportInput) =>
-      demoSend<OperationalIssue | PendingResult>("/issues", "POST", { ...input, pendingSync: connectivity === "offline" }),
+      demoSend<OperationalIssue | PendingResult>("/issues", "POST", {
+        title: input.title,
+        description: input.description,
+        equipmentId: input.equipmentId,
+        areaId: input.areaId,
+        priority: input.priority,
+        defect: input.equipmentId && input.symptom ? { symptom: input.symptom, operability: input.operability || "unsure" } : undefined,
+        pendingSync: connectivity === "offline",
+      }),
     onSuccess: async (result) => {
       if ("state" in result) return;
       await queryClient.invalidateQueries({ queryKey: ["workspace", "exceptions"] });
@@ -115,6 +129,25 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
               {(shell?.areas ?? []).map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
             </Select>
           </label>
+          {chosenEquipment ? (
+            <>
+              <label className="form-field">
+                <span>What was noticed (optional)</span>
+                <Select {...form.register("symptom")}>
+                  <option value="">Not stated</option>
+                  {defectSymptoms.map((value) => <option key={value} value={value}>{defectSymptomLabels[value]}</option>)}
+                </Select>
+              </label>
+              <label className="form-field">
+                <span>Is it still working? (as you see it)</span>
+                <Select {...form.register("operability")}>
+                  <option value="">Not sure</option>
+                  {defectOperabilities.map((value) => <option key={value} value={value}>{defectOperabilityLabels[value]}</option>)}
+                </Select>
+                <small className="field-hint">This helps the planner and supervisor decide. It does not restrict or release the equipment.</small>
+              </label>
+            </>
+          ) : null}
           <label className="form-field">
             <span>Priority</span>
             <Select {...form.register("priority")}>
