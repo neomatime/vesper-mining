@@ -22,10 +22,12 @@ export const metadata: Metadata = {
   },
   description: "Operational coordination for mining. Identify delays, prevent avoidable waiting, recover productive time.",
   robots: { index: false, follow: false },
+  // Lets an installed copy on iPhone open full screen with the right name (the manifest covers Chrome, Edge and Android).
+  appleWebApp: { capable: true, title: "VESPER", statusBarStyle: "default" },
 };
 
 /** On phones that support it, the page shrinks to the space above the keyboard instead of sliding under it. */
-export const viewport: Viewport = { width: "device-width", initialScale: 1, interactiveWidget: "resizes-content" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, interactiveWidget: "resizes-content", themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
