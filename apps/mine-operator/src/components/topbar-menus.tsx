@@ -3,7 +3,7 @@
 /**
  * The three menus in the top bar: site, notifications and profile.
  */
-import { Bell, Check, ChevronDown, ChevronRight, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -15,6 +15,7 @@ import { useSession } from "@/stores/session";
 import { NotificationList, useNotifications } from "./notification-list";
 import { useDismiss } from "./use-dismiss";
 import { ThemeSwitch } from "./theme-switch";
+import { useInstallApp } from "./use-install-app";
 
 function useMenu() {
   const [open, setOpen] = useState(false);
@@ -117,6 +118,8 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
   const signOut = useSession((state) => state.signOut);
   const mobileIncluded = entitlementsFor(context.tier).mobile;
   const canAdminister = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
+  // Only true where the browser can install web apps and VESPER is not already installed.
+  const { canInstall, install } = useInstallApp();
 
   const handleSignOut = () => {
     close();
@@ -177,6 +180,15 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
           <div className="menu-section">
             <ThemeSwitch />
           </div>
+
+          {canInstall ? (
+            <div className="menu-section">
+              <button className="menu-item" onClick={() => { close(); void install(); }}>
+                <span className="menu-item__icon"><Download size={16} /></span>
+                <span className="menu-item__copy"><strong>Install app</strong><small>Open VESPER in its own window</small></span>
+              </button>
+            </div>
+          ) : null}
 
           <div className="menu-section menu-section--footer">
             <button className="menu-item" onClick={handleSignOut}>

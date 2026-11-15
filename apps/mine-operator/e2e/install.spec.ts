@@ -27,3 +27,32 @@ test.describe("install as an app", () => {
     await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute("content", "#ffffff");
   });
 });
+
+test.describe("install button", () => {
+  /** Chrome sends this event itself on a real site; the test sends the same shape so the button can be seen without a real install. */
+  const announceInstallable = (page: import("@playwright/test").Page) =>
+    page.evaluate(() => {
+      const event = new Event("beforeinstallprompt", { cancelable: true }) as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+      (window as unknown as { __installPrompts: number }).__installPrompts = 0;
+      event.prompt = async () => { (window as unknown as { __installPrompts: number }).__installPrompts += 1; };
+      event.userChoice = Promise.resolve({ outcome: "accepted" });
+      window.dispatchEvent(event);
+    });
+
+  test("is in the account menu only when the browser can install the app, and starts the browser's install", async ({ page }) => {
+    const { openAs } = await import("./support");
+    await openAs(page, "/overview");
+    await page.getByRole("button", { name: /Account menu for/ }).click();
+    await expect(page.getByRole("button", { name: /Install app/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
+    await announceInstallable(page);
+    await page.getByRole("button", { name: /Account menu for/ }).click();
+    await page.getByRole("button", { name: /Install app/ }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __installPrompts: number }).__installPrompts)).toBe(1);
+
+    // The browser's event is single use, so the button goes until the browser offers again.
+    await page.getByRole("button", { name: /Account menu for/ }).click();
+    await expect(page.getByRole("button", { name: /Install app/ })).toHaveCount(0);
+  });
+});
