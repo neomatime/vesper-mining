@@ -10,6 +10,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "./toast-provider";
 import { reactivateDemoWorker } from "@/lib/demo-worker";
+// Imported for its side effect: it starts listening for the browser's install event as early as possible, because the browser sends it once.
+import "@/lib/install-prompt";
 
 /** The shared data cache for every screen. Data is fresh for 30 seconds; failures show an error state instead of retrying silently. */
 const queryClient = new QueryClient({
