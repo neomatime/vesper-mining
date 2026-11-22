@@ -12,6 +12,7 @@ test.describe("dropdowns, dates and times", () => {
 
   async function openAddEquipment(page: Page) {
     await openAs(page, "/equipment", "Lebo Maseko");
+    await page.getByRole("button", { name: "Add asset" }).click();
     await page.getByRole("button", { name: "Add equipment" }).click();
   }
 
@@ -28,7 +29,7 @@ test.describe("dropdowns, dates and times", () => {
     await dialog(page).getByLabel("Category").click();
     await expect(page.getByRole("listbox")).toBeVisible();
     await expect(page.getByLabel("Search the list")).toBeVisible();
-    await page.getByLabel("Search the list").fill("pum");
+    await page.getByLabel("Search the list").fill("exca");
     await expect(page.getByRole("option")).toHaveCount(1);
     await page.getByLabel("Search the list").fill("zzz");
     await expect(page.getByText(/Nothing matches/)).toBeVisible();

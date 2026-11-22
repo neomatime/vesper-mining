@@ -16,8 +16,22 @@ export const equipmentCategorySchema = z.enum([
   "water_cart",
   "light_vehicle",
   "pump",
+  // Site infrastructure, kept in the same asset register as equipment. See `assetGroupOf` in the app for how they are grouped.
+  "substation",
+  "generator",
+  "power_distribution",
+  "pipeline",
+  "conveyor",
+  "processing_plant",
+  "mine_road",
+  "rail",
+  "loading_facility",
+  "comms_network",
   "other",
 ]);
+
+/** The condition of an asset, kept apart from whether it is available and from when it is next serviced. */
+export const assetConditionSchema = z.enum(["good", "needs_attention", "unknown"]);
 
 export const equipmentStateSchema = z.enum(["available", "unavailable"]);
 
@@ -86,6 +100,15 @@ export const equipmentSchema = z.object({
   serialNumber: z.string().nullable(),
   areaId: z.string().nullable(),
   notes: z.string().nullable(),
+  /** Where the asset is, in words, when it is not in a mapped area (for example Plant Area or Tailings storage facility). */
+  location: z.string().nullable(),
+  /** Who is responsible for the asset. */
+  responsible: z.string().nullable(),
+  condition: assetConditionSchema,
+  /** A usage measure where operating hours do not apply, for example 12,400 m3 pumped. Optional. */
+  usage: z.string().nullable(),
+  /** The assets this one depends on to operate (for example a crusher depends on its substation). */
+  dependsOn: z.array(z.string().min(1)),
   state: equipmentStateSchema,
   stateNote: z.string().nullable(),
   stateQuality: z.enum(["reported", "verified"]),
@@ -103,6 +126,7 @@ export const equipmentSchema = z.object({
   createdAt: timestamp,
 });
 
+export type AssetCondition = z.infer<typeof assetConditionSchema>;
 export type EquipmentCategory = z.infer<typeof equipmentCategorySchema>;
 export type EquipmentState = z.infer<typeof equipmentStateSchema>;
 export type DowntimeReason = z.infer<typeof downtimeReasonSchema>;

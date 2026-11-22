@@ -111,6 +111,23 @@ export function buildInsights(inputs: IntelligenceInputs): Insight[] {
     });
   }
 
+  // 3a. Asset dependencies: an unavailable asset that other assets depend on (for example a substation feeding a crusher and a conveyor).
+  // It names what is affected and does not estimate production or money: that only comes from a calculation that has been done.
+  const failedWithDependents = inputs.equipment.filter((item) => !item.retiredAt && item.state === "unavailable" && item.dependents.length > 0).sort((a, b) => b.dependents.length - a.dependents.length)[0];
+  if (failedWithDependents) {
+    const affected = failedWithDependents.dependents;
+    insights.push({
+      id: `dependency-${failedWithDependents.id}`,
+      kind: "equipment",
+      title: "Dependent assets affected",
+      summary: `${failedWithDependents.code} is reported unavailable. ${affected.map((item) => item.code).join(", ")} ${affected.length === 1 ? "depends" : "depend"} on it.`,
+      why: "Assets that depend on it cannot run until it is back. No production or financial impact is estimated unless it has been calculated.",
+      action: { label: "Open asset", href: `/equipment/${failedWithDependents.id}` },
+      urgency: 88,
+      sources: [{ label: failedWithDependents.code, href: `/equipment/${failedWithDependents.id}` }, ...affected.map((item) => ({ label: item.code, href: `/equipment/${item.id}` }))],
+    });
+  }
+
   // 3. Equipment reliability: only on evidence. Two or more recorded breakdowns is a recurrence; fewer is not claimed.
   const recurring = [...inputs.equipment].filter((item) => !item.retiredAt && breakdownCount(item) >= RECURRENCE_THRESHOLD).sort((a, b) => breakdownCount(b) - breakdownCount(a))[0];
   if (recurring) {

@@ -11,7 +11,8 @@ test.describe("equipment management", () => {
   const dialog = (page: Page) => page.getByRole("dialog");
 
   async function addTruck(page: Page, code = "ht 301", name = "Haul Truck HT-301") {
-    await page.getByRole("button", { name: "Add equipment" }).first().click();
+    await page.getByRole("button", { name: "Add asset" }).click();
+    await page.getByRole("button", { name: "Add equipment" }).click();
     await dialog(page).getByLabel("Name").fill(name);
     await dialog(page).getByLabel("Asset code").fill(code);
     await pick(dialog(page).getByLabel("Category"), "Haul truck");
@@ -147,9 +148,9 @@ test.describe("equipment management", () => {
 
   test("keeps each role to what it may do", async ({ page }) => {
     await openAs(page, "/equipment", "Amina Patel");
-    await expect(page.getByRole("heading", { name: "Equipment", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Assets", level: 1 })).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add equipment" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add asset" })).toHaveCount(0);
     await page.goto("/equipment/eq-dz017");
     await expect(page.getByRole("button", { name: "Log service" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
