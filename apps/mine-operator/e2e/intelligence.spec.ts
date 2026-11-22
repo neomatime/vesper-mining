@@ -9,7 +9,7 @@ for (const scheme of ["light", "dark"] as const) {
   test.describe(`VESPER Intelligence in the ${scheme} theme`, () => {
     test.use({ colorScheme: scheme });
 
-    test("shows prioritised insights, each linked to its record, and a shift briefing that approves nothing", async ({ page }) => {
+    test("shows prioritised insights, each linked to its record, and a shift briefing that sends nothing", async ({ page }) => {
       await openAs(page, "/overview");
       const panel = page.getByRole("article", { name: /VESPER Intelligence/ });
       await expect(panel).toBeVisible();
@@ -23,7 +23,7 @@ for (const scheme of ["light", "dark"] as const) {
       const briefing = page.getByRole("article", { name: /Shift briefing/ });
       await expect(briefing).toContainText("Production: 156,200 t reported");
       await expect(briefing).toContainText("Reported, not verified");
-      await expect(briefing).toContainText("nothing is approved here");
+      await expect(briefing).toContainText("Nothing is sent from here");
       await expect(briefing.getByRole("link", { name: /View full briefing/ })).toBeVisible();
     });
 
@@ -47,3 +47,31 @@ for (const scheme of ["light", "dark"] as const) {
     });
   });
 }
+
+test("a supervisor reviews, corrects and approves the shift briefing; and the handover is not sent", async ({ page }) => {
+  test.slow();
+  await openAs(page, "/overview", "Amina Patel");
+  const briefing = page.getByRole("article", { name: /Shift briefing/ });
+  await expect(briefing).toContainText("Draft: not reviewed");
+  await briefing.getByRole("button", { name: "Review and approve" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Generated line").first().fill("Production: 156,200 t reported. Weighbridge check due this afternoon.");
+  await dialog.getByLabel("Your note for the next team (optional)").fill("Watch the crusher feed.");
+  await expect(dialog.getByText("1 correction will be recorded.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Approve briefing" }).click();
+  await expect(page.getByText("Briefing approved").first()).toBeVisible();
+  await expect(briefing).toContainText("Approved");
+  await expect(briefing).toContainText("Approved by Amina Patel");
+  await expect(briefing).toContainText("Weighbridge check due this afternoon.");
+  await expect(briefing).toContainText("Edited by the supervisor");
+  await expect(briefing).toContainText("Watch the crusher feed.");
+  await expect(briefing).toContainText("Approval does not send the handover");
+  await expect(briefing.getByRole("button", { name: "Review and approve" })).toHaveCount(0);
+
+  // Reopening needs a reason and returns it to a draft.
+  await briefing.getByRole("button", { name: "Reopen for review" }).click();
+  await page.getByRole("dialog").getByLabel("Why? (required)").fill("The weighbridge figure changed.");
+  await page.getByRole("dialog").getByRole("button", { name: "Reopen", exact: true }).click();
+  await expect(briefing).toContainText("Draft: not reviewed");
+  await expect(briefing).toContainText("Edited by the supervisor");
+});

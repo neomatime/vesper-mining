@@ -10,7 +10,12 @@
 import { ArrowRight, Check, ChartNoAxesColumn, ClipboardCheck, Send, Sparkles, Truck, Wrench, Box } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { answerQuestion, buildBriefing, buildInsights, exampleQuestions, type Answer, type Insight, type IntelligenceInputs } from "@/lib/intelligence-rules";
+import { answerQuestion, buildInsights, exampleQuestions, type Answer, type Insight, type IntelligenceInputs } from "@/lib/intelligence-rules";
+import { formatDemoDateTime } from "@/lib/demo-clock";
+import { Dialog } from "./dialog";
+import { Field } from "./form-field";
+import { StatusBadge } from "./status-badge";
+import { useBriefing, useBriefingAction, type BriefingView } from "./use-briefing";
 import { useImpact } from "./use-impact";
 import { useLogistics } from "./use-logistics";
 
@@ -30,8 +35,9 @@ export function useIntelligenceInputs(base: Pick<IntelligenceInputs, "now" | "is
 /** One of the Overview's intelligence panels. It waits for the records it needs and shows nothing until it has them. */
 export function IntelligenceSlot({ part, base }: { part: "insights" | "briefing"; base: Pick<IntelligenceInputs, "now" | "issues" | "equipment" | "readiness" | "shifts"> }) {
   const inputs = useIntelligenceInputs(base);
+  if (part === "briefing") return <ShiftBriefingPanel />;
   if (!inputs) return null;
-  return part === "insights" ? <IntelligencePanel inputs={inputs} /> : <ShiftBriefingPanel inputs={inputs} />;
+  return <IntelligencePanel inputs={inputs} />;
 }
 
 export function IntelligencePanel({ inputs }: { inputs: IntelligenceInputs }) {
@@ -105,32 +111,94 @@ function InsightRow({ item, showWhy }: { item: Insight; showWhy: boolean }) {
   );
 }
 
-/** The shift briefing, assembled from records. It is a draft for a supervisor to review: it is never sent or approved from here. */
-export function ShiftBriefingPanel({ inputs }: { inputs: IntelligenceInputs }) {
-  const briefing = useMemo(() => buildBriefing(inputs), [inputs]);
+/**
+ * The shift briefing: generated from records, then reviewed by a supervisor, who may correct any line and add their own note before
+ * approving. A corrected line says so, an approval is attributed, and if the records change after approval the panel says which lines
+ * no longer match. Approving does not send the handover and does not change any record.
+ */
+export function ShiftBriefingPanel() {
+  const query = useBriefing();
+  const [reviewing, setReviewing] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  if (!query.data) return null;
+  const view = query.data;
+  const approved = view.record.state === "approved";
+  const stale = view.changedLines.length > 0;
+  const nextShift = view.generated.nextShift;
+
   return (
     <article className="card intel-briefing" aria-labelledby="briefing-title">
       <header className="card__header">
         <div><span className="eyebrow">Intelligence summary</span><h2 id="briefing-title">Shift briefing</h2></div>
+        <StatusBadge value={approved ? "confirmed" : "needs_confirmation"} label={approved ? "Approved" : "Draft: not reviewed"} />
       </header>
       <ul className="intel-briefing__list">
-        {briefing.lines.map((line) => (
+        {view.lines.map((line) => (
           <li key={line.id} className={`intel-briefing__line intel-briefing__line--${line.tone}`}>
             <span aria-hidden="true">{line.tone === "good" ? <Check /> : <ClipboardCheck />}</span>
-            {line.href ? <Link href={line.href}>{line.text}</Link> : line.text}
+            <span className="intel-briefing__text">
+              {line.href ? <Link href={line.href}>{line.text}</Link> : line.text}
+              {line.edited ? <small> Edited by the supervisor</small> : null}
+              {view.changedLines.includes(line.id) ? <small className="intel-briefing__stale"> The records have changed since approval</small> : null}
+            </span>
           </li>
         ))}
       </ul>
-      {briefing.nextShift.length > 0 ? (
+      {view.record.note ? <p className="intel-briefing__note"><small>Note from the supervisor</small>{view.record.note}</p> : null}
+      {nextShift.length > 0 ? (
         <div className="intel-briefing__next">
           <small>Suggested priorities for the next shift</small>
-          <ul>{briefing.nextShift.map((line) => <li key={line.id}>{line.href ? <Link href={line.href}>{line.text}</Link> : line.text}</li>)}</ul>
+          <ul>{nextShift.map((line) => <li key={line.id}>{line.href ? <Link href={line.href}>{line.text}</Link> : line.text}</li>)}</ul>
         </div>
       ) : null}
-      <p className="card__footnote">Generated from records. A supervisor reviews and sends the handover; nothing is approved here.</p>
+      {approved ? (
+        <p className="card__footnote">Approved by {view.record.approvedBy}{view.record.approvedAt ? `, ${formatDemoDateTime(view.record.approvedAt)}` : ""}. Approval does not send the handover.{stale ? " Some records have changed since: reopen it to review again." : ""}</p>
+      ) : (
+        <p className="card__footnote">Generated from records. {view.canReview ? "Review it, correct anything that is wrong, then approve." : "A Shift Supervisor or the Mine Manager reviews and approves it."} Nothing is sent from here.</p>
+      )}
       <div className="intel-briefing__footer">
-        <Link className="button button--quiet" href={briefing.shiftId ? `/shifts/${briefing.shiftId}/handover` : "/shifts/handover"}>View full briefing <ArrowRight /></Link>
+        {view.canReview && !approved ? <button className="button button--primary" onClick={() => setReviewing(true)}>Review and approve</button> : null}
+        {view.canReview && approved ? <button className="button button--quiet" onClick={() => setReopening(true)}>Reopen for review</button> : null}
+        <Link className="button button--quiet" href={view.shiftId ? `/shifts/${view.shiftId}/handover` : "/shifts/handover"}>View full briefing <ArrowRight /></Link>
       </div>
+      {reviewing ? <ReviewDialog view={view} onClose={() => setReviewing(false)} /> : null}
+      {reopening ? <ReopenDialog onClose={() => setReopening(false)} /> : null}
     </article>
+  );
+}
+
+function ReviewDialog({ view, onClose }: { view: BriefingView; onClose: () => void }) {
+  const [wording, setWording] = useState<Record<string, string>>(() => Object.fromEntries(view.lines.map((line) => [line.id, line.text])));
+  const [note, setNote] = useState(view.record.note);
+  const payload = () => ({ corrections: Object.fromEntries(view.lines.filter((line) => wording[line.id].trim() !== line.generated).map((line) => [line.id, wording[line.id].trim()])), note });
+  const save = useBriefingAction<ReturnType<typeof payload>>("/briefing/save", { title: "Draft saved", detail: "Your corrections are kept. It is not approved yet." }, onClose);
+  const approve = useBriefingAction<ReturnType<typeof payload>>("/briefing/approve", { title: "Briefing approved", detail: "The handover is still sent separately." }, onClose);
+  const empty = view.lines.some((line) => wording[line.id].trim().length === 0);
+  const busy = save.isPending || approve.isPending;
+  const edits = view.lines.filter((line) => wording[line.id].trim() !== line.generated).length;
+  return (
+    <Dialog title="Review the shift briefing" description={`${view.shiftName}. Generated from records: correct anything that is wrong before you approve.`} size="wide" onClose={onClose} locked={busy}
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={busy}>Cancel</button><button className="button button--quiet" disabled={busy || empty} onClick={() => save.mutate(payload())}>Save draft</button><button className="button button--primary" disabled={busy || empty} onClick={() => approve.mutate(payload())}>{approve.isPending ? "Approving…" : "Approve briefing"}</button></>}>
+      <div className="dialog__stack">
+        {view.lines.map((line) => (
+          <Field key={line.id} label={line.generated === wording[line.id] ? "Generated line" : "Corrected line"} hint={line.generated !== wording[line.id] ? `Generated: ${line.generated}` : undefined}>
+            <textarea rows={2} maxLength={300} value={wording[line.id]} onChange={(event) => setWording({ ...wording, [line.id]: event.target.value })} />
+          </Field>
+        ))}
+        <Field label="Your note for the next team (optional)"><textarea rows={3} maxLength={600} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
+        <p className="field-hint">{edits === 0 ? "No corrections: it will be approved as generated." : `${edits} correction${edits === 1 ? "" : "s"} will be recorded.`} Approving does not send the handover or change any record.</p>
+      </div>
+    </Dialog>
+  );
+}
+
+function ReopenDialog({ onClose }: { onClose: () => void }) {
+  const [reason, setReason] = useState("");
+  const reopen = useBriefingAction<{ reason: string }>("/briefing/reopen", { title: "Reopened for review" }, onClose);
+  return (
+    <Dialog title="Reopen the briefing?" description="It goes back to a draft. The earlier approval stays in the history." onClose={onClose} locked={reopen.isPending}
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={reopen.isPending}>Cancel</button><button className="button button--primary" disabled={reopen.isPending || reason.trim().length < 5} onClick={() => reopen.mutate({ reason })}>{reopen.isPending ? "Saving…" : "Reopen"}</button></>}>
+      <Field label="Why? (required)"><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
+    </Dialog>
   );
 }

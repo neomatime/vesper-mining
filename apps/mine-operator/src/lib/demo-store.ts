@@ -79,6 +79,7 @@ import {
   type Vat,
 } from "./transport-rules";
 import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
+import { buildBriefing, canReviewBriefing, changedSinceApproval, effectiveLines, reviewMessage, type BriefingRecord } from "./intelligence-rules";
 import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
 import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedValueHistory, shipmentCounters } from "./shipment-data";
 import { OWN_FLEET_ID, OWN_FLEET_NAME, assignedTonnes, earliestCollection, fleetCategories, fleetProblems, windowsOverlap, type FleetAlert, type FleetVehicle } from "./fleet-rules";
@@ -183,6 +184,7 @@ const initialState = {
   /** The Gold demonstration's scenario and the history of changes to its estimate. */
   impact: seedImpactScenario,
   impactHistory: [] as ImpactChange[],
+  briefings: [] as BriefingRecord[],
   /** Every version of every price, and every value a shipment has had. Nothing here is ever overwritten. */
   prices: seedPrices,
   finance: seedFinance,
@@ -196,7 +198,7 @@ const initialState = {
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v9";
+const STORAGE_KEY = "vesper-demo-state-v10";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -205,7 +207,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.briefings) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -1152,6 +1154,47 @@ export type OrganisationView = {
  * organisation, notifications). Each method validates, authorises, changes the records, records history and returns the
  * result. The mock handlers call these; nothing else changes the state. After a change, handlers call `save`.
  */
+/** Shared by save and approve: validates the corrections against the generated lines and records who did what. */
+function saveBriefingRecord(input: Record<string, unknown>, actor: Actor, approve: boolean) {
+  if (!canReviewBriefing(actor)) fail(403, "FORBIDDEN", reviewMessage);
+  const generated = buildBriefing({ shifts: demoDomain.listShifts(), issues: demoDomain.listIssues() });
+  if (!generated.shiftId) fail(409, "READ_ONLY", "There is no shift to brief.");
+  let record = state.briefings.find((item) => item.shiftId === generated.shiftId);
+  if (record?.state === "approved") fail(409, "READ_ONLY", "This briefing is approved. Reopen it to change it.");
+  const given = (input.corrections ?? {}) as Record<string, unknown>;
+  const corrections: Record<string, string> = {};
+  for (const line of generated.lines) {
+    const value = given[line.id];
+    if (value === undefined || value === null) continue;
+    const wording = text(value);
+    if (wording.length === 0) fail(400, "VALIDATION_ERROR", "A corrected line cannot be empty.");
+    if (wording.length > 300) fail(400, "VALIDATION_ERROR", "A corrected line can be up to 300 characters.");
+    if (wording !== line.text) corrections[line.id] = wording;
+  }
+  const note = text(input.note).slice(0, 600);
+  const at = tick();
+  if (!record) {
+    record = { shiftId: generated.shiftId, state: "draft", corrections: {}, note: "", approvedBy: null, approvedAt: null, approvedGenerated: null, history: [] };
+    state.briefings = [...state.briefings, record];
+  }
+  const changed = JSON.stringify(corrections) !== JSON.stringify(record.corrections) || note !== record.note;
+  record.corrections = corrections;
+  record.note = note;
+  if (approve) {
+    record.state = "approved";
+    record.approvedBy = actor.name;
+    record.approvedAt = at;
+    record.approvedGenerated = Object.fromEntries(generated.lines.map((line) => [line.id, line.text]));
+    const count = Object.keys(corrections).length;
+    record.history = [...record.history, { id: nextId("briefingEvent", "bre"), at, actor: actor.name, summary: count > 0 ? `Approved with ${count} correction${count === 1 ? "" : "s"}` : "Approved as generated" }];
+    const nextSupervisor = demoDomain.listShifts().find((item) => item.id === generated.shiftId)?.next?.supervisor ?? null;
+    notify(nextSupervisor, "Shift briefing approved", `${generated.shiftName} briefing approved by ${actor.name}. The handover is sent separately.`, `/shifts/${generated.shiftId}/handover`, "shifts");
+  } else if (changed) {
+    record.history = [...record.history, { id: nextId("briefingEvent", "bre"), at, actor: actor.name, summary: "Corrections saved as a draft" }];
+  }
+  return demoDomain.briefing(actor);
+}
+
 export const demoDomain = {
   get: () => state,
   now,
@@ -3382,6 +3425,48 @@ export const demoDomain = {
 
 
   // ---- Impact ("What happens if we wait?") --------------------------------------------------
+  // ---- Shift briefing review (VESPER Intelligence) ------------------------------------------
+
+  /** The generated briefing for the current shift, any supervisor corrections, and whether it has been approved. Reading changes nothing. */
+  briefing(actor?: Actor) {
+    const generated = buildBriefing({ shifts: demoDomain.listShifts(), issues: demoDomain.listIssues() });
+    const record = generated.shiftId ? state.briefings.find((item) => item.shiftId === generated.shiftId) ?? null : null;
+    const view = record ?? { shiftId: generated.shiftId ?? "", state: "draft" as const, corrections: {}, note: "", approvedBy: null, approvedAt: null, approvedGenerated: null, history: [] };
+    return {
+      shiftId: generated.shiftId,
+      shiftName: generated.shiftName,
+      generated,
+      record: view,
+      lines: effectiveLines(generated, view),
+      changedLines: changedSinceApproval(generated, view),
+      canReview: Boolean(actor && canReviewBriefing(actor)),
+    };
+  },
+
+  /** Saves a supervisor's corrections and note. The briefing stays a draft until it is approved. */
+  saveBriefing(input: Record<string, unknown>, actor: Actor) {
+    return saveBriefingRecord(input, actor, false);
+  },
+
+  /** Approves the briefing as it stands, with the supervisor's corrections. Approving does not send the handover or change any record. */
+  approveBriefing(input: Record<string, unknown>, actor: Actor) {
+    return saveBriefingRecord(input, actor, true);
+  },
+
+  /** Takes an approved briefing back to a draft so it can be corrected and approved again. The earlier approval stays in the history. */
+  reopenBriefing(input: Record<string, unknown>, actor: Actor) {
+    if (!canReviewBriefing(actor)) fail(403, "FORBIDDEN", reviewMessage);
+    const generated = buildBriefing({ shifts: demoDomain.listShifts(), issues: demoDomain.listIssues() });
+    const record = generated.shiftId ? state.briefings.find((item) => item.shiftId === generated.shiftId) : undefined;
+    if (!record || record.state !== "approved") fail(409, "READ_ONLY", "This briefing has not been approved, so there is nothing to reopen.");
+    const reason = requireText(input.reason, "The reason", 5);
+    record.state = "draft";
+    record.approvedBy = null;
+    record.approvedAt = null;
+    record.history = [...record.history, { id: nextId("briefingEvent", "bre"), at: tick(), actor: actor.name, summary: `Reopened for review: ${reason}` }];
+    return demoDomain.briefing(actor);
+  },
+
   impact: (actor?: Actor) => buildImpact(actor),
 
   /** Changes the estimate (outage length, usable stock, approved catch-up). The previous estimate stays in the history with the reason. */

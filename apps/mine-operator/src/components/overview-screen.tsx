@@ -82,7 +82,13 @@ export function OverviewScreen() {
     const home = { issues, equipment, readiness, shifts, now };
     const model = role === "supervisor" ? supervisorHome(home, signedIn.persona) : role === "planner" ? plannerHome(home) : storesHome(home);
     const running = shifts.find((item) => item.state === "in_progress");
-    return <RoleHomeScreen model={model} persona={signedIn.persona} siteName={context.siteName} now={now} shiftLabel={running ? `${running.name} · ${shiftTimes(running)}` : undefined} />;
+    return (
+      <>
+        <RoleHomeScreen model={model} persona={signedIn.persona} siteName={context.siteName} now={now} shiftLabel={running ? `${running.name} · ${shiftTimes(running)}` : undefined} />
+        {/* A supervisor reviews and approves the shift briefing from their home. */}
+        {role === "supervisor" && handoverIncluded ? <div className="dashboard-page"><IntelligenceSlot part="briefing" base={{ now, issues, equipment, readiness, shifts }} /></div> : null}
+      </>
+    );
   }
 
   const currentShift = shifts.find((item) => item.state === "in_progress") ?? shifts.find((item) => item.state === "scheduled") ?? shifts.at(-1);

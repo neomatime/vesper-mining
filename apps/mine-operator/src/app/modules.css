@@ -120,3 +120,9 @@
 .intel-briefing__next ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
 .intel-briefing__footer { padding: 4px 24px 18px; }
 @media (max-width: 767px) { .intel__item { grid-template-columns: 36px minmax(0, 1fr); } .intel__item > a { grid-column: 2; justify-self: start; } .intel-briefing__list, .intel-briefing__next, .intel-briefing__footer { padding-left: 18px; padding-right: 18px; margin-left: 0; margin-right: 0; } }
+
+.intel-briefing__text small { color: var(--text-secondary); font-size: 12px; }
+.intel-briefing__stale { font-weight: var(--weight-strong); }
+.intel-briefing__note { display: grid; gap: 2px; margin: 4px 24px 8px; padding: 10px 12px; border-left: 3px solid var(--brand-emerald); border-radius: var(--radius-sm); background: var(--surface-hover); font-size: 13.5px; }
+.intel-briefing__note small { color: var(--text-secondary); font-size: 12px; }
+.intel-briefing__footer { display: flex; flex-wrap: wrap; gap: 10px; }

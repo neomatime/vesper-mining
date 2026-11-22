@@ -389,6 +389,20 @@ export const handlers = [
     const input = await bodyOf<{ agreementId?: string }>(request);
     return run(() => demoDomain.applyAgreement(param(params, "id"), String(input.agreementId), input, actorOf(request)));
   }),
+  // Shift briefing review: read the generated briefing, save corrections, approve, or reopen.
+  http.get(`${API}/briefing`, ({ request }) => envelope(demoDomain.briefing(actorOf(request)))),
+  http.post(`${API}/briefing/save`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.saveBriefing(input, actorOf(request)));
+  }),
+  http.post(`${API}/briefing/approve`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.approveBriefing(input, actorOf(request)));
+  }),
+  http.post(`${API}/briefing/reopen`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.reopenBriefing(input, actorOf(request)));
+  }),
   http.get(`${API}/impact`, ({ request }) => envelope(demoDomain.impact(actorOf(request)))),
   http.post(`${API}/impact/estimate`, async ({ request }) => {
     const input = await bodyOf(request);
