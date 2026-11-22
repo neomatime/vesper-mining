@@ -6,7 +6,7 @@
 import { canActOnEquipment } from "./equipment-rules";
 import { canAct } from "./issue-rules";
 import { canManageOrganisation, roleNames } from "./organisation-rules";
-import { canManageProviders, canRequestService } from "./service-rules";
+import { canApproveProviders, canManageProviders, canRequestService } from "./service-rules";
 import { canActOnShift } from "./shift-rules";
 import { canActOnShipments } from "./shipment-rules";
 
@@ -58,7 +58,8 @@ export const rightsMatrix: RightsRow[] = [
   { area: "Reports", action: "View reports included in the plan", levels: everyone() },
   { area: "Administration", action: "Add, edit, deactivate and delete employees", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
   { area: "Administration", action: "Reset passwords and review rights", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
-  { area: "Administration", action: "Add, edit and delete service providers", levels: derive((r) => canManageProviders(as(r)).allowed) },
+  { area: "Administration", action: "Add and edit service providers", levels: derive((r) => canManageProviders(as(r)).allowed) },
+  { area: "Administration", action: "Approve, deactivate and delete service providers", levels: derive((r) => canApproveProviders(as(r)).allowed) },
   { area: "Administration", action: "Edit site and company details", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
 ];
 
