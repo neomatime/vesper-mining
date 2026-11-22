@@ -4,27 +4,23 @@
  * Administration: employees, user rights, the site and the plan.
  * It is for the Mine Manager; other roles see a page that explains why they cannot open it.
  */
-import { Check, Lock, Minus, Pencil, Plus, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, Lock, Minus, Pencil, Plus, Search, Settings2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { entitlementRows, entitlementsFor } from "@/lib/entitlements";
 import { canManageOrganisation, memberStatusLabels, roleInfo, roleNames } from "@/lib/organisation-rules";
 import { initials, tierLabel } from "@/lib/personas";
-import { categoryLabels } from "@/lib/equipment-rules";
 import { levelLabels, rightsAreas, rightsMatrix } from "@/lib/rights";
-import { canApproveProviders, approvalLabel, isApproved } from "@/lib/service-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { CompanyDialog, MemberDialog, SiteDialog, TemporaryPasswordDialog } from "./admin-dialogs";
-import { ConfirmDialog } from "./dialog";
 import { PageHeader } from "./page-header";
-import { ProviderDialog } from "./provider-dialogs";
-import { useShellData } from "./shell-data";
+import { AutomationsPanel } from "./automations-panel";
 import { LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { useOrganisation, useOrganisationMutations } from "./use-organisation";
-import { useProviderMutations, useProviders } from "./use-service";
-import type { ServiceProvider } from "@vesper/api-contracts";
+import { useProviders } from "./use-service";
 
 const integrations = [
   { name: "Maintenance system", detail: "Work-order references are entered by hand." },
@@ -34,14 +30,16 @@ const integrations = [
   { name: "Procurement and payments", detail: "Nothing can be ordered, approved or paid from VESPER." },
 ];
 
+/** The sections, grouped: people and access, the organisation itself, operations set-up, then plan and connections. */
 const tabs = [
-  { key: "people", label: "Employees" },
-  { key: "rights", label: "User rights" },
-  { key: "providers", label: "Service providers" },
-  { key: "site", label: "Site" },
-  { key: "company", label: "Company" },
-  { key: "plan", label: "Plan and usage" },
-  { key: "connections", label: "Connections" },
+  { key: "people", label: "Employees", group: 0 },
+  { key: "rights", label: "User rights", group: 0 },
+  { key: "site", label: "Site", group: 1 },
+  { key: "company", label: "Company", group: 1 },
+  { key: "providers", label: "Service providers", group: 2 },
+  { key: "automations", label: "Automations", group: 2 },
+  { key: "plan", label: "Plan and usage", group: 3 },
+  { key: "connections", label: "Connections", group: 3 },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -59,7 +57,12 @@ export function AdminScreen() {
   const { context } = useDemoContext();
   const { data, isPending } = useOrganisation();
   const actions = useOrganisationMutations();
-  const [tab, setTab] = useState<TabKey>("people");
+  // The section is in the address, so a refresh, the back button and a shared link all land on the same tab.
+  const router = useRouter();
+  const params = useSearchParams();
+  const requested = params.get("tab");
+  const tab: TabKey = tabs.some((item) => item.key === requested) ? (requested as TabKey) : "people";
+  const setTab = (key: TabKey) => router.replace(key === "people" ? "/admin" : `/admin?tab=${key}`, { scroll: false });
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
   const [editingSite, setEditingSite] = useState(false);
@@ -67,10 +70,6 @@ export function AdminScreen() {
   const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("all");
   const [query, setQuery] = useState("");
   const providersQuery = useProviders();
-  const providerActions = useProviderMutations();
-  const { data: shell } = useShellData();
-  const [providerDialog, setProviderDialog] = useState<{ provider?: ServiceProvider } | null>(null);
-  const [providerConfirm, setProviderConfirm] = useState<{ kind: "deactivate" | "delete"; provider: ServiceProvider } | null>(null);
 
   const plan = entitlementsFor(context.tier);
   const canManage = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
@@ -114,18 +113,20 @@ export function AdminScreen() {
         title="Organisation"
         description="Employees, user rights, site and plan."
         icon={Settings2}
-        action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <button className="button button--primary" onClick={() => setProviderDialog({})}><Plus /> Add service provider</button> : undefined}
+        action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <Link className="button button--primary" href="/equipment/providers"><Plus /> Manage Service Providers</Link> : undefined}
       />
 
-      <section className="kpi-row kpi-row--lead-wide" aria-label="Summary">
-        <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
-        <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
-        <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
-      </section>
+      {tab === "people" || tab === "plan" ? (
+        <section className="kpi-row kpi-row--lead-wide" aria-label="Summary">
+          <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
+          <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
+          <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
+        </section>
+      ) : null}
 
       <div className="tabs" role="tablist" aria-label="Administration sections">
-        {tabs.map((item) => (
-          <button key={item.key} role="tab" id={`tab-${item.key}`} aria-selected={tab === item.key} aria-controls={`panel-${item.key}`} tabIndex={tab === item.key ? 0 : -1} className={tab === item.key ? "tab tab--active" : "tab"} onClick={() => setTab(item.key)}>
+        {tabs.map((item, index) => (
+          <button key={item.key} role="tab" id={`tab-${item.key}`} aria-selected={tab === item.key} aria-controls={`panel-${item.key}`} tabIndex={tab === item.key ? 0 : -1} className={`${tab === item.key ? "tab tab--active" : "tab"} ${index > 0 && tabs[index - 1].group !== item.group ? "tab--group-start" : ""}`} onClick={() => setTab(item.key)}>
             {item.label}
           </button>
         ))}
@@ -217,42 +218,22 @@ export function AdminScreen() {
       {tab === "providers" ? (
         <div role="tabpanel" id="panel-providers" aria-labelledby="tab-providers" className="admin-panel">
           <section className="card register-card" aria-labelledby="providers-heading">
-            <header className="card__header"><div><span className="eyebrow">Maintenance</span><h2 id="providers-heading">Service providers</h2></div></header>
-            <p className="card-note card-note--top">Only providers on this list can be asked for quotes, and only when they are approved for this mine and service the equipment. Nobody outside this list is ever searched for.</p>
-            <div className="table-wrap">
-              <table className="data-table data-table--register">
-                <thead>
-                  <tr><th scope="col">Provider</th><th scope="col">Services</th><th scope="col">Approval</th><th scope="col">Contact</th><th scope="col"><span className="visually-hidden">Actions</span></th></tr>
-                </thead>
-                <tbody>
-                  {(providersQuery.data ?? []).length === 0 ? (
-                    <tr><td colSpan={5}><p className="empty-line">No service providers yet. Add the providers already approved to work at this mine.</p></td></tr>
-                  ) : (providersQuery.data ?? []).map((provider) => {
-                    const ok = isApproved(provider, shell?.now ?? "");
-                    return (
-                      <tr key={provider.id} className={provider.active ? "" : "row--muted"}>
-                        <td><span className="cell-main"><strong>{provider.name}</strong><small>{provider.contactName || provider.registration || "No contact recorded"}</small></span></td>
-                        <td>{provider.categories.slice(0, 3).map((category) => categoryLabels[category]).join(", ")}{provider.categories.length > 3 ? ` +${provider.categories.length - 3}` : ""}</td>
-                        <td><StatusBadge value={ok ? "complete" : provider.active ? "pending" : "unknown"} label={approvalLabel(provider, shell?.now ?? "")} /></td>
-                        <td><span className="cell-main"><strong>{provider.email || "—"}</strong><small>{provider.phone}</small></span></td>
-                        <td className="row-actions">
-                          <button className="button button--quiet button--small" aria-label={`Edit ${provider.name}`} onClick={() => setProviderDialog({ provider })}><Pencil /> Edit</button>
-                          {provider.active ? (
-                            <button className="button button--quiet button--small" aria-label={`Deactivate ${provider.name}`} onClick={() => setProviderConfirm({ kind: "deactivate", provider })}>Deactivate</button>
-                          ) : (
-                            <button className="button button--quiet button--small" aria-label={`Reactivate ${provider.name}`} disabled={providerActions.setActive.isPending} onClick={() => providerActions.setActive.mutate({ id: provider.id, active: true })}>Reactivate</button>
-                          )}
-                          <button className="icon-button icon-button--light" aria-label={`Delete ${provider.name}`} onClick={() => setProviderConfirm({ kind: "delete", provider })}><Trash2 /></button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <header className="card__header">
+              <div><span className="eyebrow">Maintenance</span><h2 id="providers-heading">Service providers</h2></div>
+              <Link className="button button--quiet" href="/equipment/providers">Manage Service Providers</Link>
+            </header>
+            <p className="card-note card-note--top">Only approved providers that service an asset can be given its repair requests. Providers are added, approved, deactivated and removed on the Manage Service Providers page, so there is one place to do it.</p>
+            <dl className="provider-summary">
+              <div><dd>{(providersQuery.data ?? []).length}</dd><dt>Registered</dt></div>
+              <div><dd>{(providersQuery.data ?? []).filter((provider) => provider.approval === "approved").length}</dd><dt>Approved</dt></div>
+              <div><dd>{(providersQuery.data ?? []).filter((provider) => provider.approval === "pending").length}</dd><dt>Pending approval</dt></div>
+              <div><dd>{(providersQuery.data ?? []).filter((provider) => provider.approval === "inactive").length}</dd><dt>Inactive</dt></div>
+            </dl>
           </section>
         </div>
       ) : null}
+
+      {tab === "automations" ? <AutomationsPanel /> : null}
 
       {tab === "site" ? (
         <div role="tabpanel" id="panel-site" aria-labelledby="tab-site" className="admin-panel">
@@ -341,41 +322,6 @@ export function AdminScreen() {
         </div>
       ) : null}
 
-      {providerDialog ? (
-        <ProviderDialog
-          provider={providerDialog.provider}
-          canApprove={canApproveProviders({ name: context.persona, role: context.role }).allowed}
-          pending={providerActions.create.isPending || providerActions.update.isPending}
-          onClose={() => setProviderDialog(null)}
-          onSave={(input) =>
-            providerDialog.provider
-              ? providerActions.update.mutate({ ...input, id: providerDialog.provider.id, version: providerDialog.provider.version }, { onSuccess: () => setProviderDialog(null) })
-              : providerActions.create.mutate(input, { onSuccess: () => setProviderDialog(null) })
-          }
-        />
-      ) : null}
-      {providerConfirm?.kind === "deactivate" ? (
-        <ConfirmDialog
-          title={`Deactivate ${providerConfirm.provider.name}?`}
-          body="They will no longer be offered for new service requests. Existing requests and history stay as they are, and you can reactivate them at any time."
-          confirmLabel="Deactivate"
-          tone="danger"
-          pending={providerActions.setActive.isPending}
-          onClose={() => setProviderConfirm(null)}
-          onConfirm={() => providerActions.setActive.mutate({ id: providerConfirm.provider.id, active: false }, { onSettled: () => setProviderConfirm(null) })}
-        />
-      ) : null}
-      {providerConfirm?.kind === "delete" ? (
-        <ConfirmDialog
-          title={`Delete ${providerConfirm.provider.name}?`}
-          body="This removes the provider from the list permanently. It is only possible when no service request refers to them. If it is not possible, deactivate them instead."
-          confirmLabel="Delete provider"
-          tone="danger"
-          pending={providerActions.remove.isPending}
-          onClose={() => setProviderConfirm(null)}
-          onConfirm={() => providerActions.remove.mutate(providerConfirm.provider.id, { onSettled: () => setProviderConfirm(null) })}
-        />
-      ) : null}
       {adding ? (
         <MemberDialog
           pending={actions.addMember.isPending}

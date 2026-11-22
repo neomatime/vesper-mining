@@ -9,7 +9,6 @@ test.describe("service providers and requests", () => {
   test.skip(({ isMobile }) => isMobile, "Service requests are exercised on the desktop layout.");
 
   const dialog = (page: Page) => page.getByRole("dialog");
-  const row = (page: Page, name: string) => page.getByRole("row", { name: new RegExp(name) });
   const invite = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name }).filter({ has: page.locator(".invite__head") });
 
   /** Opens a provider's private reply link in its own page, like a provider would, and runs the reply. */
@@ -29,45 +28,14 @@ test.describe("service providers and requests", () => {
     await expect(page.getByRole("heading", { name: "Service providers", level: 2 })).toBeVisible();
   }
 
-  test("adds, edits, deactivates and deletes a service provider", async ({ page }) => {
+  test("the Administration Service providers tab summarises them and links to Manage Service Providers", async ({ page }) => {
     await openProviders(page);
-    await expect(row(page, "OreTech Services")).toBeVisible();
-    await page.getByRole("button", { name: "Add service provider" }).click();
-    await dialog(page).getByLabel("Company name").fill("Delta Mining Services");
-    await dialog(page).getByLabel("Contact person").fill("Sam Dube");
-    await dialog(page).getByLabel("Email address").fill("sam@delta.example");
-    await dialog(page).getByRole("button", { name: "Add provider" }).click();
-    await expect(dialog(page).getByText(/at least one kind of equipment/)).toBeVisible();
-    await dialog(page).getByRole("checkbox", { name: "Pump" }).check();
-    await dialog(page).getByRole("checkbox", { name: "Crusher" }).check();
-    // A new provider is pending unless the Mine Manager approves it in the form.
-    await pick(dialog(page).getByRole("combobox", { name: /^Approval status/ }), "Approved");
-    await dialog(page).getByRole("button", { name: "Add provider" }).click();
-    await expect(row(page, "Delta Mining Services")).toBeVisible();
-
-    await page.getByRole("button", { name: "Edit Delta Mining Services" }).click();
-    await dialog(page).getByLabel("Phone").fill("+27 11 555 0100");
-    await dialog(page).getByRole("button", { name: "Save changes" }).click();
-    await expect(page.getByText("+27 11 555 0100")).toBeVisible();
-
-    await page.getByRole("button", { name: "Deactivate Delta Mining Services" }).click();
-    await dialog(page).getByRole("button", { name: "Deactivate" }).click();
-    await expect(row(page, "Delta Mining Services").getByText("Deactivated")).toBeVisible();
-    await page.getByRole("button", { name: "Reactivate Delta Mining Services" }).click();
-    await expect(row(page, "Delta Mining Services").getByText(/Approved/)).toBeVisible();
-
-    await page.getByRole("button", { name: "Delete Delta Mining Services" }).click();
-    await dialog(page).getByRole("button", { name: "Delete provider" }).click();
-    await expect(row(page, "Delta Mining Services")).toHaveCount(0);
-  });
-
-  test("rejects a duplicate provider name", async ({ page }) => {
-    await openProviders(page);
-    await page.getByRole("button", { name: "Add service provider" }).click();
-    await dialog(page).getByLabel("Company name").fill("OreTech Services");
-    await dialog(page).getByRole("checkbox", { name: "Crusher" }).check();
-    await dialog(page).getByRole("button", { name: "Add provider" }).click();
-    await expect(page.getByText(/already on the list/).first()).toBeVisible();
+    const panel = page.getByRole("tabpanel");
+    await expect(panel).toContainText("Registered");
+    await expect(panel.locator("div", { hasText: /^12Registered$/ })).toBeVisible();
+    await expect(panel.locator("div", { hasText: /^2Pending approval$/ })).toBeVisible();
+    await panel.getByRole("link", { name: "Manage Service Providers" }).click();
+    await expect(page).toHaveURL(/\/equipment\/providers$/);
   });
 
   test("keeps provider management to the Mine Manager", async ({ page }) => {
@@ -170,20 +138,6 @@ test.describe("service providers and requests", () => {
     await dialog(page).getByRole("button", { name: "Cancel request" }).click();
     await expect(page.getByText("Fault fixed in house").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel request" })).toHaveCount(0);
-  });
-
-  test("will not delete a provider that appears on a request", async ({ page }) => {
-    await openAs(page, "/equipment/eq-crusher-c02/service/new", "John Dlamini");
-    await page.getByLabel("Fault / issue").fill("Replace feed chute liner");
-    await page.getByRole("radio", { name: /Request quotation/ }).check();
-    await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
-    await page.getByRole("button", { name: "Send Repair Request" }).click();
-    await expect(page.getByRole("heading", { name: "Replace feed chute liner", level: 1 })).toBeVisible();
-    await page.goto("/admin");
-    await page.getByRole("tab", { name: "Service providers" }).click();
-    await page.getByRole("button", { name: "Delete OreTech Services" }).click();
-    await dialog(page).getByRole("button", { name: "Delete provider" }).click();
-    await expect(page.getByText(/Deactivate them instead/).first()).toBeVisible();
   });
 
   test("keeps requesting service to the Mine Manager and the Maintenance Planner", async ({ page }) => {

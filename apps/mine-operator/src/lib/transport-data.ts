@@ -134,4 +134,4 @@ export const seedEarlierDeliveries: EarlierDelivery[] = [
   { id: "ed-005", agreementId: "ag-0002", period: "2026-04", tonnes: 2_400, note: "Delivered to 24 April 2026, confirmed" },
 ];
 
-export const transportCounters = { quoteRequest: 48, agreement: 3, quote: 0, charge: 3, transportHistory: 10, fleetLoad: 0, briefingEvent: 0, providerEvent: 0 };
+export const transportCounters = { quoteRequest: 48, agreement: 3, quote: 0, charge: 3, transportHistory: 10, fleetLoad: 0, briefingEvent: 0, providerEvent: 0, automationRun: 0 };

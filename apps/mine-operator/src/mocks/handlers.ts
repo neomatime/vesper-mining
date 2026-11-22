@@ -408,6 +408,16 @@ export const handlers = [
     const input = await bodyOf(request);
     return run(() => demoDomain.reopenBriefing(input, actorOf(request)));
   }),
+  // Automations: the seven notification rules, their settings and their runs.
+  http.get(`${API}/automations`, ({ request }) => envelope(demoDomain.automations(actorOf(request)))),
+  http.patch(`${API}/automations/:key`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateAutomation(param(params, "key"), input, actorOf(request)));
+  }),
+  http.post(`${API}/automations/run`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.runAutomations(input, actorOf(request)));
+  }),
   http.get(`${API}/impact`, ({ request }) => envelope(demoDomain.impact(actorOf(request)))),
   http.post(`${API}/impact/estimate`, async ({ request }) => {
     const input = await bodyOf(request);
