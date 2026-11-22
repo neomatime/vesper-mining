@@ -14,9 +14,7 @@ import {
   Boxes,
   CirclePlus,
   ClipboardCheck,
-  Gauge,
   HardHat,
-  Layers3,
   LayoutDashboard,
   Map,
   Menu,
@@ -63,7 +61,6 @@ const primaryNavigation: NavigationItem[] = [
   { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention", feature: "resource_readiness" },
   { label: "Shift Control", href: "/shifts", icon: UsersRound },
   { label: "Shipments", href: "/shipments", icon: Truck },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
 /** Shortcut groups in the sidebar below the workspaces. */
@@ -77,10 +74,8 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
   },
   {
     label: "Intelligence",
-    items: [
-      { label: "Performance", href: "/reports/production-vs-plan", icon: Gauge },
-      { label: "Delay stages", href: "/reports/equipment-delay-stages", icon: Layers3 },
-    ],
+    // Every measure is inside Reports, so it is the one entry here.
+    items: [{ label: "Reports", href: "/reports", icon: BarChart3 }],
   },
 ];
 
@@ -189,22 +184,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          {!sidebarCollapsed ? contextualNavigation.map((group) => (
+          {contextualNavigation.filter((group) => !sidebarCollapsed || group.label === "Intelligence").map((group) => (
             <div className="sidebar__group" key={group.label}>
-              <p>{group.label}</p>
+              {!sidebarCollapsed ? <p>{group.label}</p> : null}
               {group.items.filter(included).map((rawItem) => {
                 const item = rawItem;
                 const count = countFor(item);
                 return (
-                  <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>
+                  <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
                     <item.icon aria-hidden="true" />
-                    <span>{item.label}</span>
-                    {count ? <em aria-label={`${count} open`}>{count}</em> : null}
+                    {!sidebarCollapsed ? <span>{item.label}</span> : null}
+                    {!sidebarCollapsed && count ? <em aria-label={`${count} open`}>{count}</em> : null}
                   </Link>
                 );
               })}
             </div>
-          )) : null}
+          ))}
           <button className="sidebar__collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
             {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
             {!sidebarCollapsed ? <span>Collapse navigation</span> : null}
