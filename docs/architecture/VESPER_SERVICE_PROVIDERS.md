@@ -47,4 +47,24 @@ via SHP-0051, 3,200 available; allocated estimate R30,000). AG-0002 (Highveld, R
 
 - The agreement demonstration runs on its own labelled date (24 April 2026); quote validity and shipments use the app's demo clock.
 - Attachments keep file names only. "Sent" requests, notifications and reminders are simulated.
-- In-house transport ("Our fleet") is not part of this slice.
+
+## Transport handled by our own fleet
+
+A shipment's **Transport handled by** is **Our fleet** or **Logistics provider** (chosen when it is created, or later while it is still being
+prepared; a priced shipment asks why and keeps the removed pricing source in its history). Own fleet needs no provider, quote or agreement.
+
+- **Vehicles** come from the existing equipment register (haul trucks and light vehicles); **drivers** and the **person responsible** are people
+  already in VESPER. A shipment can have several loads, each with a vehicle, driver, quantity and planned collection and delivery times.
+  Loads cannot exceed the shipment quantity; a vehicle or driver cannot be double-booked in the same time.
+- **Availability and maintenance** are read from the equipment record. An unavailable vehicle, or one whose service is overdue, cannot take a load.
+- **Same steps as a provider shipment**: assigning a vehicle does not make the shipment ready, dispatched or delivered. It is ready when the four
+  checks are ticked, a person is responsible and all tonnes are on loads; the responsible person then **confirms the schedule** (the own-fleet
+  equivalent of a provider's confirmation); dispatch and delivery are recorded as usual.
+- **Breakdowns**: if a vehicle on a load becomes unavailable (or has an open issue), the load shows the reason, who is responsible (the issue owner,
+  else the coordinator) and the next action. Dispatch is blocked until the load is reassigned. Changing loads after the schedule was confirmed
+  reopens it for confirmation.
+- **Internal cost** is optional and shown only to roles that may see commercial terms: an estimate, kept apart from sales value and from any invoice.
+  Without one the screen says "Cost not yet assessed".
+
+Code: `lib/fleet-rules.ts`, store methods `setTransportMode`, `addFleetLoad`, `removeFleetLoad`, `updateFleetPlan`, `confirmFleetSchedule`,
+`components/fleet-panels.tsx`. Demo vehicles: HT-101 (available), HT-102 (service overdue), HT-103 (unavailable). Tests: `lib/fleet.test.ts`, `e2e/own-fleet.spec.ts`.

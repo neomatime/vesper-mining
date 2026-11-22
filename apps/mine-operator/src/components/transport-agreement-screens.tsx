@@ -418,7 +418,7 @@ export function TransportPricingSection({ shipment }: { shipment: Shipment }) {
   const query = useTransport();
   const logistics = useLogistics();
   const [choosing, setChoosing] = useState(false);
-  if (!query.data?.terms || shipment.kind !== "sale") return null;
+  if (!query.data?.terms || shipment.kind !== "sale" || shipment.transportMode === "own_fleet") return null;
   const data = query.data;
   const terms = data.terms!;
   const source = shipment.pricingSource;

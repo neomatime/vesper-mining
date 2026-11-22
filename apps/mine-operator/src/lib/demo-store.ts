@@ -81,6 +81,7 @@ import {
 import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
 import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
 import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedValueHistory, shipmentCounters } from "./shipment-data";
+import { OWN_FLEET_ID, OWN_FLEET_NAME, assignedTonnes, earliestCollection, fleetCategories, fleetProblems, windowsOverlap, type FleetAlert, type FleetVehicle } from "./fleet-rules";
 import { CURRENCY, PRICE_BASIS, QUANTITY_BASIS, canActOnShipments, canCancel, checkDifference, currentPrice, formatMoney, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, shipmentValue, shortDate, stockPosition, type ShipmentCapability } from "./shipment-rules";
 import { demoTimeAt, formatDemoDateTime, formatDemoTime } from "./demo-clock";
 import {
@@ -195,7 +196,7 @@ const initialState = {
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v8";
+const STORAGE_KEY = "vesper-demo-state-v9";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -204,7 +205,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -947,7 +948,70 @@ function setPricingSource(shipment: Shipment, source: PricingSource, actor: Acto
 
 /** A shipment as someone who may not see transport prices sees it: the source is named, the cost is left out. */
 function hideTransportCost(shipment: Shipment): Shipment {
-  return shipment.pricingSource ? { ...shipment, pricingSource: { ...shipment.pricingSource, costExVat: null } } : shipment;
+  const hidden = shipment.fleet.internalCost ? { ...shipment, fleet: { ...shipment.fleet, internalCost: { amount: 0, note: "" } } } : shipment;
+  return hidden.pricingSource ? { ...hidden, pricingSource: { ...hidden.pricingSource, costExVat: null } } : hidden;
+}
+
+// ---- Own fleet ----------------------------------------------------------------------------
+
+/** Vehicles that can carry a load, from the equipment register, with whether each can take one now and why not. */
+function fleetVehicles(): FleetVehicle[] {
+  const current = now();
+  return state.equipment
+    .filter((item) => !item.retiredAt && (fleetCategories as readonly string[]).includes(item.category))
+    .map((item) => {
+      const urgent = mostUrgent(item.plans.map((plan) => planStatus(plan, item, current)));
+      const maintenance = urgent?.state ?? "unknown";
+      const reason = item.state === "unavailable" ? `unavailable${item.stateNote ? ` (${item.stateNote.replace(/\.$/, "")})` : ""}` : maintenance === "overdue" ? `its ${urgent?.name ?? "service"} is overdue` : null;
+      return { id: item.id, code: item.code, name: item.name, category: item.category, state: item.state, stateNote: item.stateNote, maintenance, maintenanceLabel: urgent?.label ?? "No maintenance plan", assignable: reason === null, reason };
+    });
+}
+
+/** Loads whose vehicle has a problem: unavailable, overdue for service, or with an open issue. Responsible person and next step included. */
+function fleetAlertsFor(shipment: Shipment, vehicles: FleetVehicle[]): FleetAlert[] {
+  if (shipment.transportMode !== "own_fleet" || shipment.state === "delivered" || shipment.state === "cancelled") return [];
+  const alerts: FleetAlert[] = [];
+  for (const load of shipment.fleet.loads) {
+    const vehicle = vehicles.find((item) => item.id === load.vehicleId);
+    if (!vehicle) continue;
+    const issue = state.issues.find((item) => item.equipmentId === vehicle.id && isOpen(item));
+    if (vehicle.assignable && !issue) continue;
+    const action = issue ? activeActions(issue)[0] : undefined;
+    alerts.push({
+      loadId: load.id,
+      vehicleCode: vehicle.code,
+      reason: vehicle.reason ? `${vehicle.code} is ${vehicle.reason}.` : `${vehicle.code} has an open issue: ${issue?.title}.`,
+      responsible: issue?.owner ?? shipment.fleet.coordinator ?? shipment.preparedBy,
+      nextAction: action ? action.title : issue ? "Follow the repair on the issue, or reassign the load." : "Reassign the load to another vehicle, or report the breakdown.",
+      issueId: issue?.id ?? null,
+      issueNumber: issue?.issueNumber ?? null,
+    });
+  }
+  return alerts;
+}
+
+function fleetPeople() {
+  const active = state.members.filter((member) => member.status !== "deactivated");
+  return {
+    drivers: active.filter((member) => ["Field Employee", "Shift Supervisor"].includes(member.role)).map((member) => member.name),
+    coordinators: active.filter((member) => ["Mine Manager", "Stores / Inventory Controller", "Shift Supervisor"].includes(member.role)).map((member) => member.name),
+  };
+}
+
+/** After a change to the loads of a shipment that was waiting for, or had, a confirmed schedule: it must be confirmed again. */
+function reopenFleetSchedule(shipment: Shipment, actor: Actor) {
+  if (shipment.state !== "waiting" && shipment.state !== "confirmed") return;
+  const request = state.requests.find((item) => item.id === shipment.requestId);
+  if (request) request.state = "cancelled";
+  shipment.requestId = null;
+  shipment.state = "preparing";
+  recordShipment(shipment, actor, { type: "fleet_changed", summary: "Fleet plan changed, so the schedule needs confirming again" });
+}
+
+function localTime(value: unknown, label: string) {
+  const textValue = text(value);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(textValue) || Number.isNaN(Date.parse(`${textValue.slice(0, 16)}:00+02:00`))) fail(400, "VALIDATION_ERROR", `Choose ${label}.`);
+  return `${textValue.slice(0, 16)}:00+02:00`;
 }
 
 function recordShipment(shipment: Shipment, actor: Actor, event: { type: ShipmentEvent["type"]; summary: string; note?: string | null }) {
@@ -2491,6 +2555,10 @@ export const demoDomain = {
       shipments: [...state.shipments].sort((a, b) => b.number.localeCompare(a.number)).map((shipment) => (viewTerms ? shipment : hideTransportCost(shipment))),
       requests: [...state.requests].sort((a, b) => b.number.localeCompare(a.number)),
       transporters: state.transporters,
+      fleet: (() => {
+        const vehicles = fleetVehicles();
+        return { vehicles, ...fleetPeople(), canSeeCost: viewTerms, alerts: Object.fromEntries(state.shipments.map((shipment) => [shipment.id, fleetAlertsFor(shipment, vehicles)]).filter(([, list]) => (list as FleetAlert[]).length > 0)) as Record<string, FleetAlert[]> };
+      })(),
       // Money is only sent to people allowed to see it. Everyone else gets no price, value or finance record at all, so there is
       // nothing for a screen, an export or a network inspector to reveal.
       commercial: actor && canActOnShipments("view_value", actor).allowed
@@ -2600,21 +2668,24 @@ export const demoDomain = {
     const destination = requireText(input.destination, "The destination", 3);
     const date = text(input.preferredDate);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T12:00:00Z`))) fail(400, "VALIDATION_ERROR", "Choose the preferred collection date.");
-    const transporter = findTransporter(input.transporterId);
-    if (!transporter.active) fail(409, "NOT_ELIGIBLE", `${transporter.name} is not an approved transporter at the moment.`);
+    const ownFleet = input.transportMode === "own_fleet";
+    const transporter = ownFleet ? null : findTransporter(input.transporterId);
+    if (transporter && !transporter.active) fail(409, "NOT_ELIGIBLE", `${transporter.name} is not an approved transporter at the moment.`);
     const shipment: Shipment = {
       id: `ship-${state.counters.shipment + 1}`,
       number: nextNumber("shipment", "SHP"),
       kind,
       pricingSource: null,
       pricingHistory: [],
+      transportMode: ownFleet ? "own_fleet" : "provider",
+      fleet: { coordinator: null, loads: [], internalCost: null },
       mineral: stockpile.mineral,
       stockpileId: stockpile.id,
       tonnes,
       orderRef,
       destination,
       preferredDate: date,
-      transporterId: transporter.id,
+      transporterId: transporter ? transporter.id : OWN_FLEET_ID,
       note: text(input.note).slice(0, 500),
       state: "preparing",
       checks: { quality: false, instructions: false, documents: false, loading: false },
@@ -2646,7 +2717,7 @@ export const demoDomain = {
       const given = input.checks as Record<string, unknown>;
       for (const key of ["quality", "instructions", "documents", "loading"] as const) if (typeof given[key] === "boolean") shipment.checks[key] = given[key] as boolean;
     }
-    if (input.transporterId !== undefined) {
+    if (input.transporterId !== undefined && shipment.transportMode === "provider") {
       const transporter = findTransporter(input.transporterId);
       if (!transporter.active) fail(409, "NOT_ELIGIBLE", `${transporter.name} is not an approved transporter at the moment.`);
       shipment.transporterId = transporter.id;
@@ -2667,8 +2738,9 @@ export const demoDomain = {
     assertShipmentVersion(shipment, input.version);
     if (shipment.state === "waiting" || shipment.state === "confirmed") fail(409, "ALREADY_SENT", `A collection request has already been recorded for ${shipment.number}.`);
     if (shipment.state !== "preparing" && shipment.state !== "declined") fail(409, "READ_ONLY", "A collection request can only be sent while the shipment is being prepared.");
+    const ownFleet = shipment.transportMode === "own_fleet";
     const transporter = state.transporters.find((item) => item.id === shipment.transporterId);
-    const problems = readinessProblems(shipment, transporter);
+    const problems = [...readinessProblems(shipment, transporter), ...(ownFleet ? fleetProblems(shipment, fleetVehicles()) : [])];
     if (problems.length > 0) fail(409, "NOT_READY", problems[0]);
     state.counters.token += 1;
     const request: CollectionRequest = {
@@ -2688,9 +2760,137 @@ export const demoDomain = {
     state.requests = [...state.requests, request];
     shipment.requestId = request.id;
     shipment.state = "waiting";
+    if (ownFleet) {
+      recordShipment(shipment, actor, { type: "request_sent", summary: `Transport plan ${request.number} recorded for the mine's own fleet; ${shipment.fleet.coordinator} confirms the schedule` });
+      notify(shipment.fleet.coordinator, "Confirm the fleet schedule", `${shipment.number}: ${shipment.fleet.loads.length} load${shipment.fleet.loads.length === 1 ? "" : "s"} planned. Confirm the schedule when the vehicles and drivers are ready.`, `/shipments/${shipment.id}`, "logistics");
+      return { shipment, request };
+    }
     recordShipment(shipment, actor, { type: "request_sent", summary: `Collection request ${request.number} recorded for ${transporter?.name ?? "the transporter"} (demo: nothing was sent)` });
     notify(actor.name, "Collection request recorded", `${shipment.number}: waiting for ${transporter?.name ?? "the transporter"} to reply. In this demo no message is sent.`, "/shipments/logistics", "logistics");
     return { shipment, request };
+  },
+
+  /** Chooses who moves the shipment: a logistics provider or the mine's own fleet. Allowed until the transport is arranged. */
+  setTransportMode(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.state !== "preparing" && shipment.state !== "declined") fail(409, "READ_ONLY", "Who handles the transport can only be changed before it is arranged.");
+    const mode = input.mode === "own_fleet" ? "own_fleet" : input.mode === "provider" ? "provider" : fail(400, "VALIDATION_ERROR", "Choose Our fleet or Logistics provider.");
+    if (mode === shipment.transportMode) fail(400, "VALIDATION_ERROR", `Transport is already handled by ${mode === "own_fleet" ? "our fleet" : "a logistics provider"}.`);
+    const reason = text(input.reason);
+    if (shipment.pricingSource && reason.length < 5) fail(400, "VALIDATION_ERROR", `This shipment is priced from ${shipment.pricingSource.label}. Say why it is changing so the earlier pricing source is kept in the history.`);
+    if (shipment.pricingSource) {
+      shipment.pricingHistory = [...shipment.pricingHistory, { id: nextId("transportHistory", "spr"), at: tick(), actor: actor.name, summary: `Pricing source removed: ${shipment.pricingSource.label}`, note: reason }];
+      shipment.pricingSource = null;
+    }
+    shipment.transportMode = mode;
+    if (mode === "own_fleet") {
+      shipment.transporterId = OWN_FLEET_ID;
+    } else {
+      const first = state.transporters.find((item) => item.active) ?? fail(409, "NOT_ELIGIBLE", "There is no approved logistics provider yet.");
+      shipment.transporterId = first.id;
+      shipment.fleet = { coordinator: null, loads: [], internalCost: null };
+    }
+    recordShipment(shipment, actor, { type: "fleet_changed", summary: mode === "own_fleet" ? "Transport will be handled by our own fleet" : "Transport will be handled by a logistics provider", note: reason || null });
+    return shipment;
+  },
+
+  /** Adds a load: one vehicle from the equipment register and one driver, with planned collection and delivery times. */
+  addFleetLoad(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const commit = guardRepeat(input);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.transportMode !== "own_fleet") fail(409, "READ_ONLY", "This shipment is handled by a logistics provider. Switch it to our fleet first.");
+    if (!["preparing", "waiting", "confirmed"].includes(shipment.state)) fail(409, "READ_ONLY", "Loads cannot be changed once material has left the mine.");
+    const vehicles = fleetVehicles();
+    const vehicle = vehicles.find((item) => item.id === input.vehicleId) ?? fail(400, "VALIDATION_ERROR", "Choose a vehicle from the equipment register.");
+    if (!vehicle.assignable) fail(409, "NOT_ELIGIBLE", `${vehicle.code} cannot take a load: ${vehicle.reason}.`);
+    const driverName = text(input.driverName);
+    if (!fleetPeople().drivers.includes(driverName)) fail(400, "VALIDATION_ERROR", "Choose a driver from the list.");
+    const tonnes = tonnesOf(input.tonnes, "The amount on this load");
+    const left = Math.round((shipment.tonnes - assignedTonnes(shipment)) * 100) / 100;
+    if (tonnes > left) fail(409, "TOO_MUCH", left > 0 ? `Only ${formatTonnes(left)} of ${shipment.number} is not yet on a load.` : `All ${formatTonnes(shipment.tonnes)} of ${shipment.number} is already on loads.`);
+    const plannedCollectionAt = localTime(input.plannedCollectionAt, "the planned collection time");
+    const plannedDeliveryAt = localTime(input.plannedDeliveryAt, "the planned delivery time");
+    if (plannedDeliveryAt <= plannedCollectionAt) fail(400, "VALIDATION_ERROR", "Delivery has to be planned after collection.");
+    for (const other of state.shipments) {
+      if (other.state === "cancelled" || other.state === "delivered") continue;
+      for (const load of other.fleet.loads) {
+        if (!windowsOverlap(plannedCollectionAt, plannedDeliveryAt, load.plannedCollectionAt, load.plannedDeliveryAt)) continue;
+        if (load.vehicleId === vehicle.id) fail(409, "DUPLICATE", `${vehicle.code} is already planned for ${other.number} in that time.`);
+        if (load.driverName === driverName) fail(409, "DUPLICATE", `${driverName} is already planned for ${other.number} in that time.`);
+      }
+    }
+    reopenFleetSchedule(shipment, actor);
+    shipment.fleet.loads = [...shipment.fleet.loads, { id: nextId("fleetLoad", "ld"), vehicleId: vehicle.id, driverName, tonnes, plannedCollectionAt, plannedDeliveryAt, addedBy: actor.name, addedAt: tick() }];
+    recordShipment(shipment, actor, { type: "fleet_changed", summary: `${vehicle.code} with ${driverName} assigned to ${formatTonnes(tonnes)}` });
+    commit();
+    return shipment;
+  },
+
+  removeFleetLoad(id: string, loadId: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (!["preparing", "waiting", "confirmed"].includes(shipment.state)) fail(409, "READ_ONLY", "Loads cannot be changed once material has left the mine.");
+    const load = shipment.fleet.loads.find((item) => item.id === loadId) ?? fail(404, "NOT_FOUND", "This load could not be found.");
+    const code = state.equipment.find((item) => item.id === load.vehicleId)?.code ?? "The vehicle";
+    reopenFleetSchedule(shipment, actor);
+    shipment.fleet.loads = shipment.fleet.loads.filter((item) => item.id !== loadId);
+    recordShipment(shipment, actor, { type: "fleet_changed", summary: `${code} with ${load.driverName} taken off ${formatTonnes(load.tonnes)}`, note: text(input.reason) || null });
+    return shipment;
+  },
+
+  /** Sets who is responsible and, optionally, an internal cost estimate. A cleared estimate goes back to "Cost not yet assessed". */
+  updateFleetPlan(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.transportMode !== "own_fleet") fail(409, "READ_ONLY", "This shipment is handled by a logistics provider.");
+    if (shipment.state === "delivered" || shipment.state === "cancelled") fail(409, "READ_ONLY", "This shipment is finished.");
+    const lines: string[] = [];
+    if (input.coordinator !== undefined) {
+      const name = text(input.coordinator);
+      if (!fleetPeople().coordinators.includes(name)) fail(400, "VALIDATION_ERROR", "Choose who is responsible from the list.");
+      if (name !== shipment.fleet.coordinator) lines.push(`${name} is responsible for the transport`);
+      shipment.fleet.coordinator = name;
+    }
+    if ("internalCostAmount" in input) {
+      if (input.internalCostAmount === "" || input.internalCostAmount === null) {
+        if (shipment.fleet.internalCost) lines.push("Internal cost estimate cleared");
+        shipment.fleet.internalCost = null;
+      } else {
+        const amount = Number(input.internalCostAmount);
+        if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000_000) fail(400, "VALIDATION_ERROR", "The internal cost estimate must be a number, 0 or more.");
+        shipment.fleet.internalCost = { amount, note: text(input.internalCostNote).slice(0, 200) };
+        lines.push(`Internal cost estimate set to ${formatMoney(amount)} (an estimate, not an invoice)`);
+      }
+    }
+    if (lines.length === 0) fail(400, "VALIDATION_ERROR", "Nothing was changed.");
+    for (const summary of lines) recordShipment(shipment, actor, { type: "fleet_changed", summary });
+    return shipment;
+  },
+
+  /** The coordinator confirms the schedule once vehicles and drivers are ready. This is the own-fleet equivalent of a provider's confirmation. */
+  confirmFleetSchedule(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.transportMode !== "own_fleet") fail(409, "READ_ONLY", "This shipment is handled by a logistics provider, who confirms collection themselves.");
+    if (shipment.state !== "waiting") fail(409, "READ_ONLY", shipment.state === "confirmed" ? "The fleet schedule is already confirmed." : "Mark the shipment ready before confirming the schedule.");
+    const problems = fleetProblems(shipment, fleetVehicles());
+    if (problems.length > 0) fail(409, "NOT_READY", problems[0]);
+    const request = state.requests.find((item) => item.id === shipment.requestId) ?? fail(404, "NOT_FOUND", "The transport plan could not be found.");
+    const when = earliestCollection(shipment.fleet.loads) ?? fail(409, "NOT_READY", "Assign at least one vehicle and driver.");
+    request.state = "confirmed";
+    request.collectionAt = when;
+    request.reply = `Schedule confirmed by ${actor.name} for ${OWN_FLEET_NAME.toLowerCase()}.`;
+    request.repliedAt = tick();
+    shipment.state = "confirmed";
+    recordShipment(shipment, actor, { type: "confirmed", summary: `${actor.name} confirmed the fleet schedule: first collection ${formatDemoDateTime(when)}` });
+    return shipment;
   },
 
   sendReminder(requestId: string, actor: Actor) {
@@ -2757,7 +2957,11 @@ export const demoDomain = {
     const commit = guardRepeat(input);
     const shipment = findShipment(id);
     assertShipmentVersion(shipment, input.version);
-    if (shipment.state !== "confirmed" && shipment.state !== "dispatched") fail(409, "READ_ONLY", "Dispatch can be recorded once the transporter has confirmed collection.");
+    if (shipment.state !== "confirmed" && shipment.state !== "dispatched") fail(409, "READ_ONLY", shipment.transportMode === "own_fleet" ? "Dispatch can be recorded once the fleet schedule has been confirmed." : "Dispatch can be recorded once the transporter has confirmed collection.");
+    if (shipment.transportMode === "own_fleet" && shipment.state === "confirmed") {
+      const alert = fleetAlertsFor(shipment, fleetVehicles())[0];
+      if (alert) fail(409, "NOT_READY", `${alert.reason} Reassign the load before dispatch.`);
+    }
     const figures = shipmentFigures(shipment);
     const tonnes = tonnesOf(input.tonnes, "The amount dispatched");
     if (tonnes > figures.remaining) fail(409, "TOO_MUCH", `Only ${formatTonnes(figures.remaining)} of ${shipment.number} is still at the mine.`);

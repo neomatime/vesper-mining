@@ -52,7 +52,7 @@ export const seedCoalShipment: Shipment = {
   requestId: null, dispatches: [], deliveries: [],
   events: [{ id: "sev-016", type: "created", summary: "Shipment created and 300 t reserved", actor: "John Dlamini", occurredAt: at("24", "07:30"), note: null }],
   pricingSource: { type: "agreement", quoteId: null, requestId: null, agreementId: "ag-0001", providerId: "tr-001", costExVat: null, label: "Agreement AG-0001", setBy: "John Dlamini", setAt: at("24", "07:35") },
-  pricingHistory: [{ id: "spr-001", at: at("24", "07:35"), actor: "John Dlamini", summary: "Transport priced under agreement AG-0001", note: null }],
+  pricingHistory: [{ id: "spr-001", at: at("24", "07:35"), actor: "John Dlamini", summary: "Transport priced under agreement AG-0001", note: null }], transportMode: "provider", fleet: { coordinator: null, loads: [], internalCost: null },
   preparedBy: "John Dlamini", cancelledReason: null, version: 2, createdAt: at("24", "07:30"),
 };
 
@@ -134,4 +134,4 @@ export const seedEarlierDeliveries: EarlierDelivery[] = [
   { id: "ed-005", agreementId: "ag-0002", period: "2026-04", tonnes: 2_400, note: "Delivered to 24 April 2026, confirmed" },
 ];
 
-export const transportCounters = { quoteRequest: 48, agreement: 3, quote: 0, charge: 3, transportHistory: 10 };
+export const transportCounters = { quoteRequest: 48, agreement: 3, quote: 0, charge: 3, transportHistory: 10, fleetLoad: 0 };

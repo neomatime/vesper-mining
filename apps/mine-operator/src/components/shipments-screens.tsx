@@ -8,7 +8,7 @@
  * visible: a collection request is not a booking, a dispatch is not a delivery, and a quantity difference stays on screen until
  * someone has reviewed it. Collection requests are recorded in VESPER only; in this build nothing is sent to a real transporter.
  */
-import type { CollectionRequest, Shipment, StockMovement } from "@vesper/api-contracts";
+import type { CollectionRequest, Shipment, StockMovement, Transporter } from "@vesper/api-contracts";
 import { AlertTriangle, ArrowLeft, Check, CheckCircle2, Download, ExternalLink, Info, Lock, Package, Plus, Send, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,7 +47,9 @@ import { ErrorState, LoadingState } from "./query-state";
 import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
+import { OWN_FLEET_ID, OWN_FLEET_NAME, fleetProblems } from "@/lib/fleet-rules";
 import { approvalLabels, approvalTone } from "@/lib/transport-rules";
+import { FleetSection, TransportModeChoice, TransportModeSwitch } from "./fleet-panels";
 import { TransportPricingSection } from "./transport-agreement-screens";
 import { ValueCell, ValueSection, shipmentValuesOf } from "./value-panels";
 import { RegisterView, type Register } from "./workspace-screen";
@@ -57,7 +59,8 @@ const useActor = () => {
   return { name: context.persona, role: context.role };
 };
 
-const transporterOf = (data: Logistics, id: string) => data.transporters.find((item) => item.id === id);
+/** The provider for an id. "Our fleet" is not a provider record: it stands in, so every screen can name who moves a shipment. */
+const transporterOf = (data: Logistics, id: string) => (id === OWN_FLEET_ID ? ({ id, name: OWN_FLEET_NAME, mode: "Own fleet", active: true } as unknown as Transporter) : data.transporters.find((item) => item.id === id));
 const requestOf = (data: Logistics, shipment: Shipment) => data.requests.find((item) => item.id === shipment.requestId);
 const isOpen = (shipment: Shipment) => shipment.state !== "delivered" && shipment.state !== "cancelled";
 
@@ -330,7 +333,7 @@ export function LogisticsScreen() {
         key: "next",
         label: "Next step",
         render: (item) =>
-          item.state === "sent" ? (
+          item.state === "sent" && item.transporterId === OWN_FLEET_ID ? <Link className="row-link-text" href={`/shipments/${item.shipmentId}`}>Confirm schedule</Link> : item.state === "sent" ? (
             <span className="row-actions">
               {canManage ? <button className="link-button" disabled={remind.isPending} onClick={() => remind.mutate({ id: item.id })}>Send reminder</button> : null}
               {canManage ? " · " : null}<Link className="row-link-text" href={`/transport/respond/${item.token}`} target="_blank">Open reply page (demo)</Link>
@@ -470,6 +473,7 @@ function CreateForm({ data }: { data: Logistics }) {
   const [destination, setDestination] = useState(destinations[0]);
   const [date, setDate] = useState("");
   const [transporterId, setTransporterId] = useState(transporters[0]?.id ?? "");
+  const [mode, setMode] = useState<"provider" | "own_fleet">("provider");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const stockpile = eligible.find((item) => item.id === stockpileId);
@@ -499,9 +503,9 @@ function CreateForm({ data }: { data: Logistics }) {
     if (over) return setError(`Only ${formatTonnes(stockpile.available)} is available in ${stockpile.code}.`);
     if (orderRef.trim().length < 3) return setError("Enter the customer or order reference.");
     if (!date) return setError("Choose the preferred collection date.");
-    if (!transporterId) return setError("Choose an approved transporter.");
+    if (mode === "provider" && !transporterId) return setError("Choose an approved transporter.");
     setError("");
-    create.mutate({ submissionId: submission.id, kind, stockpileId, tonnes, orderRef, destination, preferredDate: date, transporterId, note });
+    create.mutate({ submissionId: submission.id, kind, stockpileId, tonnes, orderRef, destination, preferredDate: date, transportMode: mode, transporterId: mode === "provider" ? transporterId : undefined, note });
   };
 
   return (
@@ -542,9 +546,12 @@ function CreateForm({ data }: { data: Logistics }) {
           <h2>3 · Collection</h2>
           <div className="task-grid task-grid--two">
             <Field label="Preferred collection date"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
-            <Field label="Approved transporter" hint={transporterId ? `${data.transporters.find((item) => item.id === transporterId)?.name} is not asked until you mark the shipment ready.` : undefined}>
-              <Select value={transporterId} onChange={(event) => setTransporterId(event.target.value)}>{transporters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
-            </Field>
+            <div className="form-field"><span>Transport handled by</span><TransportModeChoice value={mode} onChange={setMode} /></div>
+            {mode === "provider" ? (
+              <Field label="Approved transporter" hint={transporterId ? `${data.transporters.find((item) => item.id === transporterId)?.name} is not asked until you mark the shipment ready.` : undefined}>
+                <Select value={transporterId} onChange={(event) => setTransporterId(event.target.value)}>{transporters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
+              </Field>
+            ) : <p className="field-hint" style={{ alignSelf: "end" }}>You assign vehicles and drivers from the equipment register on the next page. No quote or agreement is needed.</p>}
           </div>
         </section>
         <details className="task-section"><summary>Notes (optional)</summary><Field label="Note" wide><textarea rows={3} value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} /></Field></details>
@@ -597,7 +604,8 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
   const [cancelling, setCancelling] = useState(false);
   const preparing = shipment.state === "preparing" || shipment.state === "declined";
   const chosen = data.transporters.find((item) => item.id === transporterId);
-  const problems = readinessProblems({ ...shipment, checks }, chosen);
+  const ownFleet = shipment.transportMode === "own_fleet";
+  const problems = [...readinessProblems({ ...shipment, checks }, chosen), ...(ownFleet ? fleetProblems(shipment, data.fleet.vehicles) : [])];
   const changed = JSON.stringify(checks) !== JSON.stringify(shipment.checks) || transporterId !== shipment.transporterId;
 
   const save = useLogisticsAction<Record<string, unknown>, Shipment>({ path: `/shipments/${shipment.id}`, method: "PATCH", success: () => ({ title: "Saved", detail: "Your checks are saved. You can finish them later." }) });
@@ -647,9 +655,10 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
               </ul>
             </section>
             <section className="task-section" style={{ borderTop: 0, paddingTop: 0 }}>
-              <h2>Transporter</h2>
-              <Field label="Approved transporter"><Select value={transporterId} disabled={!canManage.allowed} onChange={(event) => setTransporterId(event.target.value)}>{data.transporters.filter((item) => item.active || item.id === transporterId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-              <div className="fact-row"><div className="fact"><span>Collection request</span><strong>Not sent</strong></div><div className="fact"><span>Collection confirmation</span><strong>Not confirmed</strong></div></div>
+              <h2>Transport</h2>
+              <div className="form-field"><span>Transport handled by</span><TransportModeSwitch shipment={shipment} disabled={!canManage.allowed} /></div>
+              {ownFleet ? <p className="field-hint">Vehicles and drivers are assigned below.</p> : <Field label="Approved transporter"><Select value={transporterId} disabled={!canManage.allowed} onChange={(event) => setTransporterId(event.target.value)}>{data.transporters.filter((item) => item.active || item.id === transporterId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>}
+              {!ownFleet ? <div className="fact-row"><div className="fact"><span>Collection request</span><strong>Not sent</strong></div><div className="fact"><span>Collection confirmation</span><strong>Not confirmed</strong></div></div> : null}
             </section>
           </div>
         ) : null}
@@ -659,7 +668,7 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
           <>
             {problems.length > 0 ? <div className="note-bar" role="status"><Info /> <span>{problems[0]}{problems.length > 1 ? ` (${problems.length} things to finish)` : ""}</span></div> : null}
             <div className="task-footer">
-              <p>This sends a collection request. {chosen?.name ?? "The transporter"} must still confirm. Demo: no message is sent.</p>
+              <p>{ownFleet ? "This records the transport plan. The person responsible then confirms the schedule. Nothing is sent to anyone." : <>This sends a collection request. {chosen?.name ?? "The transporter"} must still confirm. Demo: no message is sent.</>}</p>
               <div className="button-row">
                 <button className="button button--quiet" disabled={save.isPending || !changed} onClick={() => save.mutate({ checks, transporterId, version: shipment.version })}>Save and finish later</button>
                 <button
@@ -667,14 +676,16 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
                   disabled={ready.isPending || save.isPending}
                   onClick={() => (problems.length > 0 ? save.mutate({ checks, transporterId, version: shipment.version }) : (changed ? save.mutateAsync({ checks, transporterId, version: shipment.version }).then(() => ready.mutate({ version: shipment.version + 1 })) : ready.mutate({ version: shipment.version })))}
                 >
-                  <Send /> {ready.isPending ? "Recording…" : "Mark ready & notify transporter"}
+                  <Send /> {ready.isPending ? "Recording…" : ownFleet ? "Mark ready" : "Mark ready & notify transporter"}
                 </button>
               </div>
             </div>
           </>
         ) : null}
 
-        {shipment.state === "waiting" && request ? (
+        {ownFleet && shipment.state !== "cancelled" ? <FleetSection data={data} shipment={shipment} canManage={canManage.allowed} problems={problems} /> : null}
+
+        {shipment.state === "waiting" && request && !ownFleet ? (
           <section className="task-section">
             <h2>Waiting for {transporter?.name}</h2>
             <div className="fact-row"><div className="fact"><span>Request</span><strong>{request.number}</strong></div><div className="fact"><span>Sent</span><strong>{formatDemoDateTime(request.sentAt)}</strong></div><div className="fact"><span>Reminders</span><strong>{request.reminders}</strong></div></div>
@@ -737,7 +748,7 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
           <ul className="timeline-list" style={{ marginTop: 12 }}>{shipment.events.map((entry) => <li key={entry.id}><strong>{entry.summary}</strong><small>{formatDemoDateTime(entry.occurredAt)} · {entry.actor}{entry.note ? ` · ${entry.note}` : ""}</small></li>)}</ul>
         </details>
       </section>
-      <p className="field-hint">Next: {shipment.state === "preparing" || shipment.state === "declined" ? "ask the transporter to collect, then wait for their confirmation." : shipment.state === "waiting" ? "wait for the transporter to confirm a collection time." : shipment.state === "confirmed" ? "record dispatch when the material leaves the mine." : shipment.state === "dispatched" ? "record what was received, with the delivery evidence." : "nothing more to do."}</p>
+      <p className="field-hint">Next: {shipment.state === "preparing" || shipment.state === "declined" ? (ownFleet ? "assign vehicles and drivers, then mark the shipment ready." : "ask the transporter to collect, then wait for their confirmation.") : shipment.state === "waiting" ? (ownFleet ? "confirm the fleet schedule." : "wait for the transporter to confirm a collection time.") : shipment.state === "confirmed" ? "record dispatch when the material leaves the mine." : shipment.state === "dispatched" ? "record what was received, with the delivery evidence." : "nothing more to do."}</p>
       {cancelling ? <CancelDialog shipment={shipment} pending={cancel.isPending} onClose={() => setCancelling(false)} onCancel={(reason) => cancel.mutate({ reason, version: shipment.version })} /> : null}
     </div>
   );

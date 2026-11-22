@@ -431,6 +431,27 @@ export const handlers = [
     const input = await bodyOf(request);
     return run(() => demoDomain.updateShipment(param(params, "id"), input, actorOf(request)));
   }),
+  // Own fleet: who moves the shipment, which vehicles and drivers, and the coordinator's confirmation.
+  http.post(`${API}/shipments/:id/transport-mode`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setTransportMode(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/fleet-loads`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addFleetLoad(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/shipments/:id/fleet-loads/:loadId/remove`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.removeFleetLoad(param(params, "id"), param(params, "loadId"), input, actorOf(request)));
+  }),
+  http.patch(`${API}/shipments/:id/fleet`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateFleetPlan(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/fleet-confirm`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.confirmFleetSchedule(param(params, "id"), input, actorOf(request)));
+  }),
   http.post(`${API}/shipments/:id/ready`, async ({ params, request }) => {
     const input = await bodyOf<{ version?: number }>(request);
     return run(() => demoDomain.markShipmentReady(param(params, "id"), input, actorOf(request)));
