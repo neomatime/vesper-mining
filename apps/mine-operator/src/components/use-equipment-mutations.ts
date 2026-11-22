@@ -30,6 +30,11 @@ export type EquipmentFormInput = {
   hoursPerDay: number | null;
   notes: string | null;
   hours?: number | null;
+  location?: string | null;
+  responsible?: string | null;
+  condition?: string;
+  usage?: string | null;
+  dependsOn?: string[];
 };
 
 export type PlanInput = {
@@ -68,7 +73,7 @@ export function useCreateEquipment() {
     mutationFn: (input: EquipmentFormInput) => demoSend<EquipmentView>("/equipment", "POST", input),
     onSuccess: async (item) => {
       await refresh(item);
-      toast.push({ title: "Equipment added", detail: `${item.name} is on the register.` });
+      toast.push({ title: "Asset added", detail: `${item.name} is on the register.` });
       router.push(`/equipment/${item.id}`);
     },
     onError: (error) => toast.push({ tone: "error", title: failureTitle(error), detail: error instanceof Error ? error.message : undefined }),

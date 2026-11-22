@@ -44,6 +44,7 @@ import {
   defaultContext,
   DEMO_NOW,
   equipment,
+  infrastructureAssets,
   notifications,
   primaryIssue,
   readinessActivity,
@@ -79,6 +80,7 @@ import {
   type Vat,
 } from "./transport-rules";
 import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
+import type { AssetCondition } from "@vesper/api-contracts";
 import { buildBriefing, canReviewBriefing, changedSinceApproval, effectiveLines, reviewMessage, type BriefingRecord } from "./intelligence-rules";
 import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
 import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedValueHistory, shipmentCounters } from "./shipment-data";
@@ -98,8 +100,10 @@ import {
   type Actor,
 } from "./issue-rules";
 import {
+  assetKindOf,
   canActOnEquipment,
   categories,
+  infrastructureGroupOf,
   isValidCode,
   mostUrgent,
   normaliseCode,
@@ -160,7 +164,7 @@ const initialState = {
   issues: [primaryIssue, secondaryIssue, goldIssue],
   areas,
   readiness: [readinessActivity, goldReadiness],
-  equipment: [...equipment, goldEquipment],
+  equipment: [...equipment, goldEquipment, ...infrastructureAssets],
   shifts,
   members: seedMembers,
   providers: seedProviders,
@@ -198,7 +202,7 @@ const initialState = {
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v10";
+const STORAGE_KEY = "vesper-demo-state-v11";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -440,6 +444,40 @@ function checkedCategory(value: unknown): EquipmentCategory {
   return value as EquipmentCategory;
 }
 
+function checkedResponsible(value: unknown) {
+  const name = text(value);
+  if (!name) return null;
+  if (!ownerNames().includes(name)) fail(400, "VALIDATION_ERROR", "Choose a responsible person from the list.");
+  return name;
+}
+
+function checkedCondition(value: unknown): AssetCondition {
+  if (value === undefined || value === null || value === "") return "unknown";
+  if (value !== "good" && value !== "needs_attention" && value !== "unknown") fail(400, "VALIDATION_ERROR", "Choose a condition.");
+  return value;
+}
+
+/** The assets an asset depends on. Each must exist and be active; an asset cannot depend on itself, directly or through a chain. */
+function checkedDependencies(value: unknown, selfId: string): string[] {
+  const ids = Array.isArray(value) ? [...new Set(value.map(String))] : [];
+  for (const id of ids) {
+    if (id === selfId) fail(400, "VALIDATION_ERROR", "An asset cannot depend on itself.");
+    const found = state.equipment.find((item) => item.id === id);
+    if (!found) fail(400, "VALIDATION_ERROR", "A dependency is not in the register.");
+    if (found.retiredAt) fail(409, "READ_ONLY", `${found.code} is retired, so nothing can depend on it.`);
+    // Following the chain from the dependency must never lead back here.
+    const seen = new Set<string>();
+    const walk = (current: string): boolean => {
+      if (current === selfId) return true;
+      if (seen.has(current)) return false;
+      seen.add(current);
+      return (state.equipment.find((item) => item.id === current)?.dependsOn ?? []).some(walk);
+    };
+    if (walk(id)) fail(400, "VALIDATION_ERROR", `${found.code} already depends on this asset, so this would go in a circle.`);
+  }
+  return ids;
+}
+
 function checkedArea(value: unknown) {
   const areaId = typeof value === "string" && value ? value : null;
   if (areaId && !state.areas.some((area) => area.id === areaId)) fail(400, "VALIDATION_ERROR", "Choose an area from the site.");
@@ -483,9 +521,14 @@ function equipmentBlockers(item: Equipment) {
  */
 function presentEquipment(item: Equipment): EquipmentView {
   const current = now();
+  const brief = (other: Equipment) => ({ id: other.id, code: other.code, name: other.name, state: other.state });
   const maintenance = item.plans.map((plan) => planStatus(plan, item, current));
   return {
     ...item,
+    kind: assetKindOf(item.category),
+    group: infrastructureGroupOf[item.category] ?? null,
+    dependents: state.equipment.filter((other) => !other.retiredAt && other.dependsOn.includes(item.id)).map(brief),
+    dependencies: item.dependsOn.map((id) => state.equipment.find((other) => other.id === id)).filter((other): other is Equipment => Boolean(other)).map(brief),
     services: [...item.services].sort((a, b) => Date.parse(b.performedAt) - Date.parse(a.performedAt)),
     areaName: state.areas.find((area) => area.id === item.areaId)?.name ?? null,
     maintenance,
@@ -1644,6 +1687,11 @@ export const demoDomain = {
       serialNumber: text(input.serialNumber) || null,
       areaId: checkedArea(input.areaId),
       notes: text(input.notes) || null,
+      location: text(input.location).slice(0, 80) || null,
+      responsible: checkedResponsible(input.responsible),
+      condition: checkedCondition(input.condition),
+      usage: text(input.usage).slice(0, 60) || null,
+      dependsOn: checkedDependencies(input.dependsOn, `eq-${code.toLowerCase()}`),
       state: "available",
       stateNote: null,
       stateQuality: "reported",
@@ -1698,6 +1746,31 @@ export const demoDomain = {
         if (value !== item[key]) changes.push(label);
         item[key] = value;
       }
+    }
+    if ("location" in input) {
+      const value = text(input.location).slice(0, 80) || null;
+      if (value !== item.location) changes.push("location");
+      item.location = value;
+    }
+    if ("responsible" in input) {
+      const value = checkedResponsible(input.responsible);
+      if (value !== item.responsible) changes.push("responsible person");
+      item.responsible = value;
+    }
+    if ("condition" in input) {
+      const value = checkedCondition(input.condition);
+      if (value !== item.condition) changes.push("condition");
+      item.condition = value;
+    }
+    if ("usage" in input) {
+      const value = text(input.usage).slice(0, 60) || null;
+      if (value !== item.usage) changes.push("usage");
+      item.usage = value;
+    }
+    if ("dependsOn" in input) {
+      const value = checkedDependencies(input.dependsOn, item.id);
+      if (JSON.stringify(value) !== JSON.stringify(item.dependsOn)) changes.push("dependencies");
+      item.dependsOn = value;
     }
     if ("hoursPerDay" in input) {
       const value = optionalNumber(input.hoursPerDay, "Average hours per day", { min: 0, exclusiveMin: true, max: 24 });
@@ -1845,6 +1918,8 @@ export const demoDomain = {
     assertActiveEquipment(item);
     const reason = requireText(input.reason, "The reason", 8);
     const blockers = equipmentBlockers(item);
+    const dependents = state.equipment.filter((other) => !other.retiredAt && other.dependsOn.includes(item.id));
+    if (dependents.length) blockers.push(`${dependents.map((other) => other.code).join(", ")} ${dependents.length === 1 ? "depends" : "depend"} on it`);
     if (blockers.length) fail(409, "IN_USE", `Resolve this first: ${blockers.join("; ")}.`);
     item.retiredAt = tick();
     item.retiredReason = reason;

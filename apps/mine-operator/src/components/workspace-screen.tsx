@@ -6,15 +6,15 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
-import { CalendarDays, CirclePlus, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, CirclePlus, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isFinished, openDependencies, stateLabels } from "@/lib/issue-rules";
-import { canActOnEquipment, categoryLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
+import { assetGroupLabels, assetGroups, canActOnEquipment, categoryLabels, planTone, type AssetKind, type EquipmentView } from "@/lib/equipment-rules";
 import { formatDay, shiftTimes, suggestNextShift } from "@/lib/shift-format";
 import { canActOnShift, handoverLabels, shiftStateLabels, shiftTone, type ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
@@ -26,6 +26,7 @@ import { PageHeader } from "./page-header";
 import { ShiftControlTabs } from "./module-tabs";
 import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
+import { useDismiss } from "./use-dismiss";
 import { StatusBadge } from "./status-badge";
 import { useCreateEquipment } from "./use-equipment-mutations";
 import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
@@ -106,41 +107,51 @@ function issueRegister(records: OperationalIssue[]): Register<OperationalIssue> 
   };
 }
 
-function equipmentRegister(records: EquipmentView[], issues: OperationalIssue[], onAdd: (() => void) | null): Register<EquipmentView> {
+function equipmentRegister(allRecords: EquipmentView[], issues: OperationalIssue[], kind: AssetKind): Register<EquipmentView> {
+  // The two tabs are one register with two views, so each tab counts only its own assets.
+  const records = allRecords.filter((item) => item.kind === kind);
+  const infra = kind === "infrastructure";
+  const ids = new Set(records.map((item) => item.id));
   const active = records.filter((item) => !item.retiredAt);
   const needsService = (item: EquipmentView) => item.nextService?.state === "overdue" || item.nextService?.state === "due_soon";
   const unavailable = active.filter((item) => item.state === "unavailable").length;
   const dueCount = active.filter(needsService).length;
-  const linked = issues.filter((issue) => issue.equipmentId && !isFinished(issue.workflowState)).length;
+  const linked = issues.filter((issue) => issue.equipmentId && ids.has(issue.equipmentId) && !isFinished(issue.workflowState)).length;
 
   return {
     icon: Wrench,
     tiles: [
-      { label: "Equipment", value: active.length, hint: "On the active register" },
+      { label: infra ? "Infrastructure assets" : "Equipment assets", value: active.length, hint: "On the active register" },
       { label: "Unavailable", value: unavailable, hint: "Reported, not verified", attention: unavailable > 0 },
       { label: "Service due", value: dueCount, hint: dueCount ? "Due soon or overdue" : "Nothing due soon", attention: dueCount > 0 },
-      { label: "Open linked issues", value: linked, hint: "Across all equipment" },
+      { label: "Open linked issues", value: linked, hint: infra ? "Across infrastructure" : "Across all equipment" },
     ],
     columns: [
-      { key: "name", label: "Equipment", render: (item) => <span className="cell-main"><strong>{item.name}</strong><small>{item.code} · {categoryLabels[item.category]}</small></span> },
-      { key: "area", label: "Area", render: (item) => item.areaName ?? <span className="muted">Not assigned</span> },
-      { key: "state", label: "Availability", render: (item) => (item.retiredAt ? <StatusBadge value="unknown" label="Retired" /> : <StatusBadge value={item.state === "available" ? "complete" : "blocked"} label={item.state === "available" ? "Available" : "Unavailable"} />) },
+      { key: "name", label: infra ? "Infrastructure asset" : "Equipment", render: (item) => <span className="cell-main"><strong>{item.name}</strong><small>{item.code} · {categoryLabels[item.category]}</small></span> },
+      ...(infra ? [{ key: "category", label: "Category", render: (item: EquipmentView) => <span className="chip">{item.group ? assetGroupLabels[item.group] : "Other"}</span> }] : []),
+      { key: "area", label: "Area / location", render: (item) => item.areaName ?? item.location ?? <span className="muted">Not assigned</span> },
+      { key: "state", label: infra ? "Status" : "Availability", render: (item) => (item.retiredAt ? <StatusBadge value="unknown" label="Retired" /> : item.state === "unavailable" ? <StatusBadge value="blocked" label="Unavailable" /> : infra && item.condition === "needs_attention" ? <StatusBadge value="at_risk" label="Needs attention" /> : <StatusBadge value="complete" label="Available" />) },
       { key: "service", label: "Next service", render: (item) => (item.retiredAt ? <span className="muted">—</span> : item.nextService ? <StatusBadge value={planTone[item.nextService.state]} label={item.nextService.label} /> : <span className="muted">No plan</span>) },
-      { key: "hours", label: "Hours", render: (item) => (item.hours !== null ? item.hours.toLocaleString("en-GB") : <span className="muted">—</span>) },
+      { key: "hours", label: infra ? "Hours / usage" : "Hours", render: (item) => (item.hours !== null ? item.hours.toLocaleString("en-GB") : item.usage ?? <span className="muted">—</span>) },
     ],
-    filters: [
-      { key: "all", label: "All", test: (item) => !item.retiredAt },
-      { key: "available", label: "Available", test: (item) => !item.retiredAt && item.state === "available" },
-      { key: "unavailable", label: "Unavailable", test: (item) => !item.retiredAt && item.state === "unavailable" },
-      { key: "service", label: "Service due", test: (item) => !item.retiredAt && needsService(item) },
-      { key: "retired", label: "Retired", test: (item) => Boolean(item.retiredAt) },
-    ],
+    filters: infra
+      ? [
+          { key: "all", label: "All", test: (item) => !item.retiredAt },
+          ...assetGroups.map((group) => ({ key: group, label: assetGroupLabels[group], test: (item: EquipmentView) => !item.retiredAt && item.group === group })),
+          { key: "retired", label: "Retired", test: (item: EquipmentView) => Boolean(item.retiredAt) },
+        ]
+      : [
+          { key: "all", label: "All", test: (item) => !item.retiredAt },
+          { key: "available", label: "Available", test: (item) => !item.retiredAt && item.state === "available" },
+          { key: "unavailable", label: "Unavailable", test: (item) => !item.retiredAt && item.state === "unavailable" },
+          { key: "service", label: "Service due", test: (item) => !item.retiredAt && needsService(item) },
+          { key: "retired", label: "Retired", test: (item) => Boolean(item.retiredAt) },
+        ],
     href: (item) => `/equipment/${item.id}`,
-    text: (item) => [item.name, item.code, item.areaName, item.makeModel, item.serialNumber, categoryLabels[item.category], item.state].join(" "),
+    text: (item) => [item.name, item.code, item.areaName, item.location, item.responsible, item.makeModel, item.serialNumber, categoryLabels[item.category], item.group ? assetGroupLabels[item.group] : "", item.state].join(" "),
     rows: records,
-    action: onAdd ? { label: "Add equipment", onClick: onAdd, plus: true } : undefined,
-    emptyTitle: "No equipment yet",
-    emptyBody: "Add your first machine, vehicle or plant item to start tracking its availability and maintenance.",
+    emptyTitle: infra ? "No infrastructure yet" : "No equipment yet",
+    emptyBody: infra ? "Add a substation, pump, conveyor, road or network to track its condition and maintenance." : "Add your first machine, vehicle or plant item to start tracking its availability and maintenance.",
   };
 }
 
@@ -241,12 +252,45 @@ function ShiftViewSwitch({ view }: { view: "list" | "calendar" }) {
   );
 }
 
+/** The two views of the asset register. Each tab is a page of its own, so the browser's back button works. */
+function AssetTabs({ active }: { active: AssetKind }) {
+  return (
+    <nav className="segmented segmented--links asset-tabs" aria-label="Asset type">
+      <Link href="/equipment" className={active === "equipment" ? "active" : ""} aria-current={active === "equipment" ? "page" : undefined}>Equipment</Link>
+      <Link href="/equipment?tab=infrastructure" className={active === "infrastructure" ? "active" : ""} aria-current={active === "infrastructure" ? "page" : undefined}>Infrastructure</Link>
+    </nav>
+  );
+}
+
+/** "Add asset" with a short menu: the two kinds of asset share one register. */
+function AddAssetMenu({ onChoose }: { onChoose: (kind: AssetKind) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, ref);
+  return (
+    <div className="popover-anchor" ref={ref}>
+      <button className="button button--primary" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <CirclePlus /> Add asset <ChevronDown />
+      </button>
+      {open ? (
+        <div className="popover popover--menu" role="group" aria-label="Add asset">
+          <div className="menu-section">
+            <button className="menu-item" onClick={() => { close(); onChoose("equipment"); }}>Add equipment</button>
+            <button className="menu-item" onClick={() => { close(); onChoose("infrastructure"); }}>Add infrastructure</button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   const params = useSearchParams();
   const requestedFilter = params.get("filter");
   const shiftView = params.get("view") === "calendar" ? "calendar" : "list";
   const [createDate, setCreateDate] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<AssetKind | null>(null);
   const [addingShift, setAddingShift] = useState(false);
   const create = useCreateEquipment();
   const createShift = useCreateShift();
@@ -266,10 +310,29 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
 
   if (workspace === "exceptions") return <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={issueRegister(records as OperationalIssue[])} />;
   if (workspace === "equipment") {
+    const kind: AssetKind = params.get("tab") === "infrastructure" ? "infrastructure" : "equipment";
+    const all = records as EquipmentView[];
     return (
       <>
-        <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} register={equipmentRegister(records as EquipmentView[], shell?.issues ?? [], canManageEquipment ? () => setAdding(true) : null)} />
-        {adding ? <EquipmentFormDialog areas={shell?.areas ?? []} pending={create.isPending} onClose={() => setAdding(false)} onSave={(input) => create.mutate(input)} /> : null}
+        <RegisterView
+          key={`${kind}-${requestedFilter}`}
+          initialFilter={requestedFilter}
+          header={{ ...header, title: "Assets", description: "Manage equipment and site infrastructure, maintenance and availability." }}
+          register={equipmentRegister(all, shell?.issues ?? [], kind)}
+          tabs={<AssetTabs active={kind} />}
+          viewSwitch={canManageEquipment ? <AddAssetMenu onChoose={setAdding} /> : undefined}
+        />
+        {adding ? (
+          <EquipmentFormDialog
+            kind={adding}
+            areas={shell?.areas ?? []}
+            people={(shell?.members ?? []).filter((member) => member.status !== "deactivated").map((member) => member.name)}
+            assets={all.filter((item) => !item.retiredAt).map((item) => ({ id: item.id, code: item.code, name: item.name }))}
+            pending={create.isPending}
+            onClose={() => setAdding(null)}
+            onSave={(input) => create.mutate(input)}
+          />
+        ) : null}
       </>
     );
   }

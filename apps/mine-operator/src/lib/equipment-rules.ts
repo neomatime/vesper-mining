@@ -16,10 +16,50 @@ export const categoryLabels: Record<EquipmentCategory, string> = {
   water_cart: "Water cart",
   light_vehicle: "Light vehicle",
   pump: "Pump",
+  substation: "Electrical substation",
+  generator: "Generator",
+  power_distribution: "Electrical distribution",
+  pipeline: "Pipeline",
+  conveyor: "Conveyor",
+  processing_plant: "Processing facility",
+  mine_road: "Mine road",
+  rail: "Rail infrastructure",
+  loading_facility: "Loading facility",
+  comms_network: "Communications network",
   other: "Other",
 };
 
 export const categories = Object.keys(categoryLabels) as EquipmentCategory[];
+
+// ---- Equipment and infrastructure: one register, two views ------------------------------------------------------------------------
+
+export type AssetGroup = "power" | "water" | "processing" | "transport" | "communications";
+export type AssetKind = "equipment" | "infrastructure";
+
+export const assetGroupLabels: Record<AssetGroup, string> = { power: "Power", water: "Water", processing: "Processing", transport: "Transport", communications: "Communications" };
+export const assetGroups = Object.keys(assetGroupLabels) as AssetGroup[];
+
+/** Which infrastructure group a category belongs to. Categories not listed here are equipment. One list, so no asset can be both. */
+export const infrastructureGroupOf: Partial<Record<EquipmentCategory, AssetGroup>> = {
+  substation: "power",
+  generator: "power",
+  power_distribution: "power",
+  pump: "water",
+  pipeline: "water",
+  conveyor: "processing",
+  processing_plant: "processing",
+  mine_road: "transport",
+  rail: "transport",
+  loading_facility: "transport",
+  comms_network: "communications",
+};
+
+export const assetKindOf = (category: EquipmentCategory): AssetKind => (infrastructureGroupOf[category] ? "infrastructure" : "equipment");
+export const equipmentCategories = categories.filter((value) => assetKindOf(value) === "equipment");
+export const infrastructureCategories = categories.filter((value) => assetKindOf(value) === "infrastructure");
+
+export const conditionLabels = { good: "Good", needs_attention: "Needs attention", unknown: "Not assessed" } as const;
+export const conditionTone = { good: "complete", needs_attention: "at_risk", unknown: "unknown" } as const;
 
 export type EquipmentCapability = "manage" | "service" | "reading" | "state";
 
@@ -185,6 +225,12 @@ export const planTone: Record<PlanState, string> = { ok: "on_plan", due_soon: "a
 
 /** An equipment record as the screens see it: joined to its area, linked work and maintenance status. */
 export type EquipmentView = Equipment & {
+  kind: AssetKind;
+  group: AssetGroup | null;
+  /** Assets that depend on this one: if it is unavailable, these are affected. Worked out from their `dependsOn`, never stored twice. */
+  dependents: { id: string; code: string; name: string; state: "available" | "unavailable" }[];
+  /** What this asset depends on, with the current state of each. */
+  dependencies: { id: string; code: string; name: string; state: "available" | "unavailable" }[];
   areaName: string | null;
   maintenance: PlanStatus[];
   nextService: PlanStatus | null;

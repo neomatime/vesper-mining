@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { fromLocalInput, toLocalInput } from "@/lib/demo-clock";
-import { categories, categoryLabels, downtimeReasonLabels, downtimeReasons, type EquipmentView } from "@/lib/equipment-rules";
+import { assetKindOf, categoryLabels, conditionLabels, downtimeReasonLabels, downtimeReasons, equipmentCategories, infrastructureCategories, type AssetKind, type EquipmentView } from "@/lib/equipment-rules";
 import type { EquipmentFormInput, PlanInput, ServiceInput } from "./use-equipment-mutations";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
@@ -43,23 +43,40 @@ const equipmentSchema = z.object({
   hours: optionalNumber("the hours"),
   hoursPerDay: optionalNumber("the hours per day", { positive: true, max: 24 }),
   notes: z.string(),
+  location: z.string(),
+  responsible: z.string(),
+  condition: z.string(),
+  usage: z.string(),
 });
 
 type EquipmentValues = z.infer<typeof equipmentSchema>;
 
 export function EquipmentFormDialog({
   item,
+  kind: requestedKind,
   areas,
+  people = [],
+  assets = [],
   pending,
   onSave,
   onClose,
 }: {
   item?: EquipmentView;
+  /** Equipment or infrastructure. An existing asset keeps the kind of its category. */
+  kind?: AssetKind;
   areas: Option[];
+  /** People who can be made responsible for the asset. */
+  people?: string[];
+  /** Other assets this one can depend on. */
+  assets?: { id: string; code: string; name: string }[];
   pending: boolean;
   onSave: (input: EquipmentFormInput) => void;
   onClose: () => void;
 }) {
+  const kind: AssetKind = item ? assetKindOf(item.category) : requestedKind ?? "equipment";
+  const infra = kind === "infrastructure";
+  const choices = infra ? infrastructureCategories : equipmentCategories;
+  const [dependsOn, setDependsOn] = useState<string[]>(item?.dependsOn ?? []);
   const form = useForm<EquipmentValues>({
     resolver: zodResolver(equipmentSchema),
     defaultValues: {
@@ -72,21 +89,25 @@ export function EquipmentFormDialog({
       hours: "",
       hoursPerDay: item?.hoursPerDay ? String(item.hoursPerDay) : "",
       notes: item?.notes ?? "",
+      location: item?.location ?? "",
+      responsible: item?.responsible ?? "",
+      condition: item?.condition ?? "unknown",
+      usage: item?.usage ?? "",
     },
   });
   const { errors } = form.formState;
 
   return (
     <Dialog
-      title={item ? "Edit equipment" : "Add equipment"}
-      description={item ? `${item.code}. Every change is recorded in the history.` : "Add a machine, vehicle or plant item to the register."}
+      title={item ? (infra ? "Edit infrastructure" : "Edit equipment") : infra ? "Add infrastructure" : "Add equipment"}
+      description={item ? `${item.code}. Every change is recorded in the history.` : infra ? "Add power, water, processing, transport or communications infrastructure to the register." : "Add a machine, vehicle or plant item to the register."}
       size="wide"
       onClose={onClose}
       locked={pending}
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="equipment-form" disabled={pending}>{pending ? "Saving…" : item ? "Save changes" : "Add equipment"}</button>
+          <button className="button button--primary" form="equipment-form" disabled={pending}>{pending ? "Saving…" : item ? "Save changes" : infra ? "Add infrastructure" : "Add equipment"}</button>
         </>
       }
     >
@@ -104,6 +125,11 @@ export function EquipmentFormDialog({
             serialNumber: toText(values.serialNumber),
             hoursPerDay: toNumber(values.hoursPerDay),
             notes: toText(values.notes),
+            location: toText(values.location),
+            responsible: values.responsible || null,
+            condition: values.condition,
+            usage: infra ? toText(values.usage) : null,
+            dependsOn,
             ...(item ? {} : { hours: toNumber(values.hours) }),
           }),
         )}
@@ -117,7 +143,7 @@ export function EquipmentFormDialog({
         <Field label="Category" error={errors.category?.message}>
           <Select aria-invalid={Boolean(errors.category)} {...form.register("category")}>
             <option value="">Choose a category</option>
-            {categories.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}
+            {choices.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}
           </Select>
         </Field>
         <Field label="Make and model">
@@ -132,6 +158,25 @@ export function EquipmentFormDialog({
             {areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
           </Select>
         </Field>
+        <Field label="Location" hint="Use this when the place is not one of the mapped areas.">
+          <input placeholder={infra ? "Plant Area" : "Workshop"} {...form.register("location")} />
+        </Field>
+        <Field label="Responsible person">
+          <Select {...form.register("responsible")}>
+            <option value="">Not assigned</option>
+            {people.map((name) => <option key={name} value={name}>{name}</option>)}
+          </Select>
+        </Field>
+        <Field label="Condition" hint="Kept apart from availability and from when it is next serviced.">
+          <Select {...form.register("condition")}>
+            {(Object.keys(conditionLabels) as (keyof typeof conditionLabels)[]).map((value) => <option key={value} value={value}>{conditionLabels[value]}</option>)}
+          </Select>
+        </Field>
+        {infra ? (
+          <Field label="Usage measure" hint="Where operating hours do not apply, for example 12,400 m³ pumped. Optional.">
+            <input {...form.register("usage")} />
+          </Field>
+        ) : null}
         <Field label="Average hours per day" error={errors.hoursPerDay?.message} hint="Used to estimate when a service is due.">
           <input inputMode="decimal" aria-invalid={Boolean(errors.hoursPerDay)} {...form.register("hoursPerDay")} />
         </Field>
@@ -140,6 +185,20 @@ export function EquipmentFormDialog({
             <input inputMode="decimal" aria-invalid={Boolean(errors.hours)} {...form.register("hours")} />
           </Field>
         )}
+        {assets.filter((other) => other.id !== item?.id).length > 0 ? (
+          <fieldset className="form-field form-field--wide asset-dependencies">
+            <legend>Depends on</legend>
+            <small className="field-hint">The assets this one needs to operate. If one of them is unavailable, this asset is affected.</small>
+            <div className="asset-dependencies__list">
+              {assets.filter((other) => other.id !== item?.id).map((other) => (
+                <label key={other.id}>
+                  <input type="checkbox" checked={dependsOn.includes(other.id)} onChange={(event) => setDependsOn(event.target.checked ? [...dependsOn, other.id] : dependsOn.filter((id) => id !== other.id))} />
+                  {other.code} · {other.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
         <Field label="Notes" wide>
           <textarea rows={3} {...form.register("notes")} />
         </Field>

@@ -273,6 +273,11 @@ export const equipment: Equipment[] = [
     serialNumber: "C120-44871",
     areaId: "area-crusher-line",
     notes: null,
+    location: null,
+    responsible: "Lebo Maseko",
+    condition: "unknown",
+    usage: null,
+    dependsOn: ["eq-sub-01"],
     state: "unavailable",
     stateNote: "Feed interruption reported at 08:05.",
     stateQuality: "reported",
@@ -301,6 +306,11 @@ export const equipment: Equipment[] = [
     serialNumber: "PC1250-30912",
     areaId: "area-north-pit",
     notes: null,
+    location: null,
+    responsible: null,
+    condition: "unknown",
+    usage: null,
+    dependsOn: [],
     state: "available",
     stateNote: null,
     stateQuality: "verified",
@@ -329,6 +339,11 @@ export const equipment: Equipment[] = [
     serialNumber: "D10T-77120",
     areaId: "area-central-pit",
     notes: null,
+    location: null,
+    responsible: null,
+    condition: "unknown",
+    usage: null,
+    dependsOn: [],
     state: "available",
     stateNote: null,
     stateQuality: "reported",
@@ -357,6 +372,11 @@ export const equipment: Equipment[] = [
     serialNumber: "A40G-10101",
     areaId: "area-central-pit",
     notes: "Used for the mine's own transport of finished stock.",
+    location: null,
+    responsible: null,
+    condition: "unknown",
+    usage: null,
+    dependsOn: [],
     state: "available",
     stateNote: null,
     stateQuality: "reported",
@@ -383,6 +403,11 @@ export const equipment: Equipment[] = [
     serialNumber: "A40G-10102",
     areaId: "area-central-pit",
     notes: "Used for the mine's own transport of finished stock.",
+    location: null,
+    responsible: null,
+    condition: "unknown",
+    usage: null,
+    dependsOn: [],
     state: "available",
     stateNote: null,
     stateQuality: "reported",
@@ -409,6 +434,11 @@ export const equipment: Equipment[] = [
     serialNumber: "A40G-10103",
     areaId: "area-central-pit",
     notes: "Used for the mine's own transport of finished stock.",
+    location: null,
+    responsible: null,
+    condition: "unknown",
+    usage: null,
+    dependsOn: [],
     state: "unavailable",
     stateNote: "Hydraulic leak reported at 06:40.",
     stateQuality: "reported",
@@ -594,3 +624,62 @@ export const workspaceContent = {
     description: "Your plan, people and sites.",
   },
 } as const;
+
+/** One infrastructure asset for the register. Infrastructure is simulated demonstration data, kept in the same register as equipment. */
+function infrastructure(a: {
+  code: string;
+  name: string;
+  category: Equipment["category"];
+  makeModel: string;
+  areaId?: string | null;
+  location?: string | null;
+  condition: Equipment["condition"];
+  hours?: number | null;
+  usage?: string | null;
+  plan: { name: string; interval: number; lastServiceAt: string };
+  dependsOn?: string[];
+  stateNote?: string | null;
+}): Equipment {
+  const slug = a.code.toLowerCase();
+  return {
+    id: `eq-${slug}`,
+    siteId: "site-riverside",
+    code: a.code,
+    name: a.name,
+    category: a.category,
+    makeModel: a.makeModel,
+    serialNumber: null,
+    areaId: a.areaId ?? null,
+    notes: "Simulated infrastructure record for the demonstration.",
+    location: a.location ?? null,
+    responsible: "Lebo Maseko",
+    condition: a.condition,
+    usage: a.usage ?? null,
+    dependsOn: a.dependsOn ?? [],
+    state: "available",
+    stateNote: a.stateNote ?? null,
+    stateQuality: "reported",
+    stateUpdatedAt: "2025-04-24T06:00:00+02:00",
+    hours: a.hours ?? null,
+    hoursReadAt: a.hours ? "2025-04-24T06:00:00+02:00" : null,
+    hoursSource: a.hours ? "Lebo Maseko" : null,
+    hoursPerDay: null,
+    plans: [{ id: `plan-${slug}`, name: a.plan.name, basis: "days", interval: a.plan.interval, lastServiceHours: null, lastServiceAt: a.plan.lastServiceAt }],
+    services: [],
+    events: [created(`eqev-${slug}-1`, "Lebo Maseko", "Maintenance Planner", "2025-01-15T09:00:00+02:00")],
+    retiredAt: null,
+    retiredReason: null,
+    version: 1,
+    createdAt: "2025-01-15T09:00:00+02:00",
+  };
+}
+
+export const infrastructureAssets: Equipment[] = [
+  infrastructure({ code: "SUB-01", name: "Main Substation SUB-01", category: "substation", makeModel: "Electrical substation", location: "Plant Area", condition: "good", plan: { name: "Substation inspection", interval: 90, lastServiceAt: "2025-01-29T09:00:00+02:00" } }),
+  infrastructure({ code: "GEN-01", name: "Standby Generator GEN-01", category: "generator", makeModel: "Standby generator", location: "Plant Area", condition: "good", hours: 420, plan: { name: "Generator service", interval: 60, lastServiceAt: "2025-03-20T09:00:00+02:00" } }),
+  infrastructure({ code: "PWP-03", name: "Process Water Pump PWP-03", category: "pump", makeModel: "Water pump", location: "Water Plant", condition: "needs_attention", hours: 6240, plan: { name: "Pump service", interval: 30, lastServiceAt: "2025-03-26T09:00:00+02:00" } }),
+  infrastructure({ code: "TP-01", name: "Tailings Pipeline TP-01", category: "pipeline", makeModel: "Pipeline", location: "Tailings storage facility (TSF)", condition: "good", plan: { name: "Pipeline inspection", interval: 90, lastServiceAt: "2025-02-23T09:00:00+02:00" } }),
+  infrastructure({ code: "CV-07", name: "Conveyor CV-07", category: "conveyor", makeModel: "Conveyor", location: "Plant Area", condition: "good", hours: 12420, plan: { name: "Conveyor service", interval: 60, lastServiceAt: "2025-03-13T09:00:00+02:00" }, dependsOn: ["eq-sub-01"] }),
+  infrastructure({ code: "HR-01", name: "Haul Road HR-01 (North)", category: "mine_road", makeModel: "Mine road", areaId: "area-north-pit", condition: "good", plan: { name: "Road inspection", interval: 30, lastServiceAt: "2025-04-01T09:00:00+02:00" } }),
+  infrastructure({ code: "COM-01", name: "Site Communications Network", category: "comms_network", makeModel: "Radio and data network", location: "Site-wide", condition: "unknown", plan: { name: "Network inspection", interval: 180, lastServiceAt: "2025-01-20T09:00:00+02:00" } }),
+];

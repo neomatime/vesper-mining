@@ -23,7 +23,9 @@ import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { downtimePeriods, downtimeWithin, formatDuration } from "@/lib/downtime";
-import { canActOnEquipment, categoryLabels, downtimeReasonLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
+import type { OperationalIssue } from "@vesper/api-contracts";
+import type { ShiftView } from "@/lib/shift-rules";
+import { assetGroupLabels, canActOnEquipment, categoryLabels, conditionLabels, conditionTone, downtimeReasonLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
 import { stateLabels as issueStateLabels } from "@/lib/issue-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { ConfirmDialog } from "./dialog";
@@ -51,6 +53,72 @@ type DialogState =
 const DAY = 86_400_000;
 
 /** Downtime built from the availability changes people report, so there is no separate log to keep. */
+/**
+ * What this asset depends on and what depends on it, and what an unavailable asset affects. Dependencies are recorded once, on the asset
+ * that needs the other; the other side is worked out from them. Nothing here estimates money: where a production or financial impact has
+ * been calculated it is shown by the impact card, and an asset failure does not by itself imply a loss.
+ */
+function DependenciesCard({ item, shifts, issues }: { item: EquipmentView; shifts: ShiftView[]; issues: OperationalIssue[] }) {
+  const affectedIds = new Set([item.id, ...item.dependents.map((other) => other.id)]);
+  const down = item.state === "unavailable";
+  // Shift work whose issue is on this asset or on an asset that depends on it.
+  const shiftWork = shifts
+    .filter((shift) => shift.state === "in_progress" || shift.state === "scheduled")
+    .flatMap((shift) => shift.work.filter((work) => !work.done && work.issueId && issues.some((issue) => issue.id === work.issueId && issue.equipmentId && affectedIds.has(issue.equipmentId))).map((work) => ({ shift, work })));
+  const unavailableDependencies = item.dependencies.filter((other) => other.state === "unavailable");
+  if (item.dependencies.length === 0 && item.dependents.length === 0 && shiftWork.length === 0) return null;
+
+  return (
+    <article className="card detail-card" aria-labelledby="dependencies-heading">
+      <header className="card__header"><div><span className="eyebrow">Operational dependencies</span><h2 id="dependencies-heading">Depends on and affects</h2></div></header>
+      {unavailableDependencies.length > 0 ? (
+        <div className="note-bar note-bar--warn" role="status"><AlertTriangle /> <span><strong>{unavailableDependencies.map((other) => other.code).join(", ")} {unavailableDependencies.length === 1 ? "is" : "are"} reported unavailable.</strong> {item.code} depends on {unavailableDependencies.length === 1 ? "it" : "them"} to operate.</span></div>
+      ) : null}
+      {down && item.dependents.length > 0 ? (
+        <div className="note-bar note-bar--warn" role="status"><AlertTriangle /> <span><strong>{item.code} is reported unavailable.</strong> This affects {item.dependents.map((other) => other.code).join(", ")}, which depend on it. No production or financial impact is estimated unless it has been calculated.</span></div>
+      ) : null}
+      {item.dependencies.length > 0 ? (
+        <>
+          <h3 className="detail-subhead">Depends on</h3>
+          <ul className="work-list">
+            {item.dependencies.map((other) => (
+              <li className="work-row" key={other.id}>
+                <Link className="work-row__copy" href={`/equipment/${other.id}`}><strong>{other.name}</strong><small>{other.code}</small></Link>
+                <StatusBadge value={other.state === "available" ? "complete" : "blocked"} label={other.state === "available" ? "Available" : "Unavailable"} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {item.dependents.length > 0 ? (
+        <>
+          <h3 className="detail-subhead">Needed by</h3>
+          <ul className="work-list">
+            {item.dependents.map((other) => (
+              <li className="work-row" key={other.id}>
+                <Link className="work-row__copy" href={`/equipment/${other.id}`}><strong>{other.name}</strong><small>{other.code}</small></Link>
+                <StatusBadge value={other.state === "available" ? "complete" : "blocked"} label={other.state === "available" ? "Available" : "Unavailable"} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {shiftWork.length > 0 ? (
+        <>
+          <h3 className="detail-subhead">Shift work that depends on {down || item.dependents.length > 0 ? "this asset" : item.code}</h3>
+          <ul className="work-list">
+            {shiftWork.map(({ shift, work }) => (
+              <li className="work-row" key={`${shift.id}-${work.id}`}>
+                <Link className="work-row__copy" href={`/shifts/${shift.id}`}><strong>{work.title}</strong><small>{shift.name}{work.owner ? ` · ${work.owner}` : ""}</small></Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </article>
+  );
+}
+
 function DowntimeCard({ item, now }: { item: EquipmentView; now: string }) {
   const periods = downtimePeriods(item, now);
   const from = new Date(Date.parse(now) - 7 * DAY).toISOString();
@@ -134,11 +202,11 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
 
   return (
     <div className="workspace-page">
-      <Link href="/equipment" className="back-link"><ArrowLeft /> Equipment</Link>
+      <Link href={item.kind === "infrastructure" ? "/equipment?tab=infrastructure" : "/equipment"} className="back-link"><ArrowLeft /> Assets</Link>
       <PageHeader
         eyebrow={`${item.code} · ${categoryLabels[item.category]}`}
         title={item.name}
-        description={[item.areaName ?? "No area assigned", item.makeModel].filter(Boolean).join(" · ")}
+        description={[item.areaName ?? item.location ?? "No location assigned", item.makeModel].filter(Boolean).join(" · ")}
         icon={Wrench}
         action={
           <div className="header-actions">
@@ -178,7 +246,13 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
               {canManage ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "edit" })}><Pencil /> Edit</button> : null}
             </header>
             <dl className="definition-grid">
-              <div><dt>Category</dt><dd>{categoryLabels[item.category]}</dd></div>
+              <div><dt>Category</dt><dd>{categoryLabels[item.category]}{item.group ? <small className="dd-note">{assetGroupLabels[item.group]} infrastructure</small> : null}</dd></div>
+              <div><dt>Availability</dt><dd><StatusBadge value={item.state === "available" ? "complete" : "blocked"} label={item.state === "available" ? "Available" : "Unavailable"} /><small className="dd-note">Reported, not verified</small></dd></div>
+              <div><dt>Condition</dt><dd><StatusBadge value={conditionTone[item.condition]} label={conditionLabels[item.condition]} /></dd></div>
+              <div><dt>Next service</dt><dd>{item.nextService ? <StatusBadge value={planTone[item.nextService.state]} label={item.nextService.label} /> : <span className="muted">No plan yet</span>}</dd></div>
+              <div><dt>Responsible</dt><dd>{item.responsible ?? <span className="muted">Not assigned</span>}</dd></div>
+              <div><dt>Location</dt><dd>{item.location ?? <span className="muted">Not recorded</span>}</dd></div>
+              {item.usage ? <div><dt>Usage</dt><dd>{item.usage}</dd></div> : null}
               <div><dt>Make and model</dt><dd>{item.makeModel ?? <span className="muted">Not recorded</span>}</dd></div>
               <div><dt>Serial number</dt><dd>{item.serialNumber ?? <span className="muted">Not recorded</span>}</dd></div>
               <div><dt>Operating area</dt><dd>{item.areaName ? <Link href="/map">{item.areaName}</Link> : <span className="muted">Not assigned</span>}</dd></div>
@@ -187,6 +261,8 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
             </dl>
             {item.notes ? <p className="card__footnote">{item.notes}</p> : null}
           </article>
+
+          <DependenciesCard item={item} shifts={shell?.shifts ?? []} issues={shell?.issues ?? []} />
 
           {canMaintain ? <DowntimeCard item={item} now={shell?.now ?? item.stateUpdatedAt} /> : null}
 
@@ -335,7 +411,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
       </section>
 
       {dialog?.kind === "edit" ? (
-        <EquipmentFormDialog item={item} areas={areas} pending={mutations.update.isPending} onClose={close} onSave={(input) => mutations.update.mutate(input, { onSuccess: close })} />
+        <EquipmentFormDialog item={item} areas={areas} people={(shell?.members ?? []).filter((member) => member.status !== "deactivated").map((member) => member.name)} assets={(shell?.equipment ?? []).filter((other) => !other.retiredAt).map((other) => ({ id: other.id, code: other.code, name: other.name }))} pending={mutations.update.isPending} onClose={close} onSave={(input) => mutations.update.mutate(input, { onSuccess: close })} />
       ) : null}
       {dialog?.kind === "state" ? (
         <StateDialog item={item} pending={mutations.setState.isPending} onClose={close} onSave={(input) => mutations.setState.mutate(input, { onSuccess: close })} />
