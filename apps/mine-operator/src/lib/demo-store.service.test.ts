@@ -33,16 +33,20 @@ const baseRequest = () => ({ equipmentId: crusher, title: "500 hour inspection",
 beforeEach(() => demoDomain.reset());
 
 describe("service providers", () => {
-  it("lets only the Mine Manager add, edit, deactivate and delete providers", () => {
-    rejects(() => demoDomain.createProvider(provider, planner), 403);
-    const created = demoDomain.createProvider(provider, manager);
-    expect(created).toMatchObject({ name: "Delta Mining Services", active: true, version: 1 });
+  it("lets the Mine Manager and Maintenance Planner add and edit providers; only the Mine Manager approves, deactivates and deletes", () => {
+    rejects(() => demoDomain.createProvider(provider, supervisor), 403);
+    // A provider added by the planner waits for approval.
+    const created = demoDomain.createProvider(provider, planner);
+    expect(created).toMatchObject({ name: "Delta Mining Services", active: false, approval: "pending", version: 1 });
     rejects(() => demoDomain.updateProvider(created.id, { ...provider, phone: "x" }, supervisor), 403);
     const before = created.version;
-    const updated = demoDomain.updateProvider(created.id, { ...provider, phone: "+27 11 555 0111", version: before }, manager);
+    const updated = demoDomain.updateProvider(created.id, { ...provider, phone: "+27 11 555 0111", version: before }, planner);
     expect(updated).toMatchObject({ phone: "+27 11 555 0111", version: before + 1 });
     rejects(() => demoDomain.updateProvider(created.id, { ...provider, version: before }, manager), 409, /changed by someone else/);
-    expect(demoDomain.setProviderActive(created.id, false, manager).active).toBe(false);
+    rejects(() => demoDomain.setProviderApproval(created.id, { approval: "approved" }, planner), 403);
+    expect(demoDomain.setProviderApproval(created.id, { approval: "approved" }, manager)).toMatchObject({ approval: "approved", active: true });
+    expect(demoDomain.setProviderActive(created.id, false, manager)).toMatchObject({ active: false, approval: "inactive" });
+    rejects(() => demoDomain.deleteProvider(created.id, planner), 403);
     demoDomain.deleteProvider(created.id, manager);
     expect(demoDomain.listProviders().some((item) => item.id === created.id)).toBe(false);
   });
@@ -57,8 +61,8 @@ describe("service providers", () => {
 
   it("offers only active, approved providers that service the equipment", () => {
     const names = eligibleProviders(demoDomain.listProviders(), "crusher", demoDomain.now()).map((item) => item.name);
-    expect(names).toEqual(["OreTech Services", "Karoo Crusher & Screen"]);
-    expect(eligibleProviders(demoDomain.listProviders(), "excavator", demoDomain.now()).map((item) => item.name)).toEqual(["OreTech Services"]);
+    expect(names).toEqual(["OreTech Services", "Karoo Crusher & Screen", "ABC Industrial Repairs"]);
+    expect(eligibleProviders(demoDomain.listProviders(), "excavator", demoDomain.now()).map((item) => item.name)).toEqual(["OreTech Services", "Mining Hydraulics SA"]);
     // Ridge Hydraulics has an expired approval and Highveld is deactivated.
     expect(names).not.toContain("Ridge Hydraulics");
   });

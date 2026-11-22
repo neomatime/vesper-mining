@@ -13,7 +13,7 @@ import { canManageOrganisation, memberStatusLabels, roleInfo, roleNames } from "
 import { initials, tierLabel } from "@/lib/personas";
 import { categoryLabels } from "@/lib/equipment-rules";
 import { levelLabels, rightsAreas, rightsMatrix } from "@/lib/rights";
-import { approvalLabel, isApproved } from "@/lib/service-rules";
+import { canApproveProviders, approvalLabel, isApproved } from "@/lib/service-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { CompanyDialog, MemberDialog, SiteDialog, TemporaryPasswordDialog } from "./admin-dialogs";
 import { ConfirmDialog } from "./dialog";
@@ -344,6 +344,7 @@ export function AdminScreen() {
       {providerDialog ? (
         <ProviderDialog
           provider={providerDialog.provider}
+          canApprove={canApproveProviders({ name: context.persona, role: context.role }).allowed}
           pending={providerActions.create.isPending || providerActions.update.isPending}
           onClose={() => setProviderDialog(null)}
           onSave={(input) =>

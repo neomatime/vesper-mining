@@ -304,6 +304,11 @@ export const handlers = [
     const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
     return run(() => demoDomain.updateProvider(param(params, "id"), input, actorOf(request)));
   }),
+  http.get(`${API}/providers/:id/detail`, ({ params }) => run(() => demoDomain.providerDetail(param(params, "id")))),
+  http.post(`${API}/providers/:id/approval`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setProviderApproval(param(params, "id"), input, actorOf(request)));
+  }),
   http.delete(`${API}/providers/:id`, ({ params, request }) => run(() => demoDomain.deleteProvider(param(params, "id"), actorOf(request)))),
   http.post(`${API}/providers/:id/active`, async ({ params, request }) => {
     const input = await bodyOf<{ active?: boolean }>(request);

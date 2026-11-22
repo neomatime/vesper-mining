@@ -40,6 +40,8 @@ test.describe("service providers and requests", () => {
     await expect(dialog(page).getByText(/at least one kind of equipment/)).toBeVisible();
     await dialog(page).getByRole("checkbox", { name: "Pump" }).check();
     await dialog(page).getByRole("checkbox", { name: "Crusher" }).check();
+    // A new provider is pending unless the Mine Manager approves it in the form.
+    await pick(dialog(page).getByRole("combobox", { name: /^Approval status/ }), "Approved");
     await dialog(page).getByRole("button", { name: "Add provider" }).click();
     await expect(row(page, "Delta Mining Services")).toBeVisible();
 
@@ -191,8 +193,10 @@ test.describe("service providers and requests", () => {
   test("shows the new rights on the User rights tab", async ({ page }) => {
     await openAs(page, "/admin");
     await page.getByRole("tab", { name: "User rights" }).click();
-    await expect(page.getByRole("img", { name: "Add, edit and delete service providers, Mine Manager: Allowed" })).toBeVisible();
-    await expect(page.getByRole("img", { name: "Add, edit and delete service providers, Maintenance Planner: Not allowed" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Add and edit service providers, Mine Manager: Allowed" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Add and edit service providers, Maintenance Planner: Allowed" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Approve, deactivate and delete service providers, Mine Manager: Allowed" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Approve, deactivate and delete service providers, Maintenance Planner: Not allowed" })).toBeVisible();
     await expect(page.getByRole("img", { name: "Request, compare and award service quotes, Maintenance Planner: Allowed" })).toBeVisible();
   });
 

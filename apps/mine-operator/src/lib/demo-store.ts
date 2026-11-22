@@ -113,7 +113,7 @@ import {
 } from "./equipment-rules";
 import type { Account } from "./accounts";
 import { seedProviders, seedRequests } from "./service-data";
-import { canManageProviders, canRequestService, isApproved } from "./service-rules";
+import { canApproveProviders, canManageProviders, canRequestService, isApproved } from "./service-rules";
 import { seedActivity, seedCompany, seedCredentials, seedMembers, seedSite } from "./organisation-data";
 import { canManageOrganisation, homeFor, isLastManager, isValidEmail, normaliseEmail, passwordProblem, roleNames } from "./organisation-rules";
 import { deriveReadinessStatus } from "./readiness-rules";
@@ -196,13 +196,13 @@ const initialState = {
   /** Submission ids already accepted, so a repeated submission is refused instead of saved twice. */
   submissions: [] as string[],
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 7, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters, ...transportCounters },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 7, activity: 0, credential: 0, provider: 12, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters, ...transportCounters },
 };
 
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v11";
+const STORAGE_KEY = "vesper-demo-state-v12";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -653,6 +653,12 @@ function assertRequester(actor: Actor) {
   if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "Not permitted.");
 }
 
+/** What stops a provider being deleted: records that refer to it. Empty means it can be removed. */
+function providerReferences(id: string): string[] {
+  const requests = state.serviceRequests.filter((request) => request.invites.some((invite) => invite.providerId === id)).map((request) => request.number);
+  return requests.length > 0 ? [`repair request${requests.length === 1 ? "" : "s"} ${requests.join(", ")}`] : [];
+}
+
 function findProvider(id: string) {
   return state.providers.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This service provider could not be found.");
 }
@@ -662,16 +668,42 @@ function findRequest(id: string) {
 }
 
 function checkedProvider(input: Record<string, unknown>, selfId?: string) {
+  const existing = selfId ? state.providers.find((item) => item.id === selfId) : undefined;
   const name = requireText(input.name, "The company name", 3);
   if (state.providers.some((item) => item.id !== selfId && item.name.toLowerCase() === name.toLowerCase())) fail(409, "DUPLICATE_NAME", "A provider with this name is already on the list.");
+  const registration = text(input.registration);
+  if (registration && state.providers.some((item) => item.id !== selfId && item.registration && item.registration.toLowerCase() === registration.toLowerCase())) fail(409, "DUPLICATE_NAME", "A provider with this registration number is already on the list.");
   const email = text(input.email);
   if (email && !isValidEmail(email)) fail(400, "VALIDATION_ERROR", "Enter a valid email address, or leave it blank.");
   const chosen = Array.isArray(input.categories) ? input.categories.map(String) : [];
-  if (chosen.length === 0) fail(400, "VALIDATION_ERROR", "Choose at least one kind of equipment they service.");
+  if (chosen.length === 0) fail(400, "VALIDATION_ERROR", "Choose at least one kind of equipment or infrastructure they service.");
   if (chosen.some((category) => !(categories as string[]).includes(category))) fail(400, "VALIDATION_ERROR", "One of the equipment types is not recognised.");
   const approvedUntil = text(input.approvedUntil);
   if (approvedUntil && !/^\d{4}-\d{2}-\d{2}$/.test(approvedUntil)) fail(400, "VALIDATION_ERROR", "Enter the approval end date as a date, or leave it blank.");
-  return { name, registration: text(input.registration), contactName: text(input.contactName), email, phone: text(input.phone), categories: chosen as EquipmentCategory[], approvedUntil, notes: text(input.notes) };
+  const has = (key: string) => key in input;
+  const specialisation = has("specialisation") ? text(input.specialisation).slice(0, 160) : existing?.specialisation ?? "";
+  const serviceAreas = has("serviceAreas") ? (Array.isArray(input.serviceAreas) ? input.serviceAreas.map(String) : text(input.serviceAreas).split(",")).map((item) => item.trim()).filter(Boolean).slice(0, 12) : existing?.serviceAreas ?? [state.site.name];
+  let responseHours: number | null = existing?.responseHours ?? null;
+  if (has("responseHours")) {
+    if (input.responseHours === "" || input.responseHours === null) responseHours = null;
+    else {
+      const parsed = Number(input.responseHours);
+      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 720) fail(400, "VALIDATION_ERROR", "Enter the response time in hours, more than 0, or leave it blank.");
+      responseHours = parsed;
+    }
+  }
+  const documents = has("documents") ? (Array.isArray(input.documents) ? input.documents : []).map((item) => ({ name: text((item as { name?: unknown }).name).slice(0, 120), sizeLabel: text((item as { sizeLabel?: unknown }).sizeLabel).slice(0, 20) })).filter((item) => item.name).slice(0, 10) : existing?.documents ?? [];
+  return { name, registration, contactName: text(input.contactName), email, phone: text(input.phone), categories: chosen as EquipmentCategory[], approvedUntil, notes: text(input.notes), specialisation, serviceAreas, responseHours, documents };
+}
+
+/** What changed between two versions of a provider's details, in words, for the audit history. */
+function describeProviderChanges(before: ServiceProvider, after: ReturnType<typeof checkedProvider>) {
+  const labels: [string, string][] = [["name", "company name"], ["registration", "registration number"], ["contactName", "contact person"], ["email", "email"], ["phone", "phone"], ["specialisation", "specialisation"], ["categories", "categories"], ["serviceAreas", "service areas"], ["responseHours", "response time"], ["documents", "documents"], ["approvedUntil", "approval end date"], ["notes", "notes"]];
+  return labels.filter(([key]) => JSON.stringify(before[key as keyof ServiceProvider]) !== JSON.stringify(after[key as keyof typeof after])).map(([, label]) => label);
+}
+
+function recordProvider(provider: ServiceProvider, actor: Actor, summary: string, note: string | null = null) {
+  provider.history = [...provider.history, { id: nextId("providerEvent", "prh"), at: tick(), actor: actor.name, summary, note }];
 }
 
 /** A link only the provider holds. In this build it identifies the invite; real access control arrives with the backend. */
@@ -2237,10 +2269,16 @@ export const demoDomain = {
 
   createProvider(input: Record<string, unknown>, actor: Actor) {
     assertProviderManager(actor);
+    const commit = guardRepeat(input);
     const fields = checkedProvider(input);
-    const provider: ServiceProvider = { id: nextId("provider", "prov"), ...fields, active: true, createdAt: tick(), version: 1 };
+    // A new provider waits for approval unless someone allowed to approve explicitly approves it.
+    const wanted = input.approval === "approved" || input.approval === "inactive" ? input.approval : "pending";
+    const approval = wanted !== "pending" && !canApproveProviders(actor).allowed ? "pending" : wanted;
+    const provider: ServiceProvider = { id: nextId("provider", "prov"), ...fields, approval, active: approval === "approved", history: [], createdAt: tick(), version: 1 };
+    recordProvider(provider, actor, approval === "approved" ? "Added and approved" : approval === "inactive" ? "Added as inactive" : "Added; waiting for approval");
     state.providers = [...state.providers, provider];
     logOrganisation(actor, `Added service provider ${provider.name}`);
+    commit();
     return provider;
   },
 
@@ -2248,32 +2286,84 @@ export const demoDomain = {
     assertProviderManager(actor);
     const provider = findProvider(id);
     assertRecordVersion(provider, input.version);
-    Object.assign(provider, checkedProvider(input, id));
+    const next = checkedProvider(input, id);
+    const changed = describeProviderChanges(provider, next);
+    Object.assign(provider, next);
     touch(provider);
+    if (changed.length > 0) recordProvider(provider, actor, `Updated ${changed.join(", ")}`);
     logOrganisation(actor, `Updated service provider ${provider.name}`);
     return provider;
   },
 
-  setProviderActive(id: string, active: boolean, actor: Actor) {
-    assertProviderManager(actor);
+  /** Approves, deactivates or returns a provider to pending. A provider with repair work in progress cannot be deactivated. */
+  setProviderApproval(id: string, input: Record<string, unknown> & { version?: number }, actor: Actor) {
+    const allowed = canApproveProviders(actor);
+    if (!allowed.allowed) fail(403, "FORBIDDEN", allowed.reason ?? "Not permitted.");
     const provider = findProvider(id);
-    if (provider.active === active) fail(409, "READ_ONLY", active ? "This provider is already active." : "This provider is already deactivated.");
-    provider.active = active;
+    assertRecordVersion(provider, input.version);
+    const approval = input.approval;
+    if (approval !== "pending" && approval !== "approved" && approval !== "inactive") fail(400, "VALIDATION_ERROR", "Choose pending approval, approved or inactive.");
+    if (approval === provider.approval) fail(409, "READ_ONLY", `This provider is already ${approval === "pending" ? "pending approval" : approval}.`);
+    const note = approval === "inactive" ? requireText(input.note, "The reason", 5) : text(input.note) || null;
+    if (approval !== "approved") {
+      const open = state.serviceRequests.filter((request) => request.status !== "completed" && request.status !== "cancelled" && request.invites.some((invite) => invite.providerId === id && (invite.state === "accepted")));
+      if (open.length > 0) fail(409, "IN_USE", `${provider.name} has repair work in progress (${open.map((request) => request.number).join(", ")}). Finish or cancel it first.`);
+    }
+    const before = provider.approval;
+    provider.approval = approval;
+    provider.active = approval === "approved";
     touch(provider);
-    logOrganisation(actor, `${active ? "Reactivated" : "Deactivated"} service provider ${provider.name}`);
+    const words = { pending: "pending approval", approved: "approved", inactive: "inactive" } as const;
+    recordProvider(provider, actor, `Approval changed from ${words[before]} to ${words[approval]}`, note);
+    logOrganisation(actor, `${approval === "approved" ? "Approved" : approval === "inactive" ? "Deactivated" : "Returned to pending"} service provider ${provider.name}`);
     return provider;
   },
 
-  /** Deletes a provider only when no request refers to it. Otherwise deactivate, so the history stays whole. */
-  deleteProvider(id: string, actor: Actor) {
-    assertProviderManager(actor);
+  /** Kept for the Admin screen: switching a provider on or off is an approval change. */
+  setProviderActive(id: string, active: boolean, actor: Actor) {
     const provider = findProvider(id);
-    if (state.serviceRequests.some((request) => request.invites.some((invite) => invite.providerId === id))) {
-      fail(409, "HAS_HISTORY", `${provider.name} appears on service requests. Deactivate them instead so the history stays whole.`);
-    }
+    return demoDomain.setProviderApproval(id, { approval: active ? "approved" : "inactive", note: active ? "" : "Deactivated from the Admin screen.", version: provider.version }, actor);
+  },
+
+  /** Permanently removes a provider that nothing refers to. Otherwise the provider must be deactivated so the history stays whole. */
+  deleteProvider(id: string, actor: Actor) {
+    const allowed = canApproveProviders(actor);
+    if (!allowed.allowed) fail(403, "FORBIDDEN", allowed.reason ?? "Not permitted.");
+    const provider = findProvider(id);
+    const used = providerReferences(id);
+    if (used.length > 0) fail(409, "HAS_HISTORY", `${provider.name} appears on ${used.join(", ")}. Deactivate them instead so the history stays whole.`);
     state.providers = state.providers.filter((item) => item.id !== id);
     logOrganisation(actor, `Deleted service provider ${provider.name}`);
     return { id, deleted: true };
+  },
+
+  /** One provider with the repair requests it appears on, what has been completed, and reply times worked out from recorded quotes only. */
+  providerDetail(id: string) {
+    const provider = findProvider(id);
+    const requests = state.serviceRequests
+      .filter((request) => request.invites.some((invite) => invite.providerId === id))
+      .map((request) => {
+        const invite = request.invites.find((item) => item.providerId === id)!;
+        const equipment = state.equipment.find((item) => item.id === request.equipmentId);
+        const chosen = request.awardedInviteId === invite.id;
+        return { id: request.id, number: request.number, title: request.title, equipmentId: request.equipmentId, equipmentCode: equipment?.code ?? "", status: request.status, invite: invite.state, chosen, sentAt: invite.sentAt, quotedAt: invite.quote?.recordedAt ?? null, completedAt: chosen ? request.completedAt : null };
+      })
+      .sort((a, b) => b.number.localeCompare(a.number));
+    const replyHours = requests.filter((item) => item.quotedAt).map((item) => (Date.parse(item.quotedAt!) - Date.parse(item.sentAt)) / 3_600_000);
+    const references = providerReferences(id);
+    return {
+      provider,
+      requests,
+      performance: {
+        asked: requests.length,
+        replied: replyHours.length,
+        declined: requests.filter((item) => item.invite === "declined").length,
+        completedJobs: requests.filter((item) => item.chosen && item.status === "completed").length,
+        averageReplyHours: replyHours.length === 0 ? null : Math.round((replyHours.reduce((total, hours) => total + hours, 0) / replyHours.length) * 10) / 10,
+      },
+      canDelete: references.length === 0,
+      deleteBlockedBy: references,
+    };
   },
 
   // ---- Service requests ------------------------------------------------------------------
