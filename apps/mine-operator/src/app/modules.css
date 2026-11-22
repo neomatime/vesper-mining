@@ -135,6 +135,8 @@
 .asset-dependencies legend { margin-bottom: 4px; padding: 0; font-size: 12px; font-weight: var(--weight-strong); }
 .asset-dependencies__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; margin-top: 8px; }
 .asset-dependencies__list label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+/* The form rule `.form-field input` stretches every input to the full width; a checkbox must stay a checkbox. */
+.asset-dependencies__list input[type="checkbox"] { flex: none; width: 17px; height: 17px; padding: 0; border-radius: var(--radius-xs); accent-color: var(--brand-emerald); }
 :root[data-theme="dark"] .segmented.asset-tabs { border: 0; background: transparent; }
 :root[data-theme="dark"] .segmented.asset-tabs a { color: var(--text-primary); border: 1px solid var(--border-subtle); background: transparent; box-shadow: none; }
 :root[data-theme="dark"] .segmented.asset-tabs a.active { color: #fff; border-color: var(--brand-emerald); background: var(--brand-emerald); }
