@@ -1,0 +1,9 @@
+/**
+ * Route page. Renders service providers.
+ * Routes only choose the screen and read the URL; the behaviour lives in the component.
+ */
+import { ProvidersScreen } from "@/components/transport-screens";
+
+export default function Page() {
+  return <ProvidersScreen />;
+}

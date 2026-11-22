@@ -21,3 +21,16 @@ export function downloadCsv(filename: string, rows: (string | number | null | un
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+/** Saves a plain text file from the browser (for example a quote request to send by hand). Does nothing on the server. */
+export function downloadText(filename: string, text: string) {
+  if (typeof document === "undefined") return;
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

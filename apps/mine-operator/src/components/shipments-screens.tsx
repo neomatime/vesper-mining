@@ -8,7 +8,7 @@
  * visible: a collection request is not a booking, a dispatch is not a delivery, and a quantity difference stays on screen until
  * someone has reviewed it. Collection requests are recorded in VESPER only; in this build nothing is sent to a real transporter.
  */
-import type { CollectionRequest, Shipment, StockMovement, Transporter } from "@vesper/api-contracts";
+import type { CollectionRequest, Shipment, StockMovement } from "@vesper/api-contracts";
 import { AlertTriangle, ArrowLeft, Check, CheckCircle2, Download, ExternalLink, Info, Lock, Package, Plus, Send, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,6 +47,8 @@ import { ErrorState, LoadingState } from "./query-state";
 import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
+import { approvalLabels, approvalTone } from "@/lib/transport-rules";
+import { TransportPricingSection } from "./transport-agreement-screens";
 import { ValueCell, ValueSection, shipmentValuesOf } from "./value-panels";
 import { RegisterView, type Register } from "./workspace-screen";
 
@@ -309,7 +311,6 @@ export function ShipmentListScreen() {
 export function LogisticsScreen() {
   const query = useScreenData();
   const actor = useActor();
-  const [managing, setManaging] = useState(false);
   const remind = useLogisticsAction<{ id: string }, CollectionRequest>({ path: (input) => `/collection-requests/${input.id}/reminder`, success: (request) => ({ title: "Reminder recorded", detail: `${request.number}: in this demo nothing is sent. Open the reply page to answer as the transporter.` }) });
   if (query.isPending) return <LoadingState />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
@@ -345,7 +346,7 @@ export function LogisticsScreen() {
     href: (item) => `/shipments/${item.shipmentId}`,
     text: (item) => [item.number, transporterOf(data, item.transporterId)?.name, data.shipments.find((x) => x.id === item.shipmentId)?.number].join(" "),
     rows: data.requests,
-    action: canManage ? { label: "Manage providers", onClick: () => setManaging(true), quiet: true } : undefined,
+    action: { label: "Manage providers", href: "/shipments/providers", quiet: true, icon: Truck },
     emptyTitle: "No collection requests yet",
     emptyBody: "Requests appear here when a shipment is marked ready.",
     footnote: "Demo: requests are recorded here and nothing is sent to a real transporter. A request is not a booking until the transporter confirms.",
@@ -360,45 +361,19 @@ export function LogisticsScreen() {
         tabs={<ShipmentTabs active="logistics" />}
       />
       <section className="card register-card" style={{ maxWidth: 1500, margin: "14px auto 0" }}>
-        <div className="card__header"><div><h2>Approved providers</h2></div></div>
+        <div className="card__header"><div><h2>Providers</h2></div><Link className="row-link-text" href="/shipments/providers">Manage providers, quotes and agreements</Link></div>
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th scope="col">Provider</th><th scope="col">Type</th><th scope="col">Status</th></tr></thead>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Type</th><th scope="col">Mine approval</th></tr></thead>
             <tbody>
               {data.transporters.map((item) => (
-                <tr key={item.id}><td data-label="Provider"><strong>{item.name}</strong></td><td data-label="Type">{item.mode}</td><td data-label="Status"><StatusBadge value={item.active ? "confirmed" : "cancelled"} label={item.active ? "Approved" : "Switched off"} /></td></tr>
+                <tr key={item.id}><td data-label="Provider"><Link className="row-link-text" href={`/shipments/providers/${item.id}`}><strong>{item.name}</strong></Link></td><td data-label="Type">{item.mode}</td><td data-label="Mine approval"><StatusBadge value={approvalTone[item.approval]} label={approvalLabels[item.approval]} /></td></tr>
               ))}
             </tbody>
           </table>
         </div>
-        {canManage ? <p className="card__footnote"><button className="link-button" onClick={() => setManaging(true)}>+ Add provider</button></p> : null}
       </section>
-      {managing ? <ProvidersDialog transporters={data.transporters} onClose={() => setManaging(false)} /> : null}
     </>
-  );
-}
-
-function ProvidersDialog({ transporters, onClose }: { transporters: Transporter[]; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [mode, setMode] = useState("Road transport");
-  const submission = useSubmissionId();
-  const add = useLogisticsAction<Record<string, unknown>, Transporter>({ path: "/transporters", success: (item) => ({ title: "Provider added", detail: `${item.name} can now be chosen for shipments.` }), onDone: () => { setName(""); submission.renew(); } });
-  const toggle = useLogisticsAction<{ id: string; active: boolean }, Transporter>({ path: (input) => `/transporters/${input.id}`, method: "PATCH", success: (item) => ({ title: item.active ? "Provider switched on" : "Provider switched off" }) });
-  return (
-    <Dialog title="Manage providers" description="Providers you can ask to collect a shipment." onClose={onClose} locked={add.isPending} footer={<button className="button button--quiet" onClick={onClose}>Done</button>}>
-      <div className="dialog__stack">
-        <ul className="timeline-list" aria-label="Providers">
-          {transporters.map((item) => (
-            <li key={item.id}><strong>{item.name}</strong><small>{item.mode} · {item.active ? "Approved" : "Switched off"} · <button className="link-button" disabled={toggle.isPending} onClick={() => toggle.mutate({ id: item.id, active: !item.active })}>{item.active ? "Switch off" : "Switch on"}</button></small></li>
-          ))}
-        </ul>
-        <form className="task-grid task-grid--two" onSubmit={(event) => { event.preventDefault(); add.mutate({ name, mode, submissionId: submission.id }); }}>
-          <Field label="Company name"><input value={name} onChange={(event) => setName(event.target.value)} /></Field>
-          <Field label="Type of transport"><input value={mode} onChange={(event) => setMode(event.target.value)} /></Field>
-          <div><button className="button button--primary" disabled={add.isPending || name.trim().length < 3}>{add.isPending ? "Adding…" : "Add provider"}</button></div>
-        </form>
-      </div>
-    </Dialog>
   );
 }
 
@@ -537,7 +512,7 @@ function CreateForm({ data }: { data: Logistics }) {
         <section className="task-section">
           <h2>1 · Material</h2>
           <div className="task-grid">
-            <Field label="Mineral"><Select value="Manganese" disabled onChange={() => {}}><option>Manganese</option></Select></Field>
+            <Field label="Mineral"><Select value="Chrome concentrate" disabled onChange={() => {}}><option>Chrome concentrate</option></Select></Field>
             <Field label="Stockpile" hint="Only material that is ready to ship is listed.">
               <Select value={stockpileId} onChange={(event) => setStockpileId(event.target.value)}>{eligible.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</Select>
             </Field>
@@ -658,6 +633,7 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
         {shipment.state === "declined" ? <div className="note-bar note-bar--warn" role="status"><AlertTriangle /> <span><strong>{transporter?.name} declined.</strong> {request?.reply} Choose a transporter again and send a new request.</span></div> : null}
 
         <ValueSection data={data} shipment={shipment} />
+        <TransportPricingSection shipment={shipment} />
 
         {preparing ? (
           <div className="split">

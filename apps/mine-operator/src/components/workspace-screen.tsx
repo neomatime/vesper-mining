@@ -344,8 +344,8 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
                 {register.action.label}
               </button>
             ) : (
-              <Link className="button button--primary" href={register.action.href ?? "#"}>
-                {register.action.plus ? <CirclePlus /> : <ArrowRight />}
+              <Link className={`button ${register.action.quiet ? "button--quiet" : "button--primary"}`} href={register.action.href ?? "#"}>
+                {register.action.icon ? <register.action.icon /> : register.action.plus ? <CirclePlus /> : <ArrowRight />}
                 {register.action.label}
               </Link>
             )

@@ -29,7 +29,7 @@ function rejects(operation: () => unknown, status: number, pattern?: RegExp) {
 const position = (code: string) => demoDomain.logistics().stockpiles.find((item) => item.code === code)!;
 const shipmentNumber = (number: string) => demoDomain.logistics().shipments.find((item) => item.number === number)!;
 
-const production = { shiftId: "shift-a-20250424", mineral: "Manganese", area: "Pit3", reportedTonnes: 700, basis: "estimate", stockpileId: "sp-02", note: "", submit: true };
+const production = { shiftId: "shift-a-20250424", mineral: "Chrome concentrate", area: "Pit3", reportedTonnes: 700, basis: "estimate", stockpileId: "sp-02", note: "", submit: true };
 const newShipment = { stockpileId: "sp-01", tonnes: 300, orderRef: "PO-2049", destination: "Richards Bay Terminal", preferredDate: "2025-04-27", transporterId: "tr-001" };
 const allChecks = { quality: true, instructions: true, documents: true, loading: true };
 

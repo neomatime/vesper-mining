@@ -141,7 +141,7 @@ function Calculation({ view }: { view: ImpactView }) {
         <li><strong>Forecast = {formatGrams(result.forecastGrams ?? 0)}</strong><small>{formatGrams(GOLD.baselineForecastGrams)} expected before the breakdown, less the {formatGrams(result.remainingShortfallGrams ?? 0)} still short{scenario.recoveredGrams > 0 ? ` (${formatGrams(scenario.recoveredGrams)} recovered so far)` : ""}, never below zero.</small></li>
         {view.canSeeValue ? <li><strong>Estimated sales value potentially delayed = {formatMoney(result.valueDelayed ?? 0)}</strong><small>{formatGrams(result.remainingShortfallGrams ?? 0)} × R{GOLD.pricePerGram.toLocaleString("en-GB")} per gram (illustrative price). The planned value of the commitment is {formatMoney(view.plannedValue ?? 0)} and does not change.</small></li> : null}
       </ol>
-      <p className="field-hint">Assumptions, all fictional: the recovered gold is fully payable and would otherwise be ready within the delivery window. Additional costs, profit and confirmed losses are separate and are not estimated here. Quantities are in grams of gold and tonnes of ore, and the price is per gram, so they are never mixed with the manganese shipments (tonnes).</p>
+      <p className="field-hint">Assumptions, all fictional: the recovered gold is fully payable and would otherwise be ready within the delivery window. Additional costs, profit and confirmed losses are separate and are not estimated here. Quantities are in grams of gold and tonnes of ore, and the price is per gram, so they are never mixed with the chrome concentrate shipments (tonnes).</p>
     </div>
   );
 }
@@ -358,7 +358,7 @@ export function GoldShipmentScreen() {
           <Link className="button button--primary" href={`/exceptions/${scenario.issueId}`}>See what happens if we wait</Link>
           <Link className="button button--quiet" href={`/exceptions/${scenario.issueId}#actions`}>Open repair task</Link>
         </div>
-        <p className="field-hint">Sales value is an estimate from an illustrative price per gram. Additional costs, profit and confirmed losses are separate and are not shown. Grams and rand per gram are never mixed with the manganese shipments, which are in tonnes.</p>
+        <p className="field-hint">Sales value is an estimate from an illustrative price per gram. Additional costs, profit and confirmed losses are separate and are not shown. Grams and rand per gram are never mixed with the chrome concentrate shipments, which are in tonnes.</p>
       </section>
     </div>
   );
