@@ -1,5 +1,5 @@
 /**
- * Route page. Opens the handover of the current shift. Needs shift_handover.
+ * Route page. Renders the Handover tab of Shift Control for the current shift. Needs shift_handover.
  * Routes only choose the screen and read the URL; the behaviour lives in the component.
  */
 import { FeatureGate } from "@/components/entitlement-gate";

@@ -118,7 +118,7 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByRole("heading", { name: "Maintenance plans" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Downtime" })).toBeVisible();
     await page.goto("/shifts/shift-a-20250424/handover");
-    await expect(page.getByRole("heading", { name: "Shift handover" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Handover", exact: true })).toBeVisible();
     await page.goto("/reports/equipment-delay-stages");
     await expect(page.getByRole("heading", { name: "Delay stages", level: 1 })).toBeVisible();
   });

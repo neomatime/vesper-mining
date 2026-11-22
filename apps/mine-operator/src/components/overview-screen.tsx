@@ -34,7 +34,9 @@ import { recoverySummary } from "@/lib/calculations";
 import { ErrorState, LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { OperationalMapClient } from "./operational-map-client";
+import { consequenceText } from "./impact-panels";
 import { RoleHomeScreen } from "./role-home-screen";
+import { useImpact } from "./use-impact";
 
 type OverviewResponse = {
   context: { persona: string; role: string; siteName: string };
@@ -64,6 +66,7 @@ export function OverviewScreen() {
     queryKey: ["overview", "site-riverside"],
     queryFn: () => demoFetch<OverviewResponse>("/overview"),
   });
+  const impact = useImpact();
 
   if (query.isPending) return <LoadingState label="Loading the command centre" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
@@ -85,7 +88,9 @@ export function OverviewScreen() {
   const completeActions = priorityIssue.actions.filter((action) => action.state === "complete").length;
   const progress = `${completeActions}/${priorityIssue.actions.length}`;
   // The most urgent thing is the hero below. These are the next ones, so the person can see the whole of what needs them.
-  const nextUp = needsAttention({ issues, readiness, equipment, shifts, now }, { issueId: priorityIssue.id }).slice(0, 2);
+  // The Gold demonstration issue says what it does to the delivery, not just who has it.
+  const consequences = impact.data ? { [impact.data.scenario.issueId]: consequenceText(impact.data) } : undefined;
+  const nextUp = needsAttention({ issues, readiness, equipment, shifts, now, consequences }, { issueId: priorityIssue.id }).slice(0, 2);
   const awaitingConfirmation = readiness.filter((item) => item.status === "needs_confirmation").length;
 
   return (

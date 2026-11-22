@@ -8,6 +8,7 @@ import { canAct } from "./issue-rules";
 import { canManageOrganisation, roleNames } from "./organisation-rules";
 import { canManageProviders, canRequestService } from "./service-rules";
 import { canActOnShift } from "./shift-rules";
+import { canActOnShipments } from "./shipment-rules";
 
 export type Level = "yes" | "own" | "no";
 
@@ -47,6 +48,13 @@ export const rightsMatrix: RightsRow[] = [
   { area: "Shift Control", action: "Create, edit, cancel and delete shifts", levels: derive((r) => canActOnShift("manage", as(r)).allowed) },
   { area: "Shift Control", action: "Start, close and hand over a shift", levels: forRoles(["Mine Manager"], ["Shift Supervisor"]) },
   { area: "Shift Control", action: "Acknowledge a handover", levels: forRoles(["Mine Manager"], ["Shift Supervisor"]) },
+  { area: "Shipments", action: "View shipments, stock and logistics (tonnes and status)", levels: everyone() },
+  { area: "Shipments", action: "Record production", levels: derive((r) => canActOnShipments("record_production", as(r)).allowed) },
+  { area: "Shipments", action: "Check a quantity into inventory", levels: derive((r) => canActOnShipments("check_production", as(r)).allowed) },
+  { area: "Shipments", action: "Create and manage shipments", levels: derive((r) => canActOnShipments("manage_shipments", as(r)).allowed) },
+  { area: "Shipments", action: "See sales values", levels: derive((r) => canActOnShipments("view_value", as(r)).allowed) },
+  { area: "Shipments", action: "See transport cost, revenue and payments", levels: derive((r) => canActOnShipments("view_finance", as(r)).allowed) },
+  { area: "Shipments", action: "Supply and change prices", levels: derive((r) => canActOnShipments("manage_prices", as(r)).allowed) },
   { area: "Reports", action: "View reports included in the plan", levels: everyone() },
   { area: "Administration", action: "Add, edit, deactivate and delete employees", levels: derive((r) => canManageOrganisation(as(r)).allowed) },
   { area: "Administration", action: "Reset passwords and review rights", levels: derive((r) => canManageOrganisation(as(r)).allowed) },

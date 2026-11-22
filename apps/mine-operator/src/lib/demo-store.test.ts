@@ -245,8 +245,8 @@ describe("handover", () => {
 
   it("carries open issues and open dependencies forward", () => {
     const view = demoDomain.shiftView(shift);
-    expect(view.unresolved).toBe(3);
-    expect(view.issues.map((issue) => issue.id)).toEqual(["issue-riv-001", "issue-riv-002"]);
+    expect(view.unresolved).toBe(5);
+    expect(view.issues.map((issue) => issue.id)).toEqual(["issue-riv-001", "issue-riv-002", "issue-gold-001"]);
   });
 
   it("needs notes before publishing, and only the incoming supervisor acknowledges", () => {
@@ -302,6 +302,6 @@ describe("reset", () => {
   it("restores every fictional record to its starting state", () => {
     newIssue();
     demoDomain.reset();
-    expect(demoDomain.listIssues()).toHaveLength(2);
+    expect(demoDomain.listIssues()).toHaveLength(3);
   });
 });

@@ -149,7 +149,7 @@ export function useShiftMutations(shift: ShiftView) {
     },
     onSuccess: async (result) => {
       await refresh(result);
-      toast.push({ title: "Handover published", detail: result.next ? `${result.next.name} can now acknowledge it.` : "The next supervisor can now acknowledge it." });
+      toast.push({ title: "Handover sent", detail: result.next ? `${result.next.name} can now confirm receipt.` : "The next supervisor can now confirm receipt." });
     },
     onError,
   });
@@ -165,7 +165,7 @@ export function useShiftMutations(shift: ShiftView) {
     mutationFn: () => demoSend<ShiftView>(`${base}/acknowledgement`, "POST"),
     onSuccess: async (result) => {
       await refresh(result);
-      toast.push({ title: "Handover acknowledged", detail: "Receipt is recorded. The issues themselves remain open." });
+      toast.push({ title: "Receipt confirmed", detail: "Receipt is recorded. The issues themselves remain open." });
     },
     onError,
   });

@@ -28,6 +28,7 @@ import {
 import { useDemoContext } from "@/stores/demo-context";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { ImpactCard } from "./impact-panels";
 import { ShiftControlTabs } from "./module-tabs";
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
@@ -92,7 +93,7 @@ export function ProductionListScreen() {
     footnote: "Reported amounts do not update stock until they are checked.",
   };
 
-  return <RegisterView initialFilter={null} header={{ eyebrow: "Shift Control & Handover", title: "Production", description: "See what was mined and what still needs checking." }} register={register} tabs={<ShiftControlTabs active="production" />} />;
+  return <RegisterView initialFilter={null} header={{ eyebrow: "Shift Control & Handover", title: "Production", description: "See what was mined and what still needs checking." }} register={register} tabs={<><ShiftControlTabs active="production" /><ImpactCard focus="shift" /></>} />;
 }
 
 // ---- Record production ------------------------------------------------------------------------------------------------

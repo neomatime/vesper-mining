@@ -185,7 +185,8 @@ describe("handover between real shifts", () => {
     const a = demoDomain.shiftView("shift-a-20250424");
     expect(a.previous?.name).toBe("Shift C");
     expect(a.next).toMatchObject({ name: "Shift B", supervisor: "Sipho Nkosi" });
-    expect(a.unresolved).toBe(3);
+    // Two issues and one dependency, plus the Gold demonstration crusher issue and its part dependency.
+    expect(a.unresolved).toBe(5);
   });
 
   it("lets the next shift's supervisor acknowledge, but not the outgoing supervisor", () => {

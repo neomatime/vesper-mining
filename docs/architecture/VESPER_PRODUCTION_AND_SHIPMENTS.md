@@ -61,3 +61,19 @@ Closing a shift sends its handover but does not mark it received. The incoming s
 - A multi-material production report is entered one material at a time (*Send and add another material*).
 - Shipments are available on every subscription. They are not yet a feature code in the subscription model.
 - Closing a shift requires every unfinished task to have an owner. The deadline shown is the linked issue's earliest open action, or the start of the next shift.
+
+## 6. Sales value (added 22 November 2026)
+
+Shipments can show an **estimated sales value** beside their operational status. It is a separate layer on top of the workflow above.
+
+- **A sale is linked to a customer order or contract** by its order reference. An **internal transfer** has no sales value.
+- **Prices** are supplied by the **Commercial / Finance Officer**: a fixed price per tonne, one currency (ZAR), on the same quantity basis as the shipment (*tonnes dispatched from the mine*). A price on a different basis is not used, and the shipment shows **Not priced**.
+- **Value status:** *Estimated* (price × planned tonnes), *Provisional* (price × tonnes actually dispatched, once everything has left), *Final* (the value finance has settled) or *Not priced*.
+- **Four amounts stay apart:** sales value (an estimate), transport cost, accounting revenue and cash received. The last three come from finance records and are never added to the sales value.
+- **Totals on the Shipments overview** never overlap: *Value awaiting collection* (requested or confirmed, on time) and *Value of delayed shipments* (collection date reached without a confirmed collection, a passed collection time, or a declined request). Each shipment is in at most one. A delayed shipment's value is what is at stake, not a loss.
+- **History is kept.** A price is never overwritten: a change is a new version, and every change to a shipment's value is a snapshot, so the original estimate stays visible.
+- **Money is restricted by role.** The Mine Manager and the Commercial / Finance Officer see values; only the Commercial / Finance Officer sets prices. For everyone else the server sends no price, value or finance record, so there is nothing to export. Transporter pages never contain money.
+- **Not built:** a screen for finance to edit its own records (they are read from a seeded ledger), and currency conversion.
+
+Files: `shipment-rules.ts` (the value rules), `shipment-data.ts` (prices, finance, history), `demo-store.ts` (`setPrice`, value snapshots, restricted `logistics`), `components/value-panels.tsx`, `lib/shipment-value.test.ts`, `e2e/shipment-value.spec.ts`.
+

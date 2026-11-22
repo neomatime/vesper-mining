@@ -11,13 +11,11 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
-  FileText,
   Link2,
   Lock,
   Pencil,
   Play,
   Plus,
-  RotateCcw,
   Send,
   Square,
   Trash2,
@@ -31,7 +29,6 @@ import { demoFetch } from "@/lib/api";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { openDependencies } from "@/lib/issue-rules";
 import { formatDay, remaining, shiftTimes } from "@/lib/shift-format";
-import { draftShiftReport, reportSources, reportToText } from "@/lib/shift-report";
 import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@/lib/shift-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { ConfirmDialog } from "./dialog";
@@ -43,16 +40,17 @@ import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 import { useShiftMutations } from "./use-shift-mutations";
+import { ImpactCard } from "./impact-panels";
 import { useFeature } from "./use-entitlements";
 
-export function ShiftDetailScreen({ id, handover = false }: { id: string; handover?: boolean }) {
+export function ShiftDetailScreen({ id }: { id: string }) {
   const query = useQuery({
     queryKey: ["shift", id],
     queryFn: () => demoFetch<ShiftView>(`/shifts/${id}`),
   });
   if (query.isPending) return <LoadingState />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
-  return handover ? <HandoverView shift={query.data} /> : <ShiftDetail shift={query.data} />;
+  return <ShiftDetail shift={query.data} />;
 }
 
 const stateTone = { scheduled: "pending", in_progress: "in_progress", closed: "complete", cancelled: "unknown" } as const;
@@ -129,6 +127,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
 
       <section className="detail-layout">
         <div className="detail-layout__main">
+          <ImpactCard focus="shift" id={shift.id} />
           <article className="card detail-card">
             <header className="card__header"><div><span className="eyebrow">Before the shift starts</span><h2>Briefing</h2></div>{live && canManage ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "edit" })}><Pencil /> Edit</button> : null}</header>
             {shift.briefing ? <p className="prose">{shift.briefing}</p> : <div className="empty-inline"><strong>No briefing yet</strong><span>{live && canManage ? "Add what the crew should know before they start." : "The supervisor adds the briefing for the crew."}</span></div>}
@@ -263,149 +262,3 @@ function shiftNow(now: string | undefined) {
   return now ?? new Date().toISOString();
 }
 
-function HandoverView({ shift }: { shift: ShiftView }) {
-  const { context } = useDemoContext();
-  const actor = { name: context.persona, role: context.role };
-  const mutations = useShiftMutations(shift);
-  const { data: shell } = useShellData();
-  const { handover } = shift;
-  const [notes, setNotes] = useState(handover.notes);
-  const [sources, setSources] = useState<{ href: string; label: string }[]>([]);
-  const [confirm, setConfirm] = useState<"withdraw" | null>(null);
-
-  const canHandOver = canActOnShift("handover", actor, shift).allowed;
-  const canAcknowledge = canActOnShift("acknowledge", actor, shift, shift.next).allowed && handover.publishedBy !== actor.name;
-  const started = shift.state === "in_progress" || shift.state === "closed";
-  const dirty = notes !== handover.notes;
-  const canEditNotes = canHandOver && handover.state === "draft" && shift.state !== "cancelled";
-  const isPublisher = handover.publishedBy === actor.name;
-
-  // Builds the report from records already in VESPER. It is added to the notes as editable text, below anything already written.
-  const prepareDraft = () => {
-    if (!shell) return;
-    const draft = draftShiftReport({ shift, issues: shell.issues, equipment: shell.equipment, now: shell.now });
-    const text = reportToText(draft, shift.name);
-    setNotes(notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text);
-    setSources(reportSources(draft));
-  };
-
-  const steps = [
-    { key: "draft", label: "Draft", detail: handover.notesUpdatedAt ? `Saved ${formatDemoDateTime(handover.notesUpdatedAt)}` : "Not saved yet" },
-    { key: "published", label: "Published", detail: handover.publishedAt ? `${handover.publishedBy} · ${formatDemoDateTime(handover.publishedAt)}` : "Waiting for the outgoing supervisor" },
-    { key: "acknowledged", label: "Acknowledged", detail: handover.acknowledgedAt ? `${handover.acknowledgedBy} · ${formatDemoDateTime(handover.acknowledgedAt)}` : "Waiting for the incoming supervisor" },
-  ] as const;
-  const stepIndex = steps.findIndex((step) => step.key === handover.state);
-
-  return (
-    <div className="workspace-page">
-      <Link href={`/shifts/${shift.id}`} className="back-link"><ArrowLeft /> {shift.name}</Link>
-      <PageHeader
-        eyebrow={`${shift.name} · ${shiftTimes(shift)}`}
-        title="Shift handover"
-        description={shift.next ? `Hand over to ${shift.next.name}${shift.next.supervisor ? `, led by ${shift.next.supervisor}` : ""}. Unresolved work carries across and the issues stay open.` : "There is no next shift scheduled yet. Schedule one so it can acknowledge this handover."}
-        icon={UsersRound}
-        action={<StatusBadge value={stateTone[shift.state]} label={shiftStateLabels[shift.state]} />}
-      />
-
-      <ol className="lifecycle lifecycle--short" aria-label="Handover progress">
-        {steps.map((step, index) => (
-          <li key={step.key} className={`lifecycle__step lifecycle__step--${index < stepIndex || handover.state === "acknowledged" ? "done" : index === stepIndex ? "current" : "todo"}`} aria-current={index === stepIndex ? "step" : undefined}>
-            <span className="lifecycle__dot">{index < stepIndex || handover.state === "acknowledged" ? <CheckCircle2 aria-hidden="true" /> : null}</span>
-            <span className="lifecycle__label">{step.label}</span>
-            <small>{step.detail}</small>
-          </li>
-        ))}
-      </ol>
-
-      <section className="detail-layout">
-        <div className="detail-layout__main">
-          <article className="card detail-card">
-            <header className="card__header"><div><span className="eyebrow">Outstanding coordination</span><h2>{shift.unresolved} {shift.unresolved === 1 ? "item" : "items"} to carry forward</h2></div><Clock3 /></header>
-            {shift.issues.length === 0 ? (
-              <div className="empty-inline"><strong>Nothing to carry forward</strong><span>Every issue is verified or closed.</span></div>
-            ) : (
-              <div className="record-list">
-                {shift.issues.map((issue) => {
-                  const waiting = openDependencies(issue).length;
-                  return (
-                    <Link className="record-row" href={`/exceptions/${issue.id}`} key={issue.id}>
-                      <span className="record-row__copy"><strong>{issue.title}</strong><small>{issue.issueNumber} · owner: {issue.owner ?? "not assigned"}{waiting ? ` · ${waiting} open ${waiting === 1 ? "dependency" : "dependencies"}` : ""}</small></span>
-                      {waiting ? <span className="chip chip--inline"><Link2 /> {waiting}</span> : null}
-                      <StatusBadge value={issue.workflowState} />
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </article>
-
-          <article className="card handover-notes">
-            <label>
-              <span>Notes for {shift.next ? shift.next.name : "the next shift"}</span>
-              <textarea rows={Math.min(32, Math.max(6, notes.split("\n").length + 4))} value={notes} onChange={(event) => setNotes(event.target.value)} readOnly={!canEditNotes} aria-describedby="handover-note-help" />
-            </label>
-            <p id="handover-note-help">
-              {handover.state !== "draft"
-                ? "Published notes are locked. Withdraw the handover to edit them."
-                : shift.state === "cancelled"
-                  ? "A cancelled shift has no handover."
-                  : canHandOver
-                    ? "Write what the incoming shift must know."
-                    : `Viewing as ${context.role}. The handover belongs to ${shift.supervisor ?? "this shift's supervisor"} or the Mine Manager.`}
-            </p>
-            {canEditNotes ? (
-              <div className="handover-draft">
-                <button type="button" className="button button--quiet" onClick={prepareDraft} disabled={!shell}><FileText /> Prepare draft from shift records</button>
-                <small>Adds what VESPER already knows: work done, issues that moved, equipment changes and what carries over. You review and edit it before publishing.</small>
-              </div>
-            ) : null}
-            {sources.length > 0 ? (
-              <div className="handover-sources" aria-label="Records the draft draws on">
-                <small>Drawn from</small>
-                <ul>{sources.map((source) => <li key={source.href}><Link href={source.href}>{source.label}</Link></li>)}</ul>
-              </div>
-            ) : null}
-            {canEditNotes ? (
-              <div className="button-row button-row--end">
-                <button className="button button--quiet" disabled={!dirty || mutations.saveNotes.isPending} onClick={() => mutations.saveNotes.mutate(notes)}>{mutations.saveNotes.isPending ? "Saving…" : dirty ? "Save draft" : "Saved"}</button>
-                <button className="button button--primary" disabled={!started || mutations.publish.isPending || notes.trim().length < 20} onClick={() => mutations.publish.mutate(dirty ? notes : null)}><Send /> {mutations.publish.isPending ? "Publishing…" : "Publish handover"}</button>
-              </div>
-            ) : null}
-            {canEditNotes && !started ? <small className="field-hint">Start the shift before publishing the handover.</small> : null}
-            {canEditNotes && started && notes.trim().length < 20 ? <small className="field-hint">Write at least twenty characters to publish.</small> : null}
-          </article>
-        </div>
-
-        <aside className="detail-layout__aside">
-          <article className="card next-action-card">
-            <span className="eyebrow">Handover state</span>
-            <h2>{handover.state === "acknowledged" ? "Receipt acknowledged" : handover.state === "published" ? "Ready for the incoming supervisor" : "Draft in preparation"}</h2>
-            <p>Acknowledgement confirms receipt of information only. It does not resolve issues, grant safety clearance or change accountable ownership.</p>
-            {handover.state === "acknowledged" ? (
-              <div className="inline-success"><CheckCircle2 /> Acknowledged by {handover.acknowledgedBy} at {handover.acknowledgedAt ? formatDemoDateTime(handover.acknowledgedAt) : ""}</div>
-            ) : handover.state === "published" ? (
-              <>
-                <button className="button button--primary button--wide" disabled={!canAcknowledge || mutations.acknowledge.isPending} onClick={() => mutations.acknowledge.mutate()}>{mutations.acknowledge.isPending ? "Recording…" : "Acknowledge handover"}</button>
-                {isPublisher ? <small className="step-buttons__reason">The incoming supervisor acknowledges, not the person who published it.</small> : !canAcknowledge ? <small className="step-buttons__reason">Only {shift.next?.supervisor ?? "the next shift's supervisor"} or the Mine Manager can acknowledge.</small> : null}
-                {canHandOver ? <button className="button button--quiet button--wide" onClick={() => setConfirm("withdraw")}><RotateCcw /> Withdraw handover</button> : null}
-              </>
-            ) : (
-              <small className="step-buttons__reason">Publish the notes first. The incoming supervisor can then acknowledge.</small>
-            )}
-          </article>
-        </aside>
-      </section>
-
-      {confirm === "withdraw" ? (
-        <ConfirmDialog
-          title="Withdraw this handover?"
-          body="It returns to a draft so the notes can be edited. Nothing about the issues changes."
-          confirmLabel="Withdraw handover"
-          pending={mutations.withdraw.isPending}
-          onConfirm={() => mutations.withdraw.mutate(undefined, { onSettled: () => setConfirm(null) })}
-          onClose={() => setConfirm(null)}
-        />
-      ) : null}
-    </div>
-  );
-}

@@ -4,7 +4,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { accounts, FIXTURE_PASSWORD } from "../src/lib/accounts";
 
-export type Person = "John Dlamini" | "Amina Patel" | "Sipho Nkosi" | "Lebo Maseko" | "Naledi Khoza" | "Thabo Molefe";
+export type Person = "John Dlamini" | "Amina Patel" | "Sipho Nkosi" | "Lebo Maseko" | "Naledi Khoza" | "Thabo Molefe" | "Zinhle Mahlangu";
 
 function accountFor(name: Person) {
   const account = accounts.find((item) => item.name === name);

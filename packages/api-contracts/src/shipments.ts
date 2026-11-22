@@ -149,6 +149,7 @@ export const shipmentEventSchema = z.object({
 export const shipmentSchema = z.object({
   id: z.string().min(1),
   number: z.string().min(1),
+  kind: z.enum(["sale", "internal_transfer"]),
   mineral: z.string().min(1),
   stockpileId: z.string().min(1),
   tonnes: z.number().positive(),
@@ -208,3 +209,73 @@ export type ShipmentEvent = z.infer<typeof shipmentEventSchema>;
 export type Shipment = z.infer<typeof shipmentSchema>;
 export type CollectionRequestState = z.infer<typeof collectionRequestStateSchema>;
 export type CollectionRequest = z.infer<typeof collectionRequestSchema>;
+
+// ---- Financial visibility (demo scope) -------------------------------------------------------------------------------
+//
+// Four amounts are kept apart on purpose, and each has its own source:
+//   sales value      price per tonne x quantity, from a price supplied by an authorised commercial or finance user (an estimate)
+//   transport cost   what the transporter charges, from the finance record
+//   revenue          what accounting has recognised, from the finance record
+//   cash received    what has been paid, from the finance record
+// Price records are never overwritten: a changed price is a new version, and every change to a shipment's value is a snapshot,
+// so the original estimate and every later figure can be traced.
+
+/** A sale goes to a customer. An internal transfer moves material between the mine's own places and has no sales value. */
+export const shipmentKindSchema = z.enum(["sale", "internal_transfer"]);
+
+/** How firm a shipment's value is. `not_priced` means no usable price exists; `not_applicable` is an internal transfer. */
+export const valueStatusSchema = z.enum(["estimated", "provisional", "final", "not_priced", "not_applicable"]);
+
+export const priceRecordSchema = z.object({
+  id: z.string().min(1),
+  /** The customer order or contract this price belongs to. A sales shipment is linked to it by its order reference. */
+  reference: z.string().min(1),
+  customer: z.string().nullable(),
+  /** A fixed price per tonne in one currency. */
+  pricePerTonne: z.number().positive(),
+  currency: z.literal("ZAR"),
+  /** What a tonne means. The price and the shipment quantity must use the same basis, or the shipment is not priced. */
+  quantityBasis: z.string().min(1),
+  priceBasis: z.string().min(1),
+  /** Where the price came from, for example the contract. */
+  source: z.string().min(1),
+  suppliedBy: z.string().min(1),
+  updatedAt: timestamp,
+  version: z.number().int().positive(),
+  supersedesId: z.string().nullable(),
+});
+
+/** A record from finance, read here and never edited by operations. Absent until finance has one. */
+export const financeRecordSchema = z.object({
+  id: z.string().min(1),
+  shipmentId: z.string().min(1),
+  source: z.string().min(1),
+  updatedAt: timestamp,
+  invoiceNumber: z.string().nullable(),
+  /** The agreed final value, once finance has settled it. */
+  finalValue: z.number().nullable(),
+  /** What accounting has recognised as revenue so far. */
+  revenueRecognised: z.number().nullable(),
+  paymentStatus: z.enum(["not_invoiced", "unpaid", "part_paid", "paid"]),
+  cashReceived: z.number().min(0),
+  transportCost: z.number().nullable(),
+});
+
+export const valueSnapshotSchema = z.object({
+  id: z.string().min(1),
+  shipmentId: z.string().min(1),
+  at: timestamp,
+  actor: z.string().min(1),
+  reason: z.enum(["created", "priced", "price_changed", "dispatched", "finance_final"]),
+  priceId: z.string().nullable(),
+  pricePerTonne: z.number().nullable(),
+  quantityTonnes: z.number(),
+  amount: z.number().nullable(),
+  status: valueStatusSchema,
+});
+
+export type ShipmentKind = z.infer<typeof shipmentKindSchema>;
+export type ValueStatus = z.infer<typeof valueStatusSchema>;
+export type PriceRecord = z.infer<typeof priceRecordSchema>;
+export type FinanceRecord = z.infer<typeof financeRecordSchema>;
+export type ValueSnapshot = z.infer<typeof valueSnapshotSchema>;

@@ -18,6 +18,7 @@ export const personas: Persona[] = [
   { name: "Lebo Maseko", role: "Maintenance Planner", scope: "Equipment and readiness", fieldOnly: false },
   { name: "Naledi Khoza", role: "Stores / Inventory Controller", scope: "Parts and stock", fieldOnly: false },
   { name: "Thabo Molefe", role: "Field Employee", scope: "Field execution", fieldOnly: true },
+  { name: "Zinhle Mahlangu", role: "Commercial / Finance Officer", scope: "Prices and finance records", fieldOnly: false },
 ];
 
 type Tier = DemoContext["tier"];

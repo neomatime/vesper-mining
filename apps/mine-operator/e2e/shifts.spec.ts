@@ -108,8 +108,8 @@ test.describe("shift management", () => {
 
     await actAs(page, "Sipho Nkosi");
     await page.goto("/shifts/shift-a-20250424/handover");
-    await page.getByRole("button", { name: "Acknowledge handover" }).click();
-    await expect(page.getByText(/Acknowledged by Sipho Nkosi/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm receipt" }).click();
+    await expect(page.getByText(/Received by Sipho Nkosi/)).toBeVisible();
 
     await page.goto("/shifts/shift-b-20250424");
     await page.getByRole("button", { name: "Start shift" }).click();
@@ -118,10 +118,10 @@ test.describe("shift management", () => {
 
   test("only lets the next shift's supervisor or the Mine Manager acknowledge", async ({ page }) => {
     await openAs(page, "/shifts/shift-a-20250424/handover", "Amina Patel");
-    await page.getByRole("button", { name: "Publish handover" }).click();
-    await expect(page.getByText("Handover published")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Acknowledge handover" })).toBeDisabled();
-    await expect(page.getByText(/not the person who published it/)).toBeVisible();
+    await page.getByRole("button", { name: "Send handover" }).click();
+    await expect(page.getByText("Handover sent", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm receipt" })).toBeDisabled();
+    await expect(page.getByText(/not the person who sent it/)).toBeVisible();
   });
 
   test("keeps shift management to management roles", async ({ page }) => {

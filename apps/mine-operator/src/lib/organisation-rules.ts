@@ -13,6 +13,7 @@ export const roleCatalogue: RoleInfo[] = [
   { role: "Shift Supervisor", scope: "Shift control and handover", home: "/overview", fieldOnly: false },
   { role: "Maintenance Planner", scope: "Equipment and readiness", home: "/overview", fieldOnly: false },
   { role: "Stores / Inventory Controller", scope: "Parts and stock", home: "/overview", fieldOnly: false },
+  { role: "Commercial / Finance Officer", scope: "Prices and finance records", home: "/overview", fieldOnly: false },
   { role: "Field Employee", scope: "Field execution on VESPER Mobile", home: "/mobile/my-shift", fieldOnly: true },
 ];
 

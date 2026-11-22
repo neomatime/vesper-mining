@@ -34,6 +34,8 @@ type Inputs = {
   equipment: Pick<EquipmentView, "id" | "code" | "name" | "nextService">[];
   shifts: Pick<ShiftView, "id" | "name" | "state" | "endsAt" | "handover">[];
   now: string;
+  /** What an issue does to production and delivery, in one plain sentence, by issue id. Shown instead of the default line. */
+  consequences?: Record<string, string>;
 };
 
 const issueWeight = { critical: 100, high: 80, medium: 50, low: 20 } as const;
@@ -67,7 +69,7 @@ function untilEnd(iso: string, now: string) {
  * Everything that currently needs a person, most urgent first. The list is built from the same records the
  * rest of VESPER uses, so it can never disagree with them. `exclude` leaves out an item already shown elsewhere.
  */
-export function needsAttention({ issues, readiness, equipment, shifts, now }: Inputs, exclude: { issueId?: string } = {}, lens: Lens = {}): AttentionItem[] {
+export function needsAttention({ issues, readiness, equipment, shifts, now, consequences }: Inputs, exclude: { issueId?: string } = {}, lens: Lens = {}): AttentionItem[] {
   const items: AttentionItem[] = [];
 
   for (const issue of issues) {
@@ -79,7 +81,7 @@ export function needsAttention({ issues, readiness, equipment, shifts, now }: In
       id: `issue-${issue.id}`,
       kind: "issue",
       title: issue.title,
-      reason: `${issue.owner ? `With ${issue.owner}` : "No owner yet"} · reported ${age(minutesSince(issue.reportedAt, now))} ago`,
+      reason: consequences?.[issue.id] ?? `${issue.owner ? `With ${issue.owner}` : "No owner yet"} · reported ${age(minutesSince(issue.reportedAt, now))} ago`,
       href: `/exceptions/${issue.id}`,
       action: issue.owner ? "Review issue" : "Assign an owner",
       status: blocked ? "blocked" : waiting ? "awaiting_dependency" : issue.operationalStatus,

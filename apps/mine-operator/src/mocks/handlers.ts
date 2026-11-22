@@ -342,7 +342,25 @@ export const handlers = [
 
   // ---- Notifications ------------------------------------------------------------------------
   // ---- Production, inventory and shipments (demo and UAT scope) ----
-  http.get(`${API}/logistics`, () => envelope(demoDomain.logistics())),
+  http.get(`${API}/logistics`, ({ request }) => envelope(demoDomain.logistics(actorOf(request)))),
+  http.get(`${API}/impact`, ({ request }) => envelope(demoDomain.impact(actorOf(request)))),
+  http.post(`${API}/impact/estimate`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateImpact(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/repair-complete`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.completeRepair(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/recovery`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordRecovery(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/reset`, ({ request }) => run(() => demoDomain.resetImpact(actorOf(request)))),
+  http.post(`${API}/prices`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setPrice(input, actorOf(request)), 201);
+  }),
   http.post(`${API}/production`, async ({ request }) => {
     const input = await bodyOf(request);
     return run(() => demoDomain.recordProduction(input, actorOf(request)), 201);
