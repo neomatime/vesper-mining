@@ -153,7 +153,7 @@ export const deliverySchema = z.object({
 
 export const shipmentEventSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["created", "checks_updated", "request_sent", "reminder_sent", "confirmed", "declined", "dispatched", "delivered", "difference_reviewed", "cancelled", "pricing_source_set"]),
+  type: z.enum(["created", "checks_updated", "request_sent", "reminder_sent", "confirmed", "declined", "dispatched", "delivered", "difference_reviewed", "cancelled", "pricing_source_set", "fleet_changed"]),
   summary: z.string().min(1),
   actor: z.string().min(1),
   occurredAt: timestamp,
@@ -176,12 +176,37 @@ export const pricingSourceSchema = z.object({
 
 export const pricingEventSchema = z.object({ id: z.string().min(1), at: timestamp, actor: z.string().min(1), summary: z.string().min(1), note: z.string().nullable() });
 
+/** Who moves a shipment: a logistics provider, or the mine's own fleet (vehicles from the equipment register, with drivers). */
+export const transportModeSchema = z.enum(["provider", "own_fleet"]);
+
+/** One vehicle and driver for part of a shipment. Assigning a load does not make the shipment ready or dispatched. */
+export const fleetLoadSchema = z.object({
+  id: z.string().min(1),
+  vehicleId: z.string().min(1),
+  driverName: z.string().min(1),
+  tonnes: z.number().positive(),
+  plannedCollectionAt: z.string().min(1),
+  plannedDeliveryAt: z.string().min(1),
+  addedBy: z.string().min(1),
+  addedAt: timestamp,
+});
+
+export const fleetPlanSchema = z.object({
+  /** The person responsible for the transport. */
+  coordinator: z.string().nullable(),
+  loads: z.array(fleetLoadSchema),
+  /** Optional internal estimate (fuel, driver time, wear). Not an invoice; null means "Cost not yet assessed". */
+  internalCost: z.object({ amount: z.number().min(0), note: z.string() }).nullable(),
+});
+
 export const shipmentSchema = z.object({
   id: z.string().min(1),
   number: z.string().min(1),
   kind: z.enum(["sale", "internal_transfer"]),
   pricingSource: pricingSourceSchema.nullable(),
   pricingHistory: z.array(pricingEventSchema),
+  transportMode: transportModeSchema,
+  fleet: fleetPlanSchema,
   mineral: z.string().min(1),
   stockpileId: z.string().min(1),
   tonnes: z.number().positive(),
@@ -234,6 +259,9 @@ export type ProductionEvent = z.infer<typeof productionEventSchema>;
 export type ProductionRecord = z.infer<typeof productionRecordSchema>;
 export type Transporter = z.infer<typeof transporterSchema>;
 export type ProviderApproval = z.infer<typeof providerApprovalSchema>;
+export type TransportMode = z.infer<typeof transportModeSchema>;
+export type FleetLoad = z.infer<typeof fleetLoadSchema>;
+export type FleetPlan = z.infer<typeof fleetPlanSchema>;
 export type PricingSource = z.infer<typeof pricingSourceSchema>;
 export type ShipmentState = z.infer<typeof shipmentStateSchema>;
 export type ShipmentChecks = z.infer<typeof shipmentChecksSchema>;

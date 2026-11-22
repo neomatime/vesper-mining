@@ -130,10 +130,10 @@ export function shipmentFigures(shipment: Pick<Shipment, "tonnes" | "dispatches"
 }
 
 /** What still stops the shipment being marked ready, in plain words. Empty means it can go. */
-export function readinessProblems(shipment: Pick<Shipment, "checks" | "state">, transporter: { active: boolean } | undefined): string[] {
+export function readinessProblems(shipment: Pick<Shipment, "checks" | "state"> & { transportMode?: Shipment["transportMode"] }, transporter: { active: boolean } | undefined): string[] {
   const problems: string[] = [];
   for (const key of Object.keys(checkLabels) as (keyof ShipmentChecks)[]) if (!shipment.checks[key]) problems.push(`Tick "${checkLabels[key]}".`);
-  if (!transporter || !transporter.active) problems.push("Choose an approved transporter.");
+  if (shipment.transportMode !== "own_fleet" && (!transporter || !transporter.active)) problems.push("Choose an approved transporter.");
   return problems;
 }
 
