@@ -24,6 +24,22 @@ records of its own, so a breakdown, shipment or production figure lives in one p
 | Shift briefing | Right column | Production (reported, not verified), work completed, open items, handover state and suggested next-shift priorities, assembled from records. Never sends or approves a handover. |
 | Impact analysis | Existing "What happens if we wait?" | Unchanged: deterministic, scenario controls, estimates kept apart from losses. |
 
+## Reviewing and approving the shift briefing
+
+The briefing is generated from records, then reviewed by a **Shift Supervisor** or the **Mine Manager** (the supervisor's own home and the manager's
+Command Centre both show it). Everyone else reads it.
+
+- **Correct**: any line can be reworded (up to 300 characters, never empty). A corrected line is marked "Edited by the supervisor"; the generated
+  wording is kept beside it and shown in the review dialog. The supervisor can add their own note, shown as theirs.
+- **Save draft / Approve**: saving keeps corrections without approving. Approving records who and when, freezes the wording that was approved, and
+  notifies the next shift's supervisor. Nothing is ever approved automatically.
+- **Approval is not the handover**: approving does not send the handover, acknowledge it or change any issue, shipment or other record.
+- **Records change afterwards**: lines whose generated text no longer matches the records are flagged "The records have changed since approval".
+- **Reopen**: needs a reason, returns the briefing to a draft (corrections kept) and leaves the earlier approval in the history.
+
+Code: `canReviewBriefing`, `effectiveLines`, `changedSinceApproval` in `intelligence-rules.ts`; store methods `briefing`, `saveBriefing`, `approveBriefing`,
+`reopenBriefing`; panel in `components/intelligence-panels.tsx`. Tests: `lib/briefing-approval.test.ts`, `e2e/intelligence.spec.ts`.
+
 ## Safeguards
 
 - Sales values appear only for roles allowed to see them; otherwise the operational insight shows without money.
@@ -33,5 +49,5 @@ records of its own, so a breakdown, shipment or production figure lives in one p
 
 ## Not yet built
 
-Supervisor edit/approve of a generated briefing; reliability trends beyond recurrence counts; a full intelligence page; connecting a live language
+Reliability trends beyond recurrence counts; a full intelligence page; connecting a live language
 model (needs a server route, a key and an approval of the data flow); site-level data restrictions beyond the existing role checks.

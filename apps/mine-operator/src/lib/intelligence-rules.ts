@@ -201,6 +201,45 @@ export function buildBriefing(inputs: Pick<IntelligenceInputs, "shifts" | "issue
   return { shiftId: shift?.id ?? null, shiftName: shift?.name ?? "No shift", handoverState: shift?.handover.state ?? "none", lines, nextShift, generated: true };
 }
 
+// ---- Reviewing and approving the briefing --------------------------------------------------------------------------------------
+
+/** A supervisor's review of a generated briefing. The generated lines are never stored as the truth: a correction sits beside them. */
+export type BriefingRecord = {
+  shiftId: string;
+  state: "draft" | "approved";
+  /** Line id to the supervisor's corrected wording. */
+  corrections: Record<string, string>;
+  /** The supervisor's own note. It is theirs, not generated. */
+  note: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  /** The generated wording at the moment of approval, so later changes in the records can be noticed. */
+  approvedGenerated: Record<string, string> | null;
+  history: { id: string; at: string; actor: string; summary: string }[];
+};
+
+/** Who may correct and approve a briefing. Everyone else reads it. */
+const reviewerRoles = ["Shift Supervisor", "Mine Manager"];
+export const canReviewBriefing = (actor: { role: string }) => reviewerRoles.includes(actor.role);
+export const reviewMessage = "A briefing is reviewed and approved by a Shift Supervisor or the Mine Manager.";
+
+export type BriefingLineView = BriefingLine & { generated: string; edited: boolean };
+
+/** The briefing with any corrections applied. A corrected line says so. */
+export function effectiveLines(briefing: Briefing, record: Pick<BriefingRecord, "corrections">): BriefingLineView[] {
+  return briefing.lines.map((line) => {
+    const corrected = record.corrections[line.id];
+    return { ...line, generated: line.text, text: corrected ?? line.text, edited: corrected !== undefined && corrected !== line.text };
+  });
+}
+
+/** Lines whose generated wording differs from what was approved: the records have changed since. */
+export function changedSinceApproval(briefing: Briefing, record: Pick<BriefingRecord, "state" | "approvedGenerated">): string[] {
+  if (record.state !== "approved" || !record.approvedGenerated) return [];
+  const approved = record.approvedGenerated;
+  return briefing.lines.filter((line) => approved[line.id] !== line.text).map((line) => line.id);
+}
+
 // ---- Ask VESPER -------------------------------------------------------------------------------------------------------------
 
 export type Answer = {
