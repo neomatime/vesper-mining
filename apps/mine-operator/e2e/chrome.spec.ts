@@ -106,3 +106,12 @@ test.describe("sidebar hover", () => {
     }
   });
 });
+
+test("Report an issue is one click from the top bar on any page, and is not repeated in the sidebar", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/shipments");
+  await expect(page.getByRole("link", { name: "Report an issue", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Report an issue" })).toHaveCount(0);
+  await page.getByRole("banner").getByRole("link", { name: "Report an issue" }).click();
+  await expect(page).toHaveURL(/\/exceptions\/new$/);
+});

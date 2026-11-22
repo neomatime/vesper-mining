@@ -71,3 +71,9 @@
 
 /* The sidebar and top bar sit side by side, so neither throws a shadow on the other, and both are the shared surface colour */
 .sidebar { background: var(--surface-base); box-shadow: var(--shadow-card); }
+
+/* "Report an issue" in the top bar: one click from every page. The words hide on narrow screens, the icon stays. */
+.topbar__report { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: var(--radius-lg); color: var(--brand-emerald-dark); background: var(--surface-hover); font-size: 13px; font-weight: var(--weight-strong); white-space: nowrap; }
+.topbar__report:hover { background: rgba(22, 134, 91, .14); }
+.topbar__report svg { width: 18px; height: 18px; }
+@media (max-width: 1100px) { .topbar__report span { display: none; } .topbar__report { padding: 0 11px; } }
