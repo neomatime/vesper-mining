@@ -16,8 +16,19 @@ export const serviceProviderSchema = z.object({
   categories: z.array(equipmentCategorySchema),
   /** Last day the provider is approved to work at this mine, as a date. Empty means no end date. */
   approvedUntil: z.string(),
+  /** True only while approval is "approved". Kept so existing checks keep working; the store sets it from `approval`. */
   active: z.boolean(),
+  /** Pending until an authorised person approves it; inactive providers keep their history but cannot be given new work. */
+  approval: z.enum(["pending", "approved", "inactive"]),
+  /** What they are known for, in words, for example "Crushers, conveyors, processing equipment". */
+  specialisation: z.string(),
+  serviceAreas: z.array(z.string()),
+  /** The expected or contracted response time in hours. Null when not agreed. */
+  responseHours: z.number().positive().nullable(),
+  /** Certifications and supporting documents. Only the names are kept in this prototype. */
+  documents: z.array(z.object({ name: z.string().min(1), sizeLabel: z.string() })),
   notes: z.string(),
+  history: z.array(z.object({ id: z.string().min(1), at: timestamp, actor: z.string().min(1), summary: z.string().min(1), note: z.string().nullable() })),
   createdAt: timestamp,
   version: z.number().int().min(1),
 });
@@ -77,6 +88,7 @@ export const serviceRequestSchema = z.object({
 });
 
 export type ServiceProvider = z.infer<typeof serviceProviderSchema>;
+export type ServiceProviderApproval = ServiceProvider["approval"];
 export type Quote = z.infer<typeof quoteSchema>;
 export type InviteState = z.infer<typeof inviteStateSchema>;
 export type ServiceInvite = z.infer<typeof serviceInviteSchema>;

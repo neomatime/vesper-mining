@@ -320,7 +320,12 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
           header={{ ...header, title: "Assets", description: "Manage equipment and site infrastructure, maintenance and availability." }}
           register={equipmentRegister(all, shell?.issues ?? [], kind)}
           tabs={<AssetTabs active={kind} />}
-          viewSwitch={canManageEquipment ? <AddAssetMenu onChoose={setAdding} /> : undefined}
+          viewSwitch={
+            <>
+              <Link className="button button--quiet" href="/equipment/providers"><UsersRound /> Manage Service Providers</Link>
+              {canManageEquipment ? <AddAssetMenu onChoose={setAdding} /> : null}
+            </>
+          }
         />
         {adding ? (
           <EquipmentFormDialog

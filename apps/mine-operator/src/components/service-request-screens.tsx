@@ -63,7 +63,7 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
     );
   }
 
-  const eligible = eligibleProviders(providers.data ?? [], item.category, shell?.now ?? "");
+  const eligible = eligibleProviders(providers.data ?? [], item.category, shell?.now ?? "", context.siteName);
   const { errors } = form.formState;
 
   const submit = form.handleSubmit((values) => {

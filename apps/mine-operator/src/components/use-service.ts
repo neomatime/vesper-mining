@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 import { useRouter } from "next/navigation";
-import type { ProviderRequestView } from "@/lib/demo-store";
+import type { demoDomain, ProviderRequestView } from "@/lib/demo-store";
 import { ApiError, demoFetch, demoSend } from "@/lib/api";
 import { useToast } from "./toast-provider";
 
@@ -19,6 +19,12 @@ export type ProviderInput = {
   categories: string[];
   approvedUntil: string;
   notes: string;
+  specialisation?: string;
+  serviceAreas?: string;
+  responseHours?: string;
+  documents?: { name: string; sizeLabel: string }[];
+  /** Only an approver's choice counts; anyone else's provider starts as pending. */
+  approval?: string;
 };
 
 export type RequestInput = {
@@ -44,6 +50,12 @@ export function useProviders() {
   return useQuery({ queryKey: ["providers"], queryFn: () => demoFetch<ServiceProvider[]>("/providers") });
 }
 
+export type ProviderDetail = ReturnType<typeof demoDomain.providerDetail>;
+
+export function useProviderDetail(id: string) {
+  return useQuery({ queryKey: ["provider", id], queryFn: () => demoFetch<ProviderDetail>(`/providers/${id}/detail`) });
+}
+
 export function useServiceRequests(equipmentId?: string) {
   return useQuery({
     queryKey: ["service-requests", equipmentId ?? "all"],
@@ -59,7 +71,7 @@ export function useServiceRequest(id: string) {
 function useRefresh() {
   const queryClient = useQueryClient();
   return async () => {
-    await Promise.all(["providers", "service-requests", "service-request", "equipment", "equipment-list", "organisation", "overview", "workspace"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(["providers", "provider", "service-requests", "service-request", "equipment", "equipment-list", "organisation", "overview", "workspace"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
   };
 }
 
@@ -72,7 +84,7 @@ export function useProviderMutations() {
     mutationFn: (input: ProviderInput) => demoSend<ServiceProvider>("/providers", "POST", input),
     onSuccess: async (provider) => {
       await refresh();
-      toast.push({ title: "Service provider added", detail: `${provider.name} can now be asked for quotes.` });
+      toast.push({ title: "Service provider added", detail: provider.approval === "approved" ? `${provider.name} can now be asked for quotes.` : `${provider.name} is waiting for approval before it can be given repair requests.` });
     },
     onError,
   });
@@ -92,6 +104,17 @@ export function useProviderMutations() {
     },
     onError,
   });
+  const setApproval = useMutation({
+    mutationFn: ({ id, ...input }: { id: string; approval: string; note: string; version: number }) => demoSend<ServiceProvider>(`/providers/${id}/approval`, "POST", input),
+    onSuccess: async (provider) => {
+      await refresh();
+      toast.push({
+        title: provider.approval === "approved" ? "Provider approved" : provider.approval === "inactive" ? "Provider made inactive" : "Returned to pending approval",
+        detail: provider.approval === "approved" ? `${provider.name} can now be given repair requests.` : provider.approval === "inactive" ? "Their history is kept. They are no longer offered for new requests." : undefined,
+      });
+    },
+    onError,
+  });
   const remove = useMutation({
     mutationFn: (id: string) => demoSend<{ id: string }>(`/providers/${id}`, "DELETE"),
     onSuccess: async () => {
@@ -100,7 +123,7 @@ export function useProviderMutations() {
     },
     onError,
   });
-  return { create, update, setActive, remove };
+  return { create, update, setActive, setApproval, remove };
 }
 
 export function useCreateServiceRequest(equipmentId: string) {

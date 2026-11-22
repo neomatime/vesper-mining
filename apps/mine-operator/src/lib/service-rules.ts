@@ -6,11 +6,29 @@
 import type { EquipmentCategory, InviteState, RequestStatus, ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 import type { Actor, Check } from "./issue-rules";
 
-/** Only the Mine Manager keeps the list of providers approved for the mine. */
+/** The Mine Manager and the Maintenance Planner add and edit service providers. A new provider waits for approval. */
 export function canManageProviders(actor: Actor): Check {
+  return actor.role === "Mine Manager" || actor.role === "Maintenance Planner"
+    ? { allowed: true }
+    : { allowed: false, reason: "Service providers are added and edited by the Mine Manager or the Maintenance Planner." };
+}
+
+/** Only the Mine Manager approves, deactivates or permanently removes a service provider. */
+export function canApproveProviders(actor: Actor): Check {
   return actor.role === "Mine Manager"
     ? { allowed: true }
-    : { allowed: false, reason: "Only the Mine Manager can add, edit or remove service providers." };
+    : { allowed: false, reason: "Approving, deactivating or removing a service provider is done by the Mine Manager." };
+}
+
+export const approvalStatusLabels = { pending: "Pending approval", approved: "Approved", inactive: "Inactive" } as const;
+export const approvalStatusTone = { pending: "needs_confirmation", approved: "confirmed", inactive: "cancelled" } as const;
+
+/** "Within 2 hours", "Within 1 day" or "Not agreed". */
+export function responseLabel(hours: number | null): string {
+  if (hours === null) return "Not agreed";
+  if (hours > 24 && hours % 24 === 0) return `Within ${hours / 24} days`;
+  if (hours === 24) return "Within 1 day";
+  return `Within ${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
 /** Requesting and comparing quotes is for the people who plan maintenance. */
@@ -51,8 +69,8 @@ export function approvalLabel(provider: Pick<ServiceProvider, "active" | "approv
 }
 
 /** Providers that can be asked to quote for a category of equipment. */
-export function eligibleProviders(providers: ServiceProvider[], category: EquipmentCategory, today: string) {
-  return providers.filter((provider) => isApproved(provider, today) && provider.categories.includes(category));
+export function eligibleProviders(providers: ServiceProvider[], category: EquipmentCategory, today: string, siteName?: string) {
+  return providers.filter((provider) => isApproved(provider, today) && provider.categories.includes(category) && (!siteName || provider.serviceAreas.length === 0 || provider.serviceAreas.includes(siteName)));
 }
 
 export const isOpenRequest = (request: Pick<ServiceRequest, "status">) => request.status === "open" || request.status === "awarded" || request.status === "scheduled";
