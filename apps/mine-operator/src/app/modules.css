@@ -68,3 +68,13 @@
   .stages { grid-template-columns: 1fr 1fr; row-gap: 12px; }
   .stage::after { display: none; }
 }
+
+/* Gold demonstration cards: the header is padded, so the content below it must sit on the same inner edge, not touch the card's border. */
+.impact { padding-bottom: 24px; margin-bottom: 16px; }
+.impact > :not(.card__header) { margin-inline: 24px; }
+.impact > :not(.card__header):not(:first-of-type) { margin-top: 14px; }
+.impact > .card__header + * { margin-top: 6px; }
+.impact > .field-hint { margin-bottom: 0; }
+@media (max-width: 767px) {
+  .impact > :not(.card__header) { margin-inline: 18px; }
+}
