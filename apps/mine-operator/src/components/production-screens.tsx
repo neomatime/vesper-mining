@@ -155,7 +155,7 @@ function ProductionForm({ stockpiles, shifts, areas, existing }: { stockpiles: S
     if (!shift) return setError("Choose the shift.");
     setError("");
     save.mutate(
-      { submissionId: submission.id, shiftId: shift.id, mineral: "Manganese", area, reportedTonnes: tonnes, basis, stockpileId, note, evidence: files, submit: send, version: existing?.version },
+      { submissionId: submission.id, shiftId: shift.id, mineral: "Chrome concentrate", area, reportedTonnes: tonnes, basis, stockpileId, note, evidence: files, submit: send, version: existing?.version },
       {
         onSuccess: () => {
           if (another) {
@@ -185,7 +185,7 @@ function ProductionForm({ stockpiles, shifts, areas, existing }: { stockpiles: S
           <h2>What was mined?</h2>
           <div className="task-grid">
             <Field label="Shift"><Select value={shiftId} onChange={(event) => setShiftId(event.target.value)}>{choices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-            <Field label="Mineral"><Select value="Manganese" disabled onChange={() => {}}><option>Manganese</option></Select></Field>
+            <Field label="Mineral"><Select value="Chrome concentrate" disabled onChange={() => {}}><option>Chrome concentrate</option></Select></Field>
             <Field label="Mining area"><Select value={area} onChange={(event) => setArea(event.target.value)}>{areas.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
           </div>
           <p className="field-hint">Target for this shift: {formatTonnes(shiftTargetTonnes)}.</p>

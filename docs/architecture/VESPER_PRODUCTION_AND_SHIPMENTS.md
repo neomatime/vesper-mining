@@ -1,6 +1,6 @@
 # Production, inventory and shipments
 
-**Scope:** demonstration and UAT only. Everything here runs on the prototype's in-browser store with fictional manganese data from Riverside Mine. No external system is connected and no real message is sent to anyone.
+**Scope:** demonstration and UAT only. Everything here runs on the prototype's in-browser store with fictional chrome concentrate data from Riverside Mine. No external system is connected and no real message is sent to anyone.
 **Updated:** 22 November 2026.
 
 ## 1. The workflow

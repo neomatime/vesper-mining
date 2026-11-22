@@ -5,7 +5,7 @@
  *   25 Apr 08:00  the gold delivery to Highveld Refiners is due
  * The records are ordinary VESPER records (equipment, an issue, a readiness activity) plus one scenario that links them to the
  * shift, the customer order and the delivery. The crusher is a gold plant crusher, so tonnes, grams and prices here never mix with
- * the manganese shipments, which are priced per tonne.
+ * the chrome concentrate shipments, which are priced per tonne.
  */
 import type { Equipment, OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
 import { primaryIssue } from "./demo-data";

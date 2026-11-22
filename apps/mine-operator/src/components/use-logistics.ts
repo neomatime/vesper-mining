@@ -19,7 +19,7 @@ export function useLogistics() {
   return useQuery({ queryKey: ["logistics", context.siteId], queryFn: () => demoFetch<Logistics>("/logistics") });
 }
 
-function failureTitle(error: unknown) {
+export function failureTitle(error: unknown) {
   if (!(error instanceof ApiError)) return "That did not work";
   if (error.status === 403) return "That step is not available to you";
   if (error.code === "VERSION_CONFLICT") return "This record changed";

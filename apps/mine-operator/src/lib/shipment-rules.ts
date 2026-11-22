@@ -36,7 +36,7 @@ export function canActOnShipments(capability: ShipmentCapability, actor: Actor, 
 
 export const basisLabels: Record<MeasurementBasis, string> = { estimate: "Estimate", weighbridge: "Weighbridge", survey: "Survey", other: "Other" };
 export const conditionLabels: Record<StockCondition, string> = { ready_for_shipment: "Ready for shipment", needs_processing: "Needs processing" };
-export const destinations = ["Richards Bay Terminal", "Saldanha Bay Port", "Customer yard"];
+export const destinations = ["Richards Bay Terminal", "Saldanha Bay Port", "Customer yard", "Customer Stockyard A, Germiston", "Customer Coal Yard", "Export Terminal B", "Rail Siding B", "Rail Siding C"];
 
 export const productionStateLabels = { draft: "Draft", needs_checking: "Needs checking", sent_back: "Sent back", checked: "Checked" } as const;
 /** Status-system values for the badge, so the shape and colour follow the product-wide rules. */

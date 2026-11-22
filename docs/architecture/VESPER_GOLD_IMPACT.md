@@ -89,6 +89,6 @@ Every change is kept in the history with the previous estimate, the revised esti
 ## 8. Simulated, and not built
 
 - All figures, the timeline, the part's arrival time and the customer are fictional.
-- The gold delivery is a scenario record. It is not a manganese shipment and is not in the stock ledger.
+- The gold delivery is a scenario record. It is not a chrome concentrate shipment and is not in the stock ledger.
 - There is no real notification, assay, dispatch or finance system behind any of it.
 - Only one issue is linked to the delivery. The counted-once rule is built and tested but not shown with a second issue.

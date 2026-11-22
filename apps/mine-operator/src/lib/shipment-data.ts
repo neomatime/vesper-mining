@@ -1,5 +1,5 @@
 /**
- * Seed records for production, mineral inventory, shipments and logistics (fictional manganese operation at Riverside Mine).
+ * Seed records for production, mineral inventory, shipments and logistics (fictional chrome concentrate operation at Riverside Mine).
  *
  * The story it tells at the scenario's "now" (24 April 2025, 08:47):
  *  - SP-01 holds 2,000 t of finished stock; 1,200 t of it is reserved for three open shipments, so 800 t is available.
@@ -8,14 +8,14 @@
  * Stock opens at the balances above. Shipments delivered before that date are kept as history only, so their dispatches are not
  * in the ledger: the opening balance already reflects them.
  */
-import type { CollectionRequest, FinanceRecord, PriceRecord, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Stockpile, Transporter, ValueSnapshot } from "@vesper/api-contracts";
+import type { CollectionRequest, FinanceRecord, PriceRecord, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Stockpile, ValueSnapshot } from "@vesper/api-contracts";
 
 const SITE = "+02:00";
 const at = (day: string, time: string) => `2025-04-${day}T${time}:00${SITE}`;
 
 export const seedStockpiles: Stockpile[] = [
-  { id: "sp-01", code: "SP-01", name: "Finished stock", mineral: "Manganese", condition: "ready_for_shipment" },
-  { id: "sp-02", code: "SP-02", name: "Raw material", mineral: "Manganese", condition: "needs_processing" },
+  { id: "sp-01", code: "SP-01", name: "Finished stock", mineral: "Chrome concentrate", condition: "ready_for_shipment" },
+  { id: "sp-02", code: "SP-02", name: "Raw material", mineral: "Chrome concentrate", condition: "needs_processing" },
 ];
 
 export const seedMovements: StockMovement[] = [
@@ -25,9 +25,6 @@ export const seedMovements: StockMovement[] = [
   { id: "mv-004", at: at("24", "08:00"), type: "reserve", stockpileId: "sp-01", tonnes: 300, ref: "SHP-0048", actor: "John Dlamini", note: null },
 ];
 
-export const seedTransporters: Transporter[] = [
-  { id: "tr-001", name: "ABC Logistics", mode: "Road transport", contact: "dispatch@abclogistics.example", approvedUntil: "2026-03-31", active: true },
-];
 
 const event = (n: number, type: ShipmentEvent["type"], summary: string, actor: string, when: string, note: string | null = null): ShipmentEvent => ({
   id: `sev-${String(n).padStart(3, "0")}`,
@@ -42,12 +39,12 @@ const noChecks = { quality: true, instructions: true, documents: true, loading: 
 
 export const seedShipments: Shipment[] = [
   {
-    id: "ship-48", number: "SHP-0048", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 300, orderRef: "PO-2048", destination: "Richards Bay Terminal",
+    id: "ship-48", number: "SHP-0048", kind: "sale", pricingSource: { type: "quote", quoteId: "q-48-1", requestId: "qr-48", agreementId: null, providerId: "tr-001", costExVat: 105000, label: "Quote QR-0048 · ABC Logistics", setBy: "John Dlamini", setAt: at("24", "08:30") }, pricingHistory: [{ id: "spr-000", at: at("24", "08:30"), actor: "John Dlamini", summary: "Transport priced from quote QR-0048 (ABC Logistics, accepted)", note: null }], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 300, orderRef: "PO-2048", destination: "Customer Stockyard A, Germiston",
     preferredDate: "2025-04-26", transporterId: "tr-001", note: "", state: "preparing", checks: noChecks, requestId: null, dispatches: [], deliveries: [],
     events: [event(1, "created", "Shipment created and 300 t reserved", "John Dlamini", at("24", "08:00"))], preparedBy: "John Dlamini", cancelledReason: null, version: 1, createdAt: at("24", "08:00"),
   },
   {
-    id: "ship-47", number: "SHP-0047", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 400, orderRef: "PO-2047", destination: "Richards Bay Terminal",
+    id: "ship-47", number: "SHP-0047", kind: "sale", pricingSource: null, pricingHistory: [], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 400, orderRef: "PO-2047", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-24", transporterId: "tr-001", note: "", state: "waiting", checks: noChecks, requestId: "req-97", dispatches: [], deliveries: [],
     events: [
       event(2, "created", "Shipment created and 400 t reserved", "John Dlamini", at("23", "15:00")),
@@ -56,7 +53,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 2, createdAt: at("23", "15:00"),
   },
   {
-    id: "ship-46", number: "SHP-0046", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 500, orderRef: "PO-2046", destination: "Richards Bay Terminal",
+    id: "ship-46", number: "SHP-0046", kind: "sale", pricingSource: null, pricingHistory: [], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 500, orderRef: "PO-2046", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-25", transporterId: "tr-001", note: "", state: "confirmed", checks: noChecks, requestId: "req-96", dispatches: [], deliveries: [],
     events: [
       event(4, "created", "Shipment created and 500 t reserved", "John Dlamini", at("23", "10:00")),
@@ -66,7 +63,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 3, createdAt: at("23", "10:00"),
   },
   {
-    id: "ship-45", number: "SHP-0045", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 600, orderRef: "PO-2045", destination: "Richards Bay Terminal",
+    id: "ship-45", number: "SHP-0045", kind: "sale", pricingSource: null, pricingHistory: [], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 600, orderRef: "PO-2045", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-22", transporterId: "tr-001", note: "", state: "delivered", checks: noChecks, requestId: "req-95",
     dispatches: [{ id: "dsp-045", at: at("22", "11:20"), tonnes: 600, by: "Naledi Khoza", reference: "Collection confirmed" }],
     deliveries: [{ id: "dlv-045", at: at("23", "08:30"), tonnes: 600, settles: 600, by: "Naledi Khoza", evidence: "DN-0045.pdf", reason: null, reviewed: true, reviewedBy: null }],
@@ -79,7 +76,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 5, createdAt: at("20", "09:00"),
   },
   {
-    id: "ship-44", number: "SHP-0044", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 450, orderRef: "PO-2044", destination: "Richards Bay Terminal",
+    id: "ship-44", number: "SHP-0044", kind: "sale", pricingSource: null, pricingHistory: [], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 450, orderRef: "PO-2044", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-21", transporterId: "tr-001", note: "", state: "delivered", checks: noChecks, requestId: "req-94",
     dispatches: [{ id: "dsp-044", at: at("21", "10:00"), tonnes: 450, by: "Naledi Khoza", reference: null }],
     deliveries: [{ id: "dlv-044", at: at("22", "08:00"), tonnes: 450, settles: 450, by: "Naledi Khoza", evidence: "DN-0044.pdf", reason: null, reviewed: true, reviewedBy: null }],
@@ -91,7 +88,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 4, createdAt: at("19", "09:00"),
   },
   {
-    id: "ship-43", number: "SHP-0043", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 350, orderRef: "PO-2043", destination: "Richards Bay Terminal",
+    id: "ship-43", number: "SHP-0043", kind: "sale", pricingSource: null, pricingHistory: [], mineral: "Chrome concentrate", stockpileId: "sp-01", tonnes: 350, orderRef: "PO-2043", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-21", transporterId: "tr-001", note: "", state: "cancelled", checks: noChecks, requestId: null, dispatches: [], deliveries: [],
     events: [
       event(14, "created", "Shipment created and 350 t reserved", "John Dlamini", at("18", "09:00")),
@@ -112,12 +109,12 @@ const evidenceNone: ProductionRecord["evidence"] = [];
 
 export const seedProduction: ProductionRecord[] = [
   {
-    id: "prod-148", number: "PR-0148", shiftId: "shift-a-20250424", shiftName: "Shift A", mineral: "Manganese", area: "Pit3", targetTonnes: 1200, reportedTonnes: 1080,
+    id: "prod-148", number: "PR-0148", shiftId: "shift-a-20250424", shiftName: "Shift A", mineral: "Chrome concentrate", area: "Pit3", targetTonnes: 1200, reportedTonnes: 1080,
     basis: "estimate", stockpileId: "sp-02", note: "Loader downtime reduced production.", evidence: evidenceNone, reportedBy: "Amina Patel", state: "needs_checking", sentBackReason: null, check: null,
     events: [{ id: "pev-001", type: "submitted", summary: "Sent for checking", actor: "Amina Patel", occurredAt: at("24", "08:30"), note: null }], version: 1, createdAt: at("24", "08:30"),
   },
   {
-    id: "prod-147", number: "PR-0147", shiftId: "shift-n-20250423", shiftName: "Shift C", mineral: "Manganese", area: "Pit3", targetTonnes: 1000, reportedTonnes: 980,
+    id: "prod-147", number: "PR-0147", shiftId: "shift-n-20250423", shiftName: "Shift C", mineral: "Chrome concentrate", area: "Pit3", targetTonnes: 1000, reportedTonnes: 980,
     basis: "weighbridge", stockpileId: "sp-01", note: "", evidence: evidenceNone, reportedBy: "Sipho Nkosi", state: "checked",
     sentBackReason: null, check: { confirmedTonnes: 980, basis: "weighbridge", record: "WB-0147.pdf", reason: null, stockpileId: "sp-01", checkedBy: "Naledi Khoza", checkedAt: at("24", "06:40") },
     events: [
@@ -126,7 +123,7 @@ export const seedProduction: ProductionRecord[] = [
     ], version: 2, createdAt: at("24", "06:10"),
   },
   {
-    id: "prod-146", number: "PR-0146", shiftId: null, shiftName: "Shift D", mineral: "Manganese", area: "Pit3", targetTonnes: 1200, reportedTonnes: 1140,
+    id: "prod-146", number: "PR-0146", shiftId: null, shiftName: "Shift D", mineral: "Chrome concentrate", area: "Pit3", targetTonnes: 1200, reportedTonnes: 1140,
     basis: "weighbridge", stockpileId: "sp-01", note: "", evidence: evidenceNone, reportedBy: "Amina Patel", state: "checked",
     sentBackReason: null, check: { confirmedTonnes: 1140, basis: "weighbridge", record: "WB-0146.pdf", reason: null, stockpileId: "sp-01", checkedBy: "Naledi Khoza", checkedAt: at("23", "14:30") },
     events: [
@@ -137,7 +134,7 @@ export const seedProduction: ProductionRecord[] = [
 ];
 
 /** The next numbers to hand out, so new records continue the sequence the seeds start. */
-export const shipmentCounters = { shipment: 48, production: 148, collection: 97, movement: 4, shipmentEvent: 15, productionEvent: 5, dispatch: 100, delivery: 100, transporter: 1, token: 0, price: 10, finance: 10, valueSnapshot: 9, impactChange: 0 };
+export const shipmentCounters = { shipment: 48, production: 148, collection: 97, movement: 4, shipmentEvent: 15, productionEvent: 5, dispatch: 100, delivery: 100, transporter: 3, token: 0, price: 10, finance: 10, valueSnapshot: 9, impactChange: 0 };
 
 // ---- Prices and finance ---------------------------------------------------------------------------------------------------
 //

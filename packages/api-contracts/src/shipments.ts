@@ -91,13 +91,27 @@ export const productionRecordSchema = z.object({
 
 // ---- Shipments and logistics --------------------------------------------------------------------------------------
 
+/** The mine's approval of a provider. Only an approved provider is used for new transport assignments. Inactive ones are kept with their history. */
+export const providerApprovalSchema = z.enum(["needs_review", "approved", "inactive"]);
+
 export const transporterSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  /** The type of service, for example Road transport. */
   mode: z.string().min(1),
+  serviceNote: z.string(),
+  areasServed: z.array(z.string()),
+  contactPerson: z.string(),
   contact: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  notes: z.string(),
+  attachments: z.array(z.object({ name: z.string().min(1), sizeLabel: z.string() })),
+  approval: providerApprovalSchema,
   approvedUntil: z.string().nullable(),
+  /** True only while the provider is approved. Kept so older code can ask one question. */
   active: z.boolean(),
+  history: z.array(z.object({ id: z.string().min(1), at: timestamp, actor: z.string().min(1), summary: z.string().min(1), note: z.string().nullable() })),
 });
 
 /**
@@ -139,17 +153,35 @@ export const deliverySchema = z.object({
 
 export const shipmentEventSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["created", "checks_updated", "request_sent", "reminder_sent", "confirmed", "declined", "dispatched", "delivered", "difference_reviewed", "cancelled"]),
+  type: z.enum(["created", "checks_updated", "request_sent", "reminder_sent", "confirmed", "declined", "dispatched", "delivered", "difference_reviewed", "cancelled", "pricing_source_set"]),
   summary: z.string().min(1),
   actor: z.string().min(1),
   occurredAt: timestamp,
   note: z.string().nullable(),
 });
 
+/** Where a shipment's transport price comes from. One at a time: a quote accepted for it, or a transport agreement. */
+export const pricingSourceSchema = z.object({
+  type: z.enum(["quote", "agreement"]),
+  quoteId: z.string().nullable(),
+  requestId: z.string().nullable(),
+  agreementId: z.string().nullable(),
+  providerId: z.string().min(1),
+  /** The agreed transport cost excluding VAT, for a quote. Null for an agreement: its fee is charged once, against the agreement. */
+  costExVat: z.number().nullable(),
+  label: z.string().min(1),
+  setBy: z.string().min(1),
+  setAt: timestamp,
+});
+
+export const pricingEventSchema = z.object({ id: z.string().min(1), at: timestamp, actor: z.string().min(1), summary: z.string().min(1), note: z.string().nullable() });
+
 export const shipmentSchema = z.object({
   id: z.string().min(1),
   number: z.string().min(1),
   kind: z.enum(["sale", "internal_transfer"]),
+  pricingSource: pricingSourceSchema.nullable(),
+  pricingHistory: z.array(pricingEventSchema),
   mineral: z.string().min(1),
   stockpileId: z.string().min(1),
   tonnes: z.number().positive(),
@@ -201,6 +233,8 @@ export type ProductionCheck = z.infer<typeof productionCheckSchema>;
 export type ProductionEvent = z.infer<typeof productionEventSchema>;
 export type ProductionRecord = z.infer<typeof productionRecordSchema>;
 export type Transporter = z.infer<typeof transporterSchema>;
+export type ProviderApproval = z.infer<typeof providerApprovalSchema>;
+export type PricingSource = z.infer<typeof pricingSourceSchema>;
 export type ShipmentState = z.infer<typeof shipmentStateSchema>;
 export type ShipmentChecks = z.infer<typeof shipmentChecksSchema>;
 export type Dispatch = z.infer<typeof dispatchSchema>;

@@ -343,6 +343,52 @@ export const handlers = [
   // ---- Notifications ------------------------------------------------------------------------
   // ---- Production, inventory and shipments (demo and UAT scope) ----
   http.get(`${API}/logistics`, ({ request }) => envelope(demoDomain.logistics(actorOf(request)))),
+  http.get(`${API}/transport`, ({ request }) => envelope(demoDomain.transport(actorOf(request)))),
+  http.post(`${API}/transport-providers`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addTransportProvider(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/transport-providers/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateTransportProvider(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/quote-requests`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createQuoteRequest(input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/quote-requests/:id/sent`, ({ params, request }) => run(() => demoDomain.recordRequestSent(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/quote-requests/:id/quotes/:quoteId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordTransportQuote(param(params, "id"), param(params, "quoteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/quote-requests/:id/quotes/:quoteId/decision`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.decideTransportQuote(param(params, "id"), param(params, "quoteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createAgreement(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/agreements/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/confirm`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.confirmAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/end`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.endAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/charges`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordCharge(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/shipments/:id/pricing-agreement`, async ({ params, request }) => {
+    const input = await bodyOf<{ agreementId?: string }>(request);
+    return run(() => demoDomain.applyAgreement(param(params, "id"), String(input.agreementId), input, actorOf(request)));
+  }),
   http.get(`${API}/impact`, ({ request }) => envelope(demoDomain.impact(actorOf(request)))),
   http.post(`${API}/impact/estimate`, async ({ request }) => {
     const input = await bodyOf(request);
@@ -409,14 +455,6 @@ export const handlers = [
   http.post(`${API}/transport-response/:token`, async ({ params, request }) => {
     const input = await bodyOf(request);
     return run(() => demoDomain.transporterRespond(param(params, "token"), input));
-  }),
-  http.post(`${API}/transporters`, async ({ request }) => {
-    const input = await bodyOf(request);
-    return run(() => demoDomain.addTransporter(input, actorOf(request)), 201);
-  }),
-  http.patch(`${API}/transporters/:id`, async ({ params, request }) => {
-    const input = await bodyOf<{ active?: boolean }>(request);
-    return run(() => demoDomain.setTransporterActive(param(params, "id"), input.active !== false, actorOf(request)));
   }),
   http.get(`${API}/notifications`, ({ request }) => envelope(demoDomain.listNotifications(actorOf(request)))),
   http.post(`${API}/notifications/read-all`, ({ request }) => run(() => demoDomain.readAllNotifications(actorOf(request)))),

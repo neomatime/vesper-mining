@@ -50,11 +50,38 @@ import {
   secondaryIssue,
   shifts,
 } from "./demo-data";
-import type { CollectionRequest, MeasurementBasis, PriceRecord, ProductionEvent, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Transporter, ValueSnapshot } from "@vesper/api-contracts";
+import type { CollectionRequest, MeasurementBasis, PriceRecord, PricingSource, ProductionEvent, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Transporter, ValueSnapshot } from "@vesper/api-contracts";
+import { blank as blankQuote, seedAgreements, seedCharges, seedCoalMovements, seedCoalShipment, seedCoalStockpile, seedEarlierDeliveries, seedProviders as seedTransportProviders, seedRequests as seedQuoteRequests, transportCounters } from "./transport-data";
+import {
+  COLLECTION_POINT,
+  TRANSPORT_DEMO_DATE,
+  TRANSPORT_DEMO_PERIOD,
+  approvalLabels,
+  canActOnTransport,
+  chargeAmount,
+  chargePeriods,
+  eligibleAgreements,
+  formatRand,
+  periodName,
+  quoteStatusNow,
+  quoteTotal,
+  type Agreement,
+  type AgreementCharge,
+  type AgreementPricingMethod,
+  type AllowancePeriod,
+  type Billing,
+  type EarlierDelivery,
+  type FeePeriod,
+  type Quote as TransportQuote,
+  type QuoteRequest,
+  type Rollover,
+  type TransportCapability,
+  type Vat,
+} from "./transport-rules";
 import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
 import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
-import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedTransporters, seedValueHistory, shipmentCounters } from "./shipment-data";
-import { CURRENCY, PRICE_BASIS, QUANTITY_BASIS, canActOnShipments, canCancel, checkDifference, currentPrice, formatMoney, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, shipmentValue, stockPosition, type ShipmentCapability } from "./shipment-rules";
+import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedValueHistory, shipmentCounters } from "./shipment-data";
+import { CURRENCY, PRICE_BASIS, QUANTITY_BASIS, canActOnShipments, canCancel, checkDifference, currentPrice, formatMoney, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, shipmentValue, shortDate, stockPosition, type ShipmentCapability } from "./shipment-rules";
 import { demoTimeAt, formatDemoDateTime, formatDemoTime } from "./demo-clock";
 import {
   activeActions,
@@ -141,12 +168,17 @@ const initialState = {
   site: seedSite,
   activity: seedActivity,
   notifications: notifications.map((item): DemoNotification => ({ ...item, recipient: null })),
-  stockpiles: seedStockpiles,
-  movements: seedMovements,
+  stockpiles: [...seedStockpiles, seedCoalStockpile],
+  movements: [...seedMovements, ...seedCoalMovements],
   production: seedProduction,
-  shipments: seedShipments,
+  shipments: [...seedShipments, seedCoalShipment],
   requests: seedCollectionRequests,
-  transporters: seedTransporters,
+  transporters: seedTransportProviders,
+  /** Quote requests with the provider quotes recorded on them, transport agreements, their recorded fees and earlier deliveries. */
+  quoteRequests: seedQuoteRequests,
+  agreements: seedAgreements,
+  charges: seedCharges as AgreementCharge[],
+  earlierDeliveries: seedEarlierDeliveries as EarlierDelivery[],
   /** The Gold demonstration's scenario and the history of changes to its estimate. */
   impact: seedImpactScenario,
   impactHistory: [] as ImpactChange[],
@@ -157,13 +189,13 @@ const initialState = {
   /** Submission ids already accepted, so a repeated submission is refused instead of saved twice. */
   submissions: [] as string[],
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 7, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 7, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters, ...transportCounters },
 };
 
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v7";
+const STORAGE_KEY = "vesper-demo-state-v8";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -172,7 +204,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -641,9 +673,14 @@ function checkedDate(value: unknown, label: string, required = false) {
 // ---- Production, inventory and shipment helpers ---------------------------------------------
 
 /** A readable number such as SHP-0049: the prefix, then a four digit sequence. */
-function nextNumber(key: "shipment" | "production" | "collection", prefix: string) {
-  state.counters[key] += 1;
-  return `${prefix}-${String(state.counters[key]).padStart(4, "0")}`;
+function nextNumber(key: "shipment" | "production" | "collection" | "quoteRequest" | "agreement", prefix: string) {
+  const taken = new Set([...state.shipments.map((item) => item.number), ...state.requests.map((item) => item.number), ...state.production.map((item) => item.number), ...state.quoteRequests.map((item) => item.number), ...state.agreements.map((item) => item.number)]);
+  let value = "";
+  do {
+    state.counters[key] += 1;
+    value = `${prefix}-${String(state.counters[key]).padStart(4, "0")}`;
+  } while (taken.has(value));
+  return value;
 }
 
 /**
@@ -784,6 +821,133 @@ function buildImpact(actor?: Actor) {
     history: state.impactHistory.map((entry) => (showValue ? entry : { ...entry, previous: { ...entry.previous, valueDelayed: null }, revised: { ...entry.revised, valueDelayed: null } })),
     can: { update: Boolean(actor && canActOnImpact("update_impact", actor).allowed), recover: Boolean(actor && canActOnImpact("record_recovery", actor).allowed) },
   };
+}
+
+// ---- Service provider, quote and agreement helpers ------------------------------------------
+
+function assertTransportCan(capability: TransportCapability, actor: Actor) {
+  const check = canActOnTransport(capability, actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
+}
+
+function findQuoteRequest(id: unknown) {
+  return state.quoteRequests.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This quote request could not be found.");
+}
+function findAgreement(id: unknown) {
+  return state.agreements.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This agreement could not be found.");
+}
+
+/** A calendar date typed as yyyy-mm-dd. */
+function dateOf(value: unknown, label: string) {
+  const date = text(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T12:00:00Z`))) fail(400, "VALIDATION_ERROR", `${label} must be a date.`);
+  return date;
+}
+
+function readAttachments(value: unknown): { name: string; sizeLabel: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 5)
+    .map((item) => item as { name?: unknown; sizeLabel?: unknown })
+    .filter((item) => typeof item.name === "string" && item.name.trim() !== "")
+    .map((item) => ({ name: String(item.name).trim().slice(0, 120), sizeLabel: typeof item.sizeLabel === "string" ? item.sizeLabel.slice(0, 20) : "" }));
+}
+
+function readProviderFields(input: Record<string, unknown>) {
+  const areas = Array.isArray(input.areasServed) ? input.areasServed.map(String) : text(input.areasServed).split(",");
+  const email = text(input.email);
+  if (email && !isValidEmail(normaliseEmail(email))) fail(400, "VALIDATION_ERROR", "Enter a valid email address, or leave it empty.");
+  return {
+    mode: requireText(input.mode, "The service type", 3),
+    serviceNote: text(input.serviceNote).slice(0, 120),
+    areasServed: areas.map((item) => item.trim()).filter(Boolean).slice(0, 12),
+    contactPerson: text(input.contactPerson).slice(0, 120),
+    email,
+    phone: text(input.phone).slice(0, 40),
+    notes: text(input.notes).slice(0, 600),
+    attachments: readAttachments(input.attachments),
+  };
+}
+
+/** Reads the terms of an agreement from a form. Missing prices are allowed in a draft and shown honestly; confirming needs them. */
+function readAgreementFields(input: Record<string, unknown>) {
+  const provider = findTransporter(input.providerId);
+  const methods = ["fixed_fee", "unit_rate", "fixed_plus_usage", "manual_estimate"];
+  const method = text(input.method) || "fixed_fee";
+  if (!methods.includes(method)) fail(400, "VALIDATION_ERROR", "Choose how the agreement is priced.");
+  const startDate = dateOf(input.startDate, "The start date");
+  const endDate = dateOf(input.endDate, "The end date");
+  if (endDate < startDate) fail(400, "VALIDATION_ERROR", "The end date cannot be before the start date.");
+  const number = (value: unknown, label: string) => {
+    if (value === undefined || value === null || value === "") return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1_000_000_000) fail(400, "VALIDATION_ERROR", `${label} must be a number, 0 or more.`);
+    return parsed;
+  };
+  const estimate = input.manualEstimate as { amount?: unknown; period?: unknown; note?: unknown } | null | undefined;
+  let manualEstimate: Agreement["manualEstimate"] = null;
+  if (method === "manual_estimate") {
+    const amount = Number(estimate?.amount);
+    if (!estimate || !Number.isFinite(amount) || amount <= 0) fail(400, "VALIDATION_ERROR", "A manual estimate needs an amount, more than 0.");
+    manualEstimate = { amount, period: (["month", "year", "agreement"].includes(String(estimate.period)) ? estimate.period : "month") as FeePeriod, note: requireText(estimate.note, "The note about the estimate", 3) };
+  }
+  const document = input.document as { name?: unknown; sizeLabel?: unknown } | null | undefined;
+  const feePeriod = (["month", "year", "agreement"].includes(text(input.feePeriod)) ? text(input.feePeriod) : "month") as FeePeriod;
+  return {
+    providerId: provider.id,
+    reference: requireText(input.reference, "The agreement reference", 2),
+    document: document && typeof document.name === "string" && document.name.trim() ? { name: document.name.trim().slice(0, 120), sizeLabel: typeof document.sizeLabel === "string" ? document.sizeLabel.slice(0, 20) : "" } : null,
+    material: requireText(input.material, "The material", 3),
+    from: requireText(input.from, "The collection point", 3),
+    to: requireText(input.to, "The destination", 3),
+    service: requireText(input.service, "The transport service", 3),
+    startDate,
+    endDate,
+    renewal: text(input.renewal).slice(0, 300),
+    method: method as AgreementPricingMethod,
+    fee: number(input.fee, "The fee or rate"),
+    feePeriod: method === "unit_rate" ? ("agreement" as FeePeriod) : feePeriod,
+    billing: (input.billing === "yearly" ? "yearly" : input.billing === "custom" ? "custom" : "monthly") as Billing,
+    invoiceTiming: text(input.invoiceTiming).slice(0, 200),
+    paymentTerms: text(input.paymentTerms).slice(0, 200),
+    includedTonnes: number(input.includedTonnes, "The included quantity"),
+    allowancePeriod: (input.allowancePeriod === "agreement" ? "agreement" : "calendar_month") as AllowancePeriod,
+    excessRate: number(input.excessRate, "The excess charge"),
+    // A minimum commitment is only recorded when the agreement explicitly has one. It is never assumed or inferred.
+    minimumCommitment: text(input.minimumCommitment) || null,
+    rollover: (input.rollover === "carry_forward" ? "carry_forward" : "none") as Rollover,
+    included: text(input.included).slice(0, 300),
+    excluded: text(input.excluded).slice(0, 300),
+    vat: (input.vat === "included" ? "included" : input.vat === "not_stated" ? "not_stated" : "excluded") as Vat,
+    manualEstimate,
+    sourceQuoteId: text(input.sourceQuoteId) || null,
+  };
+}
+
+/** What changed between two versions of an agreement's terms, in plain words, for its history. */
+function describeAgreementChanges(before: Agreement, after: ReturnType<typeof readAgreementFields>): string[] {
+  const show = (value: unknown) => (value === null || value === undefined || value === "" ? "not set" : typeof value === "number" ? new Intl.NumberFormat("en-GB").format(value) : typeof value === "object" ? JSON.stringify(value) : String(value));
+  const fields: [keyof typeof after, string][] = [
+    ["providerId", "Provider"], ["reference", "Reference"], ["material", "Material"], ["from", "Collection point"], ["to", "Destination"], ["service", "Service"], ["startDate", "Start date"], ["endDate", "End date"],
+    ["renewal", "Renewal terms"], ["method", "Pricing method"], ["fee", "Fee or rate"], ["feePeriod", "Fee period"], ["billing", "Billing frequency"], ["invoiceTiming", "Invoice timing"], ["paymentTerms", "Payment terms"],
+    ["includedTonnes", "Included quantity"], ["allowancePeriod", "Allowance period"], ["excessRate", "Excess charge"], ["minimumCommitment", "Minimum commitment"], ["rollover", "Rollover"],
+    ["included", "Included costs"], ["excluded", "Excluded costs"], ["vat", "Tax treatment"], ["manualEstimate", "Manual estimate"], ["document", "Document"],
+  ];
+  return fields.filter(([key]) => JSON.stringify(before[key as keyof Agreement]) !== JSON.stringify(after[key])).map(([key, label]) => `${label} changed from ${show(before[key as keyof Agreement])} to ${show(after[key])}`);
+}
+
+/** Sets a shipment's one transport price source. Replacing it keeps the earlier source in the shipment's pricing history. */
+function setPricingSource(shipment: Shipment, source: PricingSource, actor: Actor, note: string | null) {
+  const previous = shipment.pricingSource;
+  shipment.pricingSource = source;
+  const summary = previous ? `Pricing source replaced: ${previous.label} to ${source.label}` : `Transport priced from ${source.label}`;
+  shipment.pricingHistory = [...shipment.pricingHistory, { id: nextId("transportHistory", "spr"), at: source.setAt, actor: actor.name, summary, note }];
+  recordShipment(shipment, actor, { type: "pricing_source_set", summary, note });
+}
+
+/** A shipment as someone who may not see transport prices sees it: the source is named, the cost is left out. */
+function hideTransportCost(shipment: Shipment): Shipment {
+  return shipment.pricingSource ? { ...shipment, pricingSource: { ...shipment.pricingSource, costExVat: null } } : shipment;
 }
 
 function recordShipment(shipment: Shipment, actor: Actor, event: { type: ShipmentEvent["type"]; summary: string; note?: string | null }) {
@@ -2317,13 +2481,14 @@ export const demoDomain = {
   logistics(actor?: Actor) {
     const stockpiles = state.stockpiles.map((item) => ({ ...item, ...stockPosition(item, state.movements) }));
     const movements = [...state.movements].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 12);
+    const viewTerms = Boolean(actor && canActOnTransport("view_terms", actor).allowed);
     const byNewest = <T extends { createdAt: string }>(items: T[]) => [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     return {
       now: now(),
       stockpiles,
       movements,
       production: byNewest(state.production),
-      shipments: [...state.shipments].sort((a, b) => b.number.localeCompare(a.number)),
+      shipments: [...state.shipments].sort((a, b) => b.number.localeCompare(a.number)).map((shipment) => (viewTerms ? shipment : hideTransportCost(shipment))),
       requests: [...state.requests].sort((a, b) => b.number.localeCompare(a.number)),
       transporters: state.transporters,
       // Money is only sent to people allowed to see it. Everyone else gets no price, value or finance record at all, so there is
@@ -2441,6 +2606,8 @@ export const demoDomain = {
       id: `ship-${state.counters.shipment + 1}`,
       number: nextNumber("shipment", "SHP"),
       kind,
+      pricingSource: null,
+      pricingHistory: [],
       mineral: stockpile.mineral,
       stockpileId: stockpile.id,
       tonnes,
@@ -2695,24 +2862,320 @@ export const demoDomain = {
     return record;
   },
 
-  addTransporter(input: Record<string, unknown>, actor: Actor) {
-    assertShipmentsCan("manage_shipments", actor);
+  // ---- Service providers, transport quotes and transport agreements ------------------------------
+  /** What the Service providers pages read. Prices and terms are only sent to roles allowed to see them. */
+  transport(actor?: Actor) {
+    const can = (capability: TransportCapability) => Boolean(actor && canActOnTransport(capability, actor).allowed);
+    return {
+      now: now(),
+      today: TRANSPORT_DEMO_DATE,
+      period: TRANSPORT_DEMO_PERIOD,
+      providers: state.transporters,
+      terms: can("view_terms") ? { requests: state.quoteRequests, agreements: state.agreements, charges: state.charges, earlier: state.earlierDeliveries } : null,
+      can: { viewTerms: can("view_terms"), manage: can("manage_providers"), approve: can("approve_providers"), record: can("record_quotes"), decide: can("decide_quotes"), confirm: can("confirm_agreements"), shipments: Boolean(actor && canActOnShipments("manage_shipments", actor).allowed) },
+    };
+  },
+
+  addTransportProvider(input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("manage_providers", actor);
     const commit = guardRepeat(input);
     const name = requireText(input.name, "The company name", 3);
     if (state.transporters.some((item) => item.name.toLowerCase() === name.toLowerCase())) fail(409, "DUPLICATE", `${name} is already on the list.`);
-    const transporter: Transporter = { id: nextId("transporter", "tr"), name, mode: requireText(input.mode, "The type of transport", 3), contact: text(input.contact).slice(0, 120), approvedUntil: text(input.approvedUntil) || null, active: true };
-    state.transporters = [...state.transporters, transporter];
+    const fields = readProviderFields(input);
+    const at = tick();
+    // A new provider needs the mine's approval before it can be used for transport.
+    const provider: Transporter = { id: nextId("transporter", "tr"), name, ...fields, contact: fields.email, approval: "needs_review", approvedUntil: null, active: false, history: [{ id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Added; needs mine approval", note: null }] };
+    state.transporters = [...state.transporters, provider];
     commit();
-    return transporter;
+    return provider;
   },
 
-  setTransporterActive(id: string, active: boolean, actor: Actor) {
-    assertShipmentsCan("manage_shipments", actor);
-    const transporter = findTransporter(id);
-    if (!active && state.shipments.some((item) => item.transporterId === id && ["preparing", "waiting", "confirmed", "declined", "dispatched"].includes(item.state))) fail(409, "IN_USE", `${transporter.name} still has shipments in progress, so it cannot be switched off.`);
-    transporter.active = active;
-    return transporter;
+  /** Edits a provider's details and, for the Mine Manager, the mine's approval. Providers are never deleted: inactive ones keep their history. */
+  updateTransportProvider(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("manage_providers", actor);
+    const provider = findTransporter(id);
+    const lines: string[] = [];
+    if (input.name !== undefined) {
+      const name = requireText(input.name, "The company name", 3);
+      if (name.toLowerCase() !== provider.name.toLowerCase() && state.transporters.some((item) => item.name.toLowerCase() === name.toLowerCase())) fail(409, "DUPLICATE", `${name} is already on the list.`);
+      if (name !== provider.name) lines.push(`Name changed to ${name}`);
+      provider.name = name;
+    }
+    const fields = readProviderFields({ ...provider, ...input });
+    if (JSON.stringify({ ...fields }) !== JSON.stringify({ mode: provider.mode, serviceNote: provider.serviceNote, areasServed: provider.areasServed, contactPerson: provider.contactPerson, email: provider.email, phone: provider.phone, notes: provider.notes, attachments: provider.attachments })) lines.push("Details updated");
+    Object.assign(provider, fields, { contact: fields.email });
+    if (input.approval !== undefined && input.approval !== provider.approval) {
+      assertTransportCan("approve_providers", actor);
+      if (input.approval !== "needs_review" && input.approval !== "approved" && input.approval !== "inactive") fail(400, "VALIDATION_ERROR", "Choose needs review, approved or inactive.");
+      if (input.approval !== "approved" && state.shipments.some((item) => item.transporterId === provider.id && ["preparing", "waiting", "confirmed", "declined", "dispatched"].includes(item.state))) {
+        fail(409, "IN_USE", `${provider.name} still has shipments in progress, so it cannot be taken off the approved list.`);
+      }
+      const note = input.approval === "inactive" ? requireText(input.note, "The reason", 5) : text(input.note) || null;
+      lines.push(`Mine approval changed from ${approvalLabels[provider.approval]} to ${approvalLabels[input.approval]}${note ? `: ${note}` : ""}`);
+      provider.approval = input.approval;
+    }
+    provider.active = provider.approval === "approved";
+    if (lines.length === 0) fail(400, "VALIDATION_ERROR", "Nothing was changed.");
+    const at = tick();
+    provider.history = [...provider.history, ...lines.map((summary) => ({ id: nextId("transportHistory", "tph"), at, actor: actor.name, summary, note: null }))];
+    return provider;
   },
+
+  /** Saves a quote request as a draft. For one shipment it is prefilled from the shipment. An agreement request needs no shipment. */
+  createQuoteRequest(input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("record_quotes", actor);
+    const commit = guardRepeat(input);
+    const kind: QuoteRequest["kind"] = input.kind === "agreement" ? "agreement" : "shipment";
+    const ids = Array.isArray(input.providerIds) ? input.providerIds.map(String) : [];
+    if (ids.length === 0) fail(400, "VALIDATION_ERROR", "Choose at least one provider to ask.");
+    for (const providerId of ids) {
+      const provider = findTransporter(providerId);
+      if (provider.approval !== "approved") fail(409, "NOT_ELIGIBLE", `${provider.name} is not approved by the mine, so it cannot be asked to quote.`);
+    }
+    const replyText = text(input.replyBy);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(replyText) || Number.isNaN(Date.parse(`${replyText.slice(0, 16)}:00+02:00`))) fail(400, "VALIDATION_ERROR", "Choose when the quote is needed by.");
+    const requirements = text(input.requirements).slice(0, 800);
+    const at = tick();
+    let request: QuoteRequest;
+    if (kind === "shipment") {
+      const shipment = findShipment(String(input.shipmentId));
+      if (shipment.state === "dispatched" || shipment.state === "delivered" || shipment.state === "cancelled") fail(409, "READ_ONLY", `${shipment.number} has already left the mine or is finished.`);
+      const open = state.quoteRequests.find((item) => item.shipmentId === shipment.id && (item.status === "draft" || item.status === "sent"));
+      if (open) fail(409, "DUPLICATE", `${shipment.number} already has an open quote request, ${open.number}.`);
+      request = {
+        id: `qr-${state.counters.quoteRequest + 1}`, number: nextNumber("quoteRequest", "QR"), kind, status: "draft", shipmentId: shipment.id, material: shipment.mineral, from: COLLECTION_POINT, to: shipment.destination,
+        service: text(input.service) || "Road · Bulk tipper · Multiple loads", quantityTonnes: shipment.tonnes, unit: "tonnes", collectionWindow: text(input.collectionWindow) || shortDate(shipment.preferredDate), requiredBy: text(input.requiredBy) || null,
+        requirements, startDate: null, endDate: null, expectedVolume: null, volumePeriod: null, preferredBilling: null, providerIds: ids, replyBy: `${replyText.slice(0, 16)}:00+02:00`,
+        sentRecordedAt: null, sentBy: null, createdBy: actor.name, createdAt: at, quotes: [], history: [],
+      };
+    } else {
+      const startDate = dateOf(input.startDate, "The start date");
+      const endDate = dateOf(input.endDate, "The end date");
+      if (endDate < startDate) fail(400, "VALIDATION_ERROR", "The end date cannot be before the start date.");
+      const volume = Number(input.expectedVolume);
+      if (!Number.isFinite(volume) || volume <= 0) fail(400, "VALIDATION_ERROR", "Enter the expected quantity, more than 0. It is a planning estimate.");
+      request = {
+        id: `qr-${state.counters.quoteRequest + 1}`, number: nextNumber("quoteRequest", "QR"), kind, status: "draft", shipmentId: null, material: requireText(input.material, "The material", 3), from: requireText(input.from, "The collection point", 3), to: requireText(input.to, "The destination", 3),
+        service: requireText(input.service, "The transport service", 3), quantityTonnes: null, unit: "tonnes", collectionWindow: null, requiredBy: null, requirements,
+        startDate, endDate, expectedVolume: volume, volumePeriod: input.volumePeriod === "agreement" ? "agreement" : "calendar_month", preferredBilling: input.preferredBilling === "yearly" ? "yearly" : "monthly", providerIds: ids,
+        replyBy: `${replyText.slice(0, 16)}:00+02:00`, sentRecordedAt: null, sentBy: null, createdBy: actor.name, createdAt: at, quotes: [], history: [],
+      };
+    }
+    request.quotes = ids.map((providerId) => blankQuote(nextId("quote", "q"), providerId));
+    request.history = [{ id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Request saved as a draft", note: null }];
+    state.quoteRequests = [...state.quoteRequests, request];
+    commit();
+    return request;
+  },
+
+  /** Records that the request was sent by hand. Nothing is sent from VESPER. */
+  recordRequestSent(id: string, actor: Actor) {
+    assertTransportCan("record_quotes", actor);
+    const request = findQuoteRequest(id);
+    if (request.status !== "draft") fail(409, "READ_ONLY", "This request has already been recorded as sent.");
+    const at = tick();
+    request.status = "sent";
+    request.sentRecordedAt = at;
+    request.sentBy = actor.name;
+    request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Request recorded as sent (demo: nothing was sent)", note: null }];
+    notify(null, "Quote request recorded as sent (demo)", `${request.number}: record each reply when it arrives. No message was sent.`, `/shipments/providers/quotes/${request.id}`, "logistics");
+    return request;
+  },
+
+  /** Enters what a provider quoted, by hand, or records that the provider cannot quote. */
+  recordTransportQuote(requestId: string, quoteId: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("record_quotes", actor);
+    const request = findQuoteRequest(requestId);
+    if (request.status === "draft") fail(409, "READ_ONLY", "Record the request as sent before entering a reply.");
+    const quote = request.quotes.find((item) => item.id === quoteId) ?? fail(404, "NOT_FOUND", "This quote could not be found.");
+    if (quote.status === "accepted" || quote.status === "not_selected") fail(409, "READ_ONLY", "A decision has already been recorded for this quote.");
+    const provider = findTransporter(quote.providerId);
+    const at = tick();
+    if (input.unavailable === true) {
+      quote.status = "unavailable";
+      quote.conditions = requireText(input.reason, "The reason", 3);
+      request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: `${provider.name} cannot quote`, note: quote.conditions }];
+      return request;
+    }
+    const shipmentMethods = ["whole_shipment", "per_tonne", "per_load"];
+    const agreementMethods = ["fixed_fee", "unit_rate", "fixed_plus_usage"];
+    const method = text(input.method);
+    if (!(request.kind === "shipment" ? shipmentMethods : agreementMethods).includes(method)) fail(400, "VALIDATION_ERROR", "Choose how the provider priced it.");
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) fail(400, "VALIDATION_ERROR", "Enter the quoted fee or rate, more than 0.");
+    const receivedOn = dateOf(input.receivedOn, "The date received");
+    const validUntil = dateOf(input.validUntil, "The date the quote is valid until");
+    if (validUntil < receivedOn) fail(400, "VALIDATION_ERROR", "A quote cannot be valid until before it was received.");
+    let loads: number | null = null;
+    if (method === "per_load") {
+      loads = Number(input.loads);
+      if (!Number.isInteger(loads) || loads <= 0) fail(400, "VALIDATION_ERROR", "A per-load price needs the number of loads.");
+    }
+    const feePeriod = request.kind === "shipment" ? "shipment" : (["month", "year", "agreement"].includes(text(input.feePeriod)) ? (text(input.feePeriod) as FeePeriod) : fail(400, "VALIDATION_ERROR", "Choose what the fee covers: a month, a year or the whole agreement."));
+    const optionalTonnes = (value: unknown) => (value === undefined || value === null || value === "" ? null : Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fail(400, "VALIDATION_ERROR", "Quantities and rates must be numbers, 0 or more."));
+    Object.assign(quote, {
+      status: "to_review" as const,
+      reference: requireText(input.reference, "The quote reference", 2),
+      receivedOn,
+      validUntil,
+      method: method as TransportQuote["method"],
+      amount,
+      feePeriod,
+      loads,
+      quantityTonnes: request.kind === "shipment" ? request.quantityTonnes : null,
+      includedTonnes: request.kind === "agreement" ? optionalTonnes(input.includedTonnes) : null,
+      allowancePeriod: request.kind === "agreement" ? (input.allowancePeriod === "agreement" ? "agreement" : "calendar_month") : null,
+      billing: request.kind === "agreement" ? (input.billing === "yearly" ? "yearly" : input.billing === "custom" ? "custom" : "monthly") : null,
+      excessRate: request.kind === "agreement" ? optionalTonnes(input.excessRate) : null,
+      inclusions: text(input.inclusions).slice(0, 400),
+      availability: text(input.availability).slice(0, 300),
+      vat: input.vat === "included" ? "included" : input.vat === "excluded" ? "excluded" : "not_stated",
+      fuelAdjustment: text(input.fuelAdjustment).slice(0, 300),
+      otherCharges: text(input.otherCharges).slice(0, 300),
+      exclusions: text(input.exclusions).slice(0, 300),
+      conditions: text(input.conditions).slice(0, 400),
+      attachments: readAttachments(input.attachments),
+    });
+    request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: `Quote ${quote.reference} recorded from ${provider.name}`, note: null }];
+    return request;
+  },
+
+  /**
+   * Accepts or does not select a quote, keeping who decided, when and why. Accepting a shipment quote sets the shipment's provider and its
+   * agreed transport cost, and is the shipment's one pricing source. Replacing an existing source needs an explicit `replace`.
+   */
+  decideTransportQuote(requestId: string, quoteId: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("decide_quotes", actor);
+    const request = findQuoteRequest(requestId);
+    const quote = request.quotes.find((item) => item.id === quoteId) ?? fail(404, "NOT_FOUND", "This quote could not be found.");
+    const reason = requireText(input.reason, "The reason", 5);
+    const status = quoteStatusNow(quote, now().slice(0, 10));
+    if (quote.status === "accepted" || quote.status === "not_selected") fail(409, "READ_ONLY", "A decision has already been recorded for this quote.");
+    const provider = findTransporter(quote.providerId);
+    const at = tick();
+    if (input.decision === "not_selected") {
+      if (status !== "to_review" && status !== "expired") fail(409, "READ_ONLY", "Only a quote that has been received can be marked not selected.");
+      quote.status = "not_selected";
+      quote.decision = { by: actor.name, at, reason };
+      request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: `${provider.name} not selected`, note: reason }];
+    } else if (input.decision === "accept") {
+      if (status === "expired") fail(409, "EXPIRED", "This quote has expired. Ask the provider to confirm it before accepting.");
+      if (status !== "to_review") fail(409, "READ_ONLY", "Only a quote that has been received can be accepted.");
+      if (request.quotes.some((item) => item.status === "accepted")) fail(409, "READ_ONLY", "Another quote has already been accepted for this request.");
+      if (provider.approval !== "approved") fail(409, "NOT_ELIGIBLE", `${provider.name} is not approved by the mine.`);
+      if (request.kind === "shipment") {
+        const shipment = findShipment(String(request.shipmentId));
+        if (shipment.state === "dispatched" || shipment.state === "delivered" || shipment.state === "cancelled") fail(409, "READ_ONLY", `${shipment.number} has already left the mine or is finished.`);
+        const total = quoteTotal(quote);
+        if (total === null) fail(409, "NOT_READY", "This quote's total cannot be worked out yet. A per-load price needs the number of loads.");
+        if (shipment.pricingSource && input.replace !== true) fail(409, "PRICING_SOURCE", `${shipment.number} already has a transport price (${shipment.pricingSource.label}). Replace it explicitly to use this quote instead.`);
+        setPricingSource(shipment, { type: "quote", quoteId: quote.id, requestId: request.id, agreementId: null, providerId: provider.id, costExVat: total, label: `Quote ${request.number} · ${provider.name}`, setBy: actor.name, setAt: at }, actor, text(input.replaceReason) || reason);
+        shipment.transporterId = provider.id;
+      }
+      quote.status = "accepted";
+      quote.decision = { by: actor.name, at, reason };
+      request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: `Accepted ${provider.name}`, note: reason }];
+    } else {
+      fail(400, "VALIDATION_ERROR", "Choose accept or not selected.");
+    }
+    if (request.quotes.some((item) => item.status === "accepted") || request.quotes.every((item) => !["waiting", "to_review"].includes(item.status))) request.status = "decision_recorded";
+    return request;
+  },
+
+  /** Records an agreement: from an accepted proposal, or directly from its document. It stays a draft until an authorised user confirms its terms. */
+  createAgreement(input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("record_quotes", actor);
+    const commit = guardRepeat(input);
+    const fields = readAgreementFields(input);
+    const at = tick();
+    const agreement: Agreement = {
+      ...fields, id: `ag-${String(state.counters.agreement + 1).padStart(4, "0")}`, number: nextNumber("agreement", "AG"), currency: "ZAR", confirmedBy: null, confirmedAt: null, endedAt: null, endReason: null,
+      history: [{ id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: fields.sourceQuoteId ? "Draft prefilled from an accepted proposal; terms still to be reviewed" : "Recorded from its document; terms still to be reviewed", note: null }], version: 1, createdAt: at,
+    };
+    state.agreements = [...state.agreements, agreement];
+    commit();
+    return agreement;
+  },
+
+  updateAgreement(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("record_quotes", actor);
+    const agreement = findAgreement(id);
+    if (typeof input.version === "number" && input.version !== agreement.version) fail(409, "VERSION_CONFLICT", "This agreement changed while you were editing. Reload to see the latest version, then try again.");
+    if (agreement.endedAt) fail(409, "READ_ONLY", "An ended agreement is kept as it is.");
+    // Changing terms that were already confirmed is itself a decision for an authorised user.
+    if (agreement.confirmedAt) assertTransportCan("confirm_agreements", actor);
+    const next = readAgreementFields({ ...agreement, ...input });
+    const changes = describeAgreementChanges(agreement, next);
+    if (changes.length === 0) fail(400, "VALIDATION_ERROR", "Nothing was changed.");
+    Object.assign(agreement, next);
+    agreement.version += 1;
+    const at = tick();
+    agreement.history = [...agreement.history, ...changes.map((summary) => ({ id: nextId("transportHistory", "tph"), at, actor: actor.name, summary, note: text(input.reason) || null }))];
+    return agreement;
+  },
+
+  confirmAgreement(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("confirm_agreements", actor);
+    const agreement = findAgreement(id);
+    if (agreement.confirmedAt) fail(409, "READ_ONLY", "This agreement has already been confirmed.");
+    if (agreement.endedAt) fail(409, "READ_ONLY", "An ended agreement cannot be confirmed.");
+    const provider = findTransporter(agreement.providerId);
+    if (provider.approval !== "approved") fail(409, "NOT_ELIGIBLE", `${provider.name} is not approved by the mine, so its agreement cannot be activated.`);
+    if (agreement.method !== "manual_estimate" && agreement.fee === null) fail(409, "NOT_READY", "The agreement has no fee or rate yet. Complete its terms before confirming.");
+    const at = tick();
+    agreement.confirmedBy = actor.name;
+    agreement.confirmedAt = at;
+    agreement.version += 1;
+    agreement.history = [...agreement.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Terms reviewed and agreement confirmed", note: text(input.note) || null }];
+    return agreement;
+  },
+
+  endAgreement(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("confirm_agreements", actor);
+    const agreement = findAgreement(id);
+    if (agreement.endedAt) fail(409, "READ_ONLY", "This agreement has already ended.");
+    const reason = requireText(input.reason, "The reason", 5);
+    const at = tick();
+    agreement.endedAt = at;
+    agreement.endReason = reason;
+    agreement.version += 1;
+    agreement.history = [...agreement.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Agreement ended", note: reason }];
+    return agreement;
+  },
+
+  /** Records an agreement's fixed fee once for a charge period. Linked shipments are never charged the fee again. */
+  recordCharge(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertTransportCan("confirm_agreements", actor);
+    const agreement = findAgreement(id);
+    if (!agreement.confirmedAt) fail(409, "NOT_READY", "Confirm the agreement before recording its fees.");
+    const period = text(input.period);
+    if (!chargePeriods(agreement).includes(period)) fail(400, "VALIDATION_ERROR", "That is not a charge period of this agreement.");
+    if (state.charges.some((item) => item.agreementId === agreement.id && item.period === period)) fail(409, "DUPLICATE", `The fee for ${periodName(period)} has already been recorded for ${agreement.number}.`);
+    const amount = chargeAmount(agreement);
+    if (amount === null) fail(409, "NOT_READY", "This agreement has no fee to record. Add a manual estimate if its terms are more complex.");
+    const charge: AgreementCharge = { id: nextId("charge", "chg"), agreementId: agreement.id, period, amount, recordedBy: actor.name, recordedAt: tick() };
+    state.charges = [...state.charges, charge];
+    agreement.history = [...agreement.history, { id: nextId("transportHistory", "tph"), at: charge.recordedAt, actor: actor.name, summary: `Fee recorded for ${periodName(period)}: ${formatRand(amount)}`, note: null }];
+    return charge;
+  },
+
+  /** Uses an agreement as a shipment's transport price. One source at a time: replacing needs `replace` and a reason, and the history is kept. */
+  applyAgreement(shipmentId: string, agreementId: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(shipmentId);
+    const agreement = findAgreement(agreementId);
+    if (shipment.state === "dispatched" || shipment.state === "delivered" || shipment.state === "cancelled") fail(409, "READ_ONLY", `${shipment.number} has already left the mine or is finished.`);
+    const { eligible, rejected } = eligibleAgreements(state.agreements, state.transporters, shipment, TRANSPORT_DEMO_DATE);
+    if (!eligible.some((item) => item.id === agreement.id)) fail(409, "NOT_ELIGIBLE", rejected.find((item) => item.agreement.id === agreement.id)?.reason ?? "This agreement cannot be used for this shipment.");
+    if (shipment.pricingSource && input.replace !== true) fail(409, "PRICING_SOURCE", `${shipment.number} already has a transport price (${shipment.pricingSource.label}). Replace it explicitly to use this agreement instead.`);
+    if (shipment.pricingSource?.type === "agreement" && shipment.pricingSource.agreementId === agreement.id) fail(409, "DUPLICATE", `${shipment.number} already uses ${agreement.number}.`);
+    const reason = shipment.pricingSource ? requireText(input.reason, "The reason for replacing it", 5) : text(input.reason) || null;
+    const at = tick();
+    setPricingSource(shipment, { type: "agreement", quoteId: null, requestId: null, agreementId: agreement.id, providerId: agreement.providerId, costExVat: null, label: `Agreement ${agreement.number}`, setBy: actor.name, setAt: at }, actor, reason);
+    shipment.transporterId = agreement.providerId;
+    return shipment;
+  },
+
 
   // ---- Impact ("What happens if we wait?") --------------------------------------------------
   impact: (actor?: Actor) => buildImpact(actor),

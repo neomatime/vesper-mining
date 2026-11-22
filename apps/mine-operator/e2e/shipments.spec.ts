@@ -85,8 +85,8 @@ test.describe("production and inventory", () => {
     await page.getByRole("button", { name: "Confirm receipt" }).click();
     await expect(page.getByText("Receipt confirmed", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/shipments\/inventory$/);
-    // 2,000 t finished stock plus the 1,060 t that now needs processing.
-    await tonnes(page, "3,060 t");
+    // The 1,060 t sits in SP-02 and needs processing; the finished stock in SP-01 is untouched.
+    await expect(page.getByRole("row", { name: /SP-02/ })).toContainText("1,060 t");
     await expect(page.getByRole("row", { name: /SP-02/ })).toContainText("Needs processing");
     await expect(page.getByRole("row", { name: /SP-02/ })).toContainText("0 t");
     // The original report stays on the record.
@@ -120,7 +120,7 @@ test.describe("shipments and logistics", () => {
     await expect(page.getByText("800 t available · 300 t for this shipment · 500 t left")).toBeVisible();
     await page.getByLabel("Customer or order reference").fill("PO-2049");
     await page.getByLabel("Preferred collection date").fill("2025-04-28");
-    await expect(page.getByText(/Creates SHP-0049 and reserves 300 t/)).toBeVisible();
+    await expect(page.getByText(/Creates SHP-00\d+ and reserves 300 t/)).toBeVisible();
     await page.getByRole("button", { name: "Create shipment" }).click();
     await expect(page.getByText("Shipment created", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Shipment readiness" })).toBeVisible();
@@ -133,8 +133,10 @@ test.describe("shipments and logistics", () => {
     await openAs(page, "/shipments/new", "Naledi Khoza");
     await page.getByLabel("Stockpile").click();
     const options = page.getByRole("listbox").getByRole("option");
-    await expect(options).toHaveCount(1);
+    // Only stock that is ready to ship: the finished chrome and the coal. Not the stock that still needs processing.
+    await expect(options).toHaveCount(2);
     await expect(options.first()).toContainText("SP-01");
+    await expect(options.nth(1)).toContainText("SP-03");
   });
 
   test("marking a shipment ready creates exactly one request, and only the transporter's reply confirms it", async ({ page, context }) => {
