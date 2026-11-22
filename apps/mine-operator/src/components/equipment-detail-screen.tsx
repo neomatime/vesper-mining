@@ -331,7 +331,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
           ) : null}
 
           {canMaintain ? (
-          <article className="card detail-card">
+          <article className="card detail-card" id="service-history">
             <header className="card__header">
               <div><span className="eyebrow">Record</span><h2>Service history</h2></div>
               {canService ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "service" })}><Plus /> Log entry</button> : null}

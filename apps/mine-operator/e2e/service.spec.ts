@@ -77,7 +77,8 @@ test.describe("service providers and requests", () => {
 
   test("offers only approved providers that service the equipment", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "Lebo Maseko");
-    await expect(page.getByRole("heading", { name: "Request service", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Request Repair", level: 1 })).toBeVisible();
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
     await expect(page.getByRole("checkbox", { name: /OreTech Services/ })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /Karoo Crusher & Screen/ })).toBeVisible();
     // Expired approval, deactivated, and a provider that does not service crushers.
@@ -90,13 +91,14 @@ test.describe("service providers and requests", () => {
   test("requests quotes, compares them, chooses a provider, books and completes the work", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02", "Lebo Maseko");
     await page.getByRole("link", { name: /Request service/ }).first().click();
-    await page.getByLabel("Work required").fill("500 hour inspection");
-    await pick(page.getByLabel("Urgency"), "Urgent");
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByLabel("Fault / issue").fill("500 hour inspection");
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
+    await pick(page.getByLabel("Priority"), "Urgent");
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
     await expect(page.getByText(/at least one service provider/)).toBeVisible();
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
     await page.getByRole("checkbox", { name: /Karoo Crusher & Screen/ }).check();
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
 
     await expect(page.getByRole("heading", { name: "500 hour inspection", level: 1 })).toBeVisible();
     await expect(page.getByText("Awaiting quotes").first()).toBeVisible();
@@ -148,10 +150,11 @@ test.describe("service providers and requests", () => {
 
   test("records a decline and cancels a request with a reason", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "John Dlamini");
-    await page.getByLabel("Work required").fill("Replace feed chute liner");
+    await page.getByLabel("Fault / issue").fill("Replace feed chute liner");
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
     await page.getByRole("checkbox", { name: /Karoo Crusher & Screen/ }).check();
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
     await expect(page.getByRole("heading", { name: "Replace feed chute liner", level: 1 })).toBeVisible();
 
     await replyAs(page, "OreTech Services", async (provider) => {
@@ -171,9 +174,10 @@ test.describe("service providers and requests", () => {
 
   test("will not delete a provider that appears on a request", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "John Dlamini");
-    await page.getByLabel("Work required").fill("Replace feed chute liner");
+    await page.getByLabel("Fault / issue").fill("Replace feed chute liner");
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
     await expect(page.getByRole("heading", { name: "Replace feed chute liner", level: 1 })).toBeVisible();
     await page.goto("/admin");
     await page.getByRole("tab", { name: "Service providers" }).click();
@@ -202,10 +206,11 @@ test.describe("service providers and requests", () => {
 
   test("shows a provider only their own request, and closes once a provider is chosen", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "Lebo Maseko");
-    await page.getByLabel("Work required").fill("Replace feed chute liner");
+    await page.getByLabel("Fault / issue").fill("Replace feed chute liner");
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
     await page.getByRole("checkbox", { name: /Karoo Crusher & Screen/ }).check();
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
     await expect(page.getByRole("heading", { name: "Replace feed chute liner", level: 1 })).toBeVisible();
 
     const link = await page.getByLabel("Reply link for OreTech Services").inputValue();
@@ -232,3 +237,36 @@ test.describe("service providers and requests", () => {
     await expect(stranger.getByRole("heading", { name: "This link is not valid" })).toBeVisible();
   });
 });
+
+test.describe("request repair page", () => {
+  test("asks one approved provider, shows the request summary, and the request appears in Repair Requests", async ({ page }) => {
+    test.slow();
+    await openAs(page, "/equipment/eq-crusher-c02/service/new", "Lebo Maseko");
+    await expect(page.getByRole("heading", { name: "Request Repair", level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Asset" })).toContainText("Primary Crusher C-02");
+    await expect(page.getByRole("region", { name: "Asset" })).toContainText("Unavailable");
+    await page.getByLabel("Fault / issue").fill("Crusher not starting. Unusual noise and high vibration reported.");
+    await pick(page.getByLabel("Priority"), "Critical");
+    await pick(page.getByRole("combobox", { name: /^Service provider/ }), "OreTech Services");
+    await expect(page.getByText("Within 2 hours")).toBeVisible();
+    const summary = page.getByRole("region", { name: "Request Summary" });
+    await expect(summary).toContainText("Crusher not starting.");
+    await expect(summary).toContainText("Critical");
+    await expect(summary).toContainText("OreTech Services");
+    await expect(page.getByText("What happens next?")).toBeVisible();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
+    await expect(page.getByRole("heading", { name: /Crusher not starting/, level: 1 })).toBeVisible();
+    await page.goto("/equipment");
+    await expect(page.getByRole("region", { name: "Repair Requests" })).toContainText("1");
+    await page.getByRole("link", { name: "View all" }).click();
+    await expect(page.getByRole("row", { name: /Crusher not starting/ })).toContainText("1 provider asked");
+  });
+
+  test("a pending provider is never offered", async ({ page }) => {
+    await openAs(page, "/equipment/eq-pwp-03/service/new", "Lebo Maseko");
+    await page.getByLabel("Fault / issue").fill("Pump service");
+    await page.getByRole("combobox", { name: /^Service provider/ }).click();
+    await expect(page.getByRole("option", { name: "AquaFlow Solutions" })).toHaveCount(0);
+  });
+});
+
