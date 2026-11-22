@@ -72,7 +72,6 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
   {
     label: "Workflow",
     items: [
-      { label: "Report an issue", href: "/exceptions/new", icon: CirclePlus },
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
       { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention", feature: "resource_readiness" },
       { label: "Shift handover", href: "/shifts/handover", icon: ShieldCheck, feature: "shift_handover" },
@@ -159,6 +158,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>Search</span>
             <kbd>Ctrl K</kbd>
           </button>
+          {!isMobileExperience ? (
+            <Link className="topbar__report" href="/exceptions/new" aria-label="Report an issue">
+              <CirclePlus aria-hidden="true" />
+              <span>Report issue</span>
+            </Link>
+          ) : null}
           <NotificationMenu />
           <ProfileMenu inField={isMobileExperience} />
         </div>
