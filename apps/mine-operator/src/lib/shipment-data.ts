@@ -8,7 +8,7 @@
  * Stock opens at the balances above. Shipments delivered before that date are kept as history only, so their dispatches are not
  * in the ledger: the opening balance already reflects them.
  */
-import type { CollectionRequest, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Stockpile, Transporter } from "@vesper/api-contracts";
+import type { CollectionRequest, FinanceRecord, PriceRecord, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Stockpile, Transporter, ValueSnapshot } from "@vesper/api-contracts";
 
 const SITE = "+02:00";
 const at = (day: string, time: string) => `2025-04-${day}T${time}:00${SITE}`;
@@ -21,7 +21,7 @@ export const seedStockpiles: Stockpile[] = [
 export const seedMovements: StockMovement[] = [
   { id: "mv-001", at: at("23", "06:00"), type: "opening", stockpileId: "sp-01", tonnes: 2000, ref: "Opening balance", actor: "Naledi Khoza", note: null },
   { id: "mv-002", at: at("23", "10:00"), type: "reserve", stockpileId: "sp-01", tonnes: 500, ref: "SHP-0046", actor: "John Dlamini", note: null },
-  { id: "mv-003", at: at("24", "07:00"), type: "reserve", stockpileId: "sp-01", tonnes: 400, ref: "SHP-0047", actor: "John Dlamini", note: null },
+  { id: "mv-003", at: at("23", "15:00"), type: "reserve", stockpileId: "sp-01", tonnes: 400, ref: "SHP-0047", actor: "John Dlamini", note: null },
   { id: "mv-004", at: at("24", "08:00"), type: "reserve", stockpileId: "sp-01", tonnes: 300, ref: "SHP-0048", actor: "John Dlamini", note: null },
 ];
 
@@ -42,21 +42,21 @@ const noChecks = { quality: true, instructions: true, documents: true, loading: 
 
 export const seedShipments: Shipment[] = [
   {
-    id: "ship-48", number: "SHP-0048", mineral: "Manganese", stockpileId: "sp-01", tonnes: 300, orderRef: "PO-2048", destination: "Richards Bay Terminal",
+    id: "ship-48", number: "SHP-0048", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 300, orderRef: "PO-2048", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-26", transporterId: "tr-001", note: "", state: "preparing", checks: noChecks, requestId: null, dispatches: [], deliveries: [],
     events: [event(1, "created", "Shipment created and 300 t reserved", "John Dlamini", at("24", "08:00"))], preparedBy: "John Dlamini", cancelledReason: null, version: 1, createdAt: at("24", "08:00"),
   },
   {
-    id: "ship-47", number: "SHP-0047", mineral: "Manganese", stockpileId: "sp-01", tonnes: 400, orderRef: "PO-2047", destination: "Richards Bay Terminal",
-    preferredDate: "2025-04-26", transporterId: "tr-001", note: "", state: "waiting", checks: noChecks, requestId: "req-97", dispatches: [], deliveries: [],
+    id: "ship-47", number: "SHP-0047", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 400, orderRef: "PO-2047", destination: "Richards Bay Terminal",
+    preferredDate: "2025-04-24", transporterId: "tr-001", note: "", state: "waiting", checks: noChecks, requestId: "req-97", dispatches: [], deliveries: [],
     events: [
-      event(2, "created", "Shipment created and 400 t reserved", "John Dlamini", at("24", "07:00")),
-      event(3, "request_sent", "Collection request LR-0097 recorded for ABC Logistics (demo: nothing was sent)", "John Dlamini", at("24", "07:30")),
+      event(2, "created", "Shipment created and 400 t reserved", "John Dlamini", at("23", "15:00")),
+      event(3, "request_sent", "Collection request LR-0097 recorded for ABC Logistics (demo: nothing was sent)", "John Dlamini", at("23", "16:00")),
     ],
-    preparedBy: "John Dlamini", cancelledReason: null, version: 2, createdAt: at("24", "07:00"),
+    preparedBy: "John Dlamini", cancelledReason: null, version: 2, createdAt: at("23", "15:00"),
   },
   {
-    id: "ship-46", number: "SHP-0046", mineral: "Manganese", stockpileId: "sp-01", tonnes: 500, orderRef: "PO-2046", destination: "Richards Bay Terminal",
+    id: "ship-46", number: "SHP-0046", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 500, orderRef: "PO-2046", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-25", transporterId: "tr-001", note: "", state: "confirmed", checks: noChecks, requestId: "req-96", dispatches: [], deliveries: [],
     events: [
       event(4, "created", "Shipment created and 500 t reserved", "John Dlamini", at("23", "10:00")),
@@ -66,7 +66,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 3, createdAt: at("23", "10:00"),
   },
   {
-    id: "ship-45", number: "SHP-0045", mineral: "Manganese", stockpileId: "sp-01", tonnes: 600, orderRef: "PO-2045", destination: "Richards Bay Terminal",
+    id: "ship-45", number: "SHP-0045", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 600, orderRef: "PO-2045", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-22", transporterId: "tr-001", note: "", state: "delivered", checks: noChecks, requestId: "req-95",
     dispatches: [{ id: "dsp-045", at: at("22", "11:20"), tonnes: 600, by: "Naledi Khoza", reference: "Collection confirmed" }],
     deliveries: [{ id: "dlv-045", at: at("23", "08:30"), tonnes: 600, settles: 600, by: "Naledi Khoza", evidence: "DN-0045.pdf", reason: null, reviewed: true, reviewedBy: null }],
@@ -79,7 +79,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 5, createdAt: at("20", "09:00"),
   },
   {
-    id: "ship-44", number: "SHP-0044", mineral: "Manganese", stockpileId: "sp-01", tonnes: 450, orderRef: "PO-2044", destination: "Richards Bay Terminal",
+    id: "ship-44", number: "SHP-0044", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 450, orderRef: "PO-2044", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-21", transporterId: "tr-001", note: "", state: "delivered", checks: noChecks, requestId: "req-94",
     dispatches: [{ id: "dsp-044", at: at("21", "10:00"), tonnes: 450, by: "Naledi Khoza", reference: null }],
     deliveries: [{ id: "dlv-044", at: at("22", "08:00"), tonnes: 450, settles: 450, by: "Naledi Khoza", evidence: "DN-0044.pdf", reason: null, reviewed: true, reviewedBy: null }],
@@ -91,7 +91,7 @@ export const seedShipments: Shipment[] = [
     preparedBy: "John Dlamini", cancelledReason: null, version: 4, createdAt: at("19", "09:00"),
   },
   {
-    id: "ship-43", number: "SHP-0043", mineral: "Manganese", stockpileId: "sp-01", tonnes: 350, orderRef: "PO-2043", destination: "Richards Bay Terminal",
+    id: "ship-43", number: "SHP-0043", kind: "sale", mineral: "Manganese", stockpileId: "sp-01", tonnes: 350, orderRef: "PO-2043", destination: "Richards Bay Terminal",
     preferredDate: "2025-04-21", transporterId: "tr-001", note: "", state: "cancelled", checks: noChecks, requestId: null, dispatches: [], deliveries: [],
     events: [
       event(14, "created", "Shipment created and 350 t reserved", "John Dlamini", at("18", "09:00")),
@@ -102,7 +102,7 @@ export const seedShipments: Shipment[] = [
 ];
 
 export const seedRequests: CollectionRequest[] = [
-  { id: "req-97", number: "LR-0097", shipmentId: "ship-47", transporterId: "tr-001", token: "lr-0097-4f2a9c", state: "sent", sentAt: at("24", "07:30"), collectionAt: null, reply: null, repliedAt: null, reminders: 0, simulated: true },
+  { id: "req-97", number: "LR-0097", shipmentId: "ship-47", transporterId: "tr-001", token: "lr-0097-4f2a9c", state: "sent", sentAt: at("23", "16:00"), collectionAt: null, reply: null, repliedAt: null, reminders: 0, simulated: true },
   { id: "req-96", number: "LR-0096", shipmentId: "ship-46", transporterId: "tr-001", token: "lr-0096-7b81de", state: "confirmed", sentAt: at("23", "10:30"), collectionAt: at("25", "08:00"), reply: "Truck booked for 08:00.", repliedAt: at("23", "15:10"), reminders: 0, simulated: true },
   { id: "req-95", number: "LR-0095", shipmentId: "ship-45", transporterId: "tr-001", token: "lr-0095-1c0d44", state: "confirmed", sentAt: at("20", "09:30"), collectionAt: at("22", "09:00"), reply: null, repliedAt: at("21", "09:00"), reminders: 0, simulated: true },
   { id: "req-94", number: "LR-0094", shipmentId: "ship-44", transporterId: "tr-001", token: "lr-0094-93aa10", state: "confirmed", sentAt: at("19", "09:30"), collectionAt: at("21", "08:30"), reply: null, repliedAt: at("20", "08:00"), reminders: 0, simulated: true },
@@ -137,4 +137,46 @@ export const seedProduction: ProductionRecord[] = [
 ];
 
 /** The next numbers to hand out, so new records continue the sequence the seeds start. */
-export const shipmentCounters = { shipment: 48, production: 148, collection: 97, movement: 4, shipmentEvent: 15, productionEvent: 5, dispatch: 100, delivery: 100, transporter: 1, token: 0 };
+export const shipmentCounters = { shipment: 48, production: 148, collection: 97, movement: 4, shipmentEvent: 15, productionEvent: 5, dispatch: 100, delivery: 100, transporter: 1, token: 0, price: 10, finance: 10, valueSnapshot: 9, impactChange: 0 };
+
+// ---- Prices and finance ---------------------------------------------------------------------------------------------------
+//
+// One currency (ZAR) and one fixed price per tonne on the same quantity basis as the shipments. SHP-0048's order has no price, so
+// it shows "Not priced". SHP-0046's price was raised on 23 April, so its original estimate (R 900,000) differs from today's.
+
+const BASIS = "Tonnes dispatched from the mine";
+const PRICE = "Fixed price per tonne";
+const price = (id: string, reference: string, per: number, version: number, supersedes: string | null, source: string, when: string): PriceRecord => ({
+  id, reference, customer: "Bayside Metals", pricePerTonne: per, currency: "ZAR", quantityBasis: BASIS, priceBasis: PRICE, source, suppliedBy: "Zinhle Mahlangu", updatedAt: when, version, supersedesId: supersedes,
+});
+
+export const seedPrices: PriceRecord[] = [
+  price("price-46-1", "PO-2046", 1800, 1, null, "Contract CT-2025-014, price list 1", at("22", "09:00")),
+  price("price-46-2", "PO-2046", 1850, 2, "price-46-1", "Contract CT-2025-014, price list 2", at("23", "11:00")),
+  price("price-47-1", "PO-2047", 1850, 1, null, "Contract CT-2025-014, price list 2", at("23", "14:00")),
+  price("price-45-1", "PO-2045", 1850, 1, null, "Contract CT-2025-014, price list 2", at("19", "16:00")),
+  price("price-44-1", "PO-2044", 1850, 1, null, "Contract CT-2025-014, price list 2", at("18", "16:00")),
+];
+
+/** What finance holds. SHP-0044 is settled and paid. SHP-0045 has left and arrived but is not yet invoiced. The rest have nothing yet. */
+export const seedFinance: FinanceRecord[] = [
+  { id: "fin-44", shipmentId: "ship-44", source: "Finance ledger FIN-2025-0414", updatedAt: at("22", "15:00"), invoiceNumber: "INV-5521", finalValue: 832500, revenueRecognised: 832500, paymentStatus: "paid", cashReceived: 832500, transportCost: 36000 },
+  { id: "fin-45", shipmentId: "ship-45", source: "Finance ledger FIN-2025-0421", updatedAt: at("23", "12:00"), invoiceNumber: null, finalValue: null, revenueRecognised: null, paymentStatus: "not_invoiced", cashReceived: 0, transportCost: null },
+];
+
+const snap = (n: number, shipmentId: string, when: string, actor: string, reason: ValueSnapshot["reason"], priceId: string | null, per: number | null, qty: number, amount: number | null, status: ValueSnapshot["status"]): ValueSnapshot => ({
+  id: `vs-${String(n).padStart(3, "0")}`, shipmentId, at: when, actor, reason, priceId, pricePerTonne: per, quantityTonnes: qty, amount, status,
+});
+
+/** Every value a shipment has had, oldest first. The first line of each is its original estimate. */
+export const seedValueHistory: ValueSnapshot[] = [
+  snap(1, "ship-44", at("19", "09:00"), "John Dlamini", "created", "price-44-1", 1850, 450, 832500, "estimated"),
+  snap(2, "ship-44", at("21", "10:00"), "Naledi Khoza", "dispatched", "price-44-1", 1850, 450, 832500, "provisional"),
+  snap(3, "ship-44", at("22", "15:00"), "Zinhle Mahlangu", "finance_final", "price-44-1", 1850, 450, 832500, "final"),
+  snap(4, "ship-45", at("20", "09:00"), "John Dlamini", "created", "price-45-1", 1850, 600, 1110000, "estimated"),
+  snap(5, "ship-45", at("22", "11:20"), "Naledi Khoza", "dispatched", "price-45-1", 1850, 600, 1110000, "provisional"),
+  snap(6, "ship-46", at("23", "10:00"), "John Dlamini", "created", "price-46-1", 1800, 500, 900000, "estimated"),
+  snap(7, "ship-46", at("23", "11:00"), "Zinhle Mahlangu", "price_changed", "price-46-2", 1850, 500, 925000, "estimated"),
+  snap(8, "ship-47", at("23", "15:00"), "John Dlamini", "created", "price-47-1", 1850, 400, 740000, "estimated"),
+  snap(9, "ship-48", at("24", "08:00"), "John Dlamini", "created", null, null, 300, null, "not_priced"),
+];

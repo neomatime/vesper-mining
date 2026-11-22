@@ -42,6 +42,7 @@ import { downtimeReasonSchema, isSecondaryOf, issueDefectSchema } from "@vesper/
 import {
   areas,
   defaultContext,
+  DEMO_NOW,
   equipment,
   notifications,
   primaryIssue,
@@ -49,9 +50,11 @@ import {
   secondaryIssue,
   shifts,
 } from "./demo-data";
-import type { CollectionRequest, MeasurementBasis, ProductionEvent, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Transporter } from "@vesper/api-contracts";
-import { seedMovements, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedTransporters, shipmentCounters } from "./shipment-data";
-import { canActOnShipments, canCancel, checkDifference, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, stockPosition, type ShipmentCapability } from "./shipment-rules";
+import type { CollectionRequest, MeasurementBasis, PriceRecord, ProductionEvent, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Transporter, ValueSnapshot } from "@vesper/api-contracts";
+import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
+import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
+import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedTransporters, seedValueHistory, shipmentCounters } from "./shipment-data";
+import { CURRENCY, PRICE_BASIS, QUANTITY_BASIS, canActOnShipments, canCancel, checkDifference, currentPrice, formatMoney, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, shipmentValue, stockPosition, type ShipmentCapability } from "./shipment-rules";
 import { demoTimeAt, formatDemoDateTime, formatDemoTime } from "./demo-clock";
 import {
   activeActions,
@@ -125,10 +128,10 @@ function clone<T>(value: T): T {
  */
 const initialState = {
   context: defaultContext,
-  issues: [primaryIssue, secondaryIssue],
+  issues: [primaryIssue, secondaryIssue, goldIssue],
   areas,
-  readiness: [readinessActivity],
-  equipment,
+  readiness: [readinessActivity, goldReadiness],
+  equipment: [...equipment, goldEquipment],
   shifts,
   members: seedMembers,
   providers: seedProviders,
@@ -144,16 +147,23 @@ const initialState = {
   shipments: seedShipments,
   requests: seedCollectionRequests,
   transporters: seedTransporters,
+  /** The Gold demonstration's scenario and the history of changes to its estimate. */
+  impact: seedImpactScenario,
+  impactHistory: [] as ImpactChange[],
+  /** Every version of every price, and every value a shipment has had. Nothing here is ever overwritten. */
+  prices: seedPrices,
+  finance: seedFinance,
+  valueHistory: seedValueHistory,
   /** Submission ids already accepted, so a repeated submission is refused instead of saved twice. */
   submissions: [] as string[],
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 7, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters },
 };
 
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v5";
+const STORAGE_KEY = "vesper-demo-state-v7";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -162,7 +172,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -681,6 +691,99 @@ function assertProductionVersion(record: ProductionRecord, version: unknown) {
 function addMovement(type: StockMovement["type"], stockpileId: string, tonnes: number, ref: string, actor: Actor, note: string | null = null) {
   if (tonnes <= 0) return;
   state.movements = [...state.movements, { id: nextId("movement", "mv"), at: tick(), type, stockpileId, tonnes, ref, actor: actor.name, note }];
+}
+
+/** The finance record for a shipment, if finance has one. */
+function financeFor(shipmentId: string) {
+  return state.finance.find((item) => item.shipmentId === shipmentId) ?? null;
+}
+
+/**
+ * Appends what a shipment is worth right now to its value history. The history is only ever added to, so the original estimate and
+ * every later figure (a new price, a dispatch, finance settling) can be traced. Internal transfers have no value to record.
+ */
+function snapshotValue(shipment: Shipment, reason: ValueSnapshot["reason"], actor: Actor) {
+  if (shipment.kind !== "sale") return;
+  const price = currentPrice(state.prices, shipment.orderRef);
+  const value = shipmentValue(shipment, price, financeFor(shipment.id));
+  state.valueHistory = [
+    ...state.valueHistory,
+    { id: nextId("valueSnapshot", "vs"), shipmentId: shipment.id, at: tick(), actor: actor.name, reason, priceId: value.price?.id ?? null, pricePerTonne: value.price?.pricePerTonne ?? null, quantityTonnes: value.quantity, amount: value.amount, status: value.status },
+  ];
+}
+
+// ---- Impact ("What happens if we wait?") helpers -----------------------------------------------
+
+const impactResultOf = (scenario: ImpactScenario) =>
+  calculateImpact({ outageHours: scenario.outageHours, usableStockTonnes: scenario.usableStockTonnes, catchUpTonnes: scenario.catchUpTonnes, recoveredGrams: scenario.recoveredGrams });
+
+/** What the estimate says right now. `withValue` is false for people who may not see money, so no rand figure is ever stored for them. */
+function impactSnapshot(scenario: ImpactScenario, withValue: boolean): ImpactSnapshot {
+  const result = impactResultOf(scenario);
+  return {
+    outageHours: scenario.outageHours,
+    usableStockTonnes: scenario.usableStockTonnes,
+    catchUpTonnes: scenario.catchUpTonnes,
+    recoveredGrams: scenario.recoveredGrams,
+    goldAffectedGrams: result.goldAffectedGrams,
+    forecastGrams: result.forecastGrams,
+    valueDelayed: withValue ? result.valueDelayed : null,
+  };
+}
+
+/** Adds a line to the estimate's history: what it was, what it is now, why, and who changed it. Never edited afterwards. */
+function logImpact(kind: ImpactChange["kind"], reason: string, actor: Actor, previous: ImpactSnapshot) {
+  state.impactHistory = [
+    ...state.impactHistory,
+    { id: nextId("impactChange", "imp"), at: tick(), actor: actor.name, actorRole: actor.role, kind, reason, previous, revised: impactSnapshot(state.impact, true) },
+  ];
+}
+
+function hoursOf(value: unknown, label: string): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 72) fail(400, "VALIDATION_ERROR", `${label} must be between 0 and 72 hours.`);
+  return Math.round(parsed * 100) / 100;
+}
+
+function stockOf(value: unknown, label: string): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100_000) fail(400, "VALIDATION_ERROR", `${label} must be a number of tonnes, 0 or more.`);
+  return Math.round(parsed * 100) / 100;
+}
+
+function assertImpactCan(capability: ImpactCapability, actor: Actor) {
+  const check = canActOnImpact(capability, actor);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
+}
+
+/** Everything the screens need about the Gold demonstration, from the one set of records and the one calculation. */
+function buildImpact(actor?: Actor) {
+  const scenario = state.impact;
+  const showValue = Boolean(actor && canActOnShipments("view_value", actor).allowed);
+  const result = impactResultOf(scenario);
+  const equipment = state.equipment.find((item) => item.id === scenario.equipmentId);
+  const issue = state.issues.find((item) => item.id === scenario.issueId);
+  const activity = state.readiness.find((item) => item.id === scenario.activityId);
+  const part = activity?.parts[0] ?? null;
+  const repair = issue ? activeActions(issue).find((action) => action.state !== "complete") ?? null : null;
+  const expectedMinutes = scenario.outageHours === null ? null : (Date.parse(scenario.breakdownStartedAt) + scenario.outageHours * 3_600_000 - Date.parse(DEMO_NOW)) / 60_000;
+  return {
+    now: now(),
+    scenario,
+    result: showValue ? result : { ...result, valueDelayed: null },
+    canSeeValue: showValue,
+    plannedValue: showValue ? plannedSalesValue : null,
+    // The expected finish is the breakdown start plus the estimated outage, or the recorded finish once the repair is complete.
+    expectedRepairCompletion: scenario.repairCompletedAt ?? (expectedMinutes === null ? null : demoTimeAt(expectedMinutes)),
+    equipment: equipment ? { id: equipment.id, code: equipment.code, name: equipment.name, state: equipment.state, stateNote: equipment.stateNote } : null,
+    issue: issue ? { id: issue.id, number: issue.issueNumber, title: issue.title, owner: issue.owner, state: issue.workflowState } : null,
+    repair: repair ? { title: repair.title, owner: repair.owner, dueAt: repair.dueAt, state: repair.state } : null,
+    part: part ? { name: part.name, required: part.required, onHand: part.onHand, inbound: part.inbound, quality: part.quality, note: part.sourceNote } : null,
+    history: state.impactHistory.map((entry) => (showValue ? entry : { ...entry, previous: { ...entry.previous, valueDelayed: null }, revised: { ...entry.revised, valueDelayed: null } })),
+    can: { update: Boolean(actor && canActOnImpact("update_impact", actor).allowed), recover: Boolean(actor && canActOnImpact("record_recovery", actor).allowed) },
+  };
 }
 
 function recordShipment(shipment: Shipment, actor: Actor, event: { type: ShipmentEvent["type"]; summary: string; note?: string | null }) {
@@ -2211,7 +2314,7 @@ export const demoDomain = {
 
   // ---- Production, inventory and shipments -------------------------------------------------
   /** Everything the Shift Control Production tab and the Shipments module read, in one answer so their figures always agree. */
-  logistics() {
+  logistics(actor?: Actor) {
     const stockpiles = state.stockpiles.map((item) => ({ ...item, ...stockPosition(item, state.movements) }));
     const movements = [...state.movements].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 12);
     const byNewest = <T extends { createdAt: string }>(items: T[]) => [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -2223,6 +2326,16 @@ export const demoDomain = {
       shipments: [...state.shipments].sort((a, b) => b.number.localeCompare(a.number)),
       requests: [...state.requests].sort((a, b) => b.number.localeCompare(a.number)),
       transporters: state.transporters,
+      // Money is only sent to people allowed to see it. Everyone else gets no price, value or finance record at all, so there is
+      // nothing for a screen, an export or a network inspector to reveal.
+      commercial: actor && canActOnShipments("view_value", actor).allowed
+        ? {
+            prices: state.prices,
+            history: state.valueHistory,
+            finance: canActOnShipments("view_finance", actor).allowed ? state.finance : null,
+            canSetPrices: canActOnShipments("manage_prices", actor).allowed,
+          }
+        : null,
     };
   },
 
@@ -2310,6 +2423,7 @@ export const demoDomain = {
   createShipment(input: Record<string, unknown>, actor: Actor) {
     assertShipmentsCan("manage_shipments", actor);
     const commit = guardRepeat(input);
+    const kind: Shipment["kind"] = input.kind === "internal_transfer" ? "internal_transfer" : "sale";
     const stockpile = findStockpile(input.stockpileId);
     if (stockpile.condition !== "ready_for_shipment") fail(409, "NOT_ELIGIBLE", `${stockpile.code} holds material that needs processing. It cannot be reserved for a shipment yet.`);
     const tonnes = tonnesOf(input.tonnes, "The amount to reserve");
@@ -2326,6 +2440,7 @@ export const demoDomain = {
     const shipment: Shipment = {
       id: `ship-${state.counters.shipment + 1}`,
       number: nextNumber("shipment", "SHP"),
+      kind,
       mineral: stockpile.mineral,
       stockpileId: stockpile.id,
       tonnes,
@@ -2349,6 +2464,7 @@ export const demoDomain = {
     recordShipment(shipment, actor, { type: "created", summary: `Shipment created and ${formatTonnes(tonnes)} reserved` });
     shipment.version = 1;
     state.shipments = [...state.shipments, shipment];
+    snapshotValue(shipment, "created", actor);
     commit();
     return shipment;
   },
@@ -2483,6 +2599,7 @@ export const demoDomain = {
     addMovement("dispatch", shipment.stockpileId, tonnes, shipment.number, actor);
     const after = shipmentFigures(shipment);
     recordShipment(shipment, actor, { type: "dispatched", summary: after.remaining > 0 ? `${formatTonnes(tonnes)} dispatched; ${formatTonnes(after.remaining)} still at the mine` : `${formatTonnes(tonnes)} dispatched` });
+    if (after.remaining === 0) snapshotValue(shipment, "dispatched", actor);
     commit();
     return shipment;
   },
@@ -2541,6 +2658,43 @@ export const demoDomain = {
     return shipment;
   },
 
+  /**
+   * Supplies or changes the price for a customer order or contract. Only the Commercial / Finance Officer may. The old price is kept
+   * as an earlier version, and every open shipment on that order gets a new line in its value history, so the original estimate stays.
+   */
+  setPrice(input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_prices", actor);
+    const commit = guardRepeat(input);
+    const reference = requireText(input.reference, "The customer order or contract", 3);
+    const perTonne = tonnesOf(input.pricePerTonne, "The price per tonne");
+    const source = requireText(input.source, "The source of the price", 3);
+    const previous = currentPrice(state.prices, reference);
+    if (previous && previous.pricePerTonne === perTonne) fail(409, "DUPLICATE", `${reference} is already priced at ${formatMoney(perTonne)} per tonne.`);
+    const record: PriceRecord = {
+      id: nextId("price", "price"),
+      reference,
+      customer: text(input.customer) || previous?.customer || null,
+      pricePerTonne: perTonne,
+      currency: CURRENCY,
+      quantityBasis: QUANTITY_BASIS,
+      priceBasis: PRICE_BASIS,
+      source,
+      suppliedBy: actor.name,
+      updatedAt: tick(),
+      version: (previous?.version ?? 0) + 1,
+      supersedesId: previous?.id ?? null,
+    };
+    state.prices = [...state.prices, record];
+    for (const shipment of state.shipments) {
+      if (shipment.kind !== "sale" || shipment.state === "cancelled" || shipment.orderRef.trim().toLowerCase() !== reference.toLowerCase()) continue;
+      // A value finance has settled is final, and a new price does not reopen it.
+      if (financeFor(shipment.id)?.finalValue != null) continue;
+      snapshotValue(shipment, previous ? "price_changed" : "priced", actor);
+    }
+    commit();
+    return record;
+  },
+
   addTransporter(input: Record<string, unknown>, actor: Actor) {
     assertShipmentsCan("manage_shipments", actor);
     const commit = guardRepeat(input);
@@ -2558,6 +2712,105 @@ export const demoDomain = {
     if (!active && state.shipments.some((item) => item.transporterId === id && ["preparing", "waiting", "confirmed", "declined", "dispatched"].includes(item.state))) fail(409, "IN_USE", `${transporter.name} still has shipments in progress, so it cannot be switched off.`);
     transporter.active = active;
     return transporter;
+  },
+
+  // ---- Impact ("What happens if we wait?") --------------------------------------------------
+  impact: (actor?: Actor) => buildImpact(actor),
+
+  /** Changes the estimate (outage length, usable stock, approved catch-up). The previous estimate stays in the history with the reason. */
+  updateImpact(input: Record<string, unknown>, actor: Actor) {
+    assertImpactCan("update_impact", actor);
+    const scenario = state.impact;
+    const reason = requireText(input.reason, "The reason for the change", 5);
+    const before = impactSnapshot(scenario, true);
+    let changed = false;
+    if ("outageHours" in input) {
+      if (scenario.repairCompletedAt) fail(409, "READ_ONLY", "The repair is recorded as complete, so the outage is the recorded actual and is kept.");
+      scenario.outageHours = hoursOf(input.outageHours, "The outage length");
+      changed = true;
+    }
+    if ("usableStockTonnes" in input) {
+      scenario.usableStockTonnes = stockOf(input.usableStockTonnes, "The usable stock");
+      changed = true;
+    }
+    if ("catchUpTonnes" in input) {
+      scenario.catchUpTonnes = stockOf(input.catchUpTonnes, "The approved catch-up");
+      changed = true;
+    }
+    if (!changed) fail(400, "VALIDATION_ERROR", "Change at least one input.");
+    scenario.updatedAt = tick();
+    scenario.updatedBy = actor.name;
+    logImpact("estimate", reason, actor, before);
+    notify(scenario.responsible, "Repair estimate updated (demo)", `${scenario.label}: ${reason} No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
+    return buildImpact(actor);
+  },
+
+  /**
+   * Records the repair as complete with the actual outage. The actual downtime is kept and the forecast is recalculated from it. Any
+   * shortfall that remains stays until a recovery is recorded: finishing the repair does not recover the lost output, and the
+   * equipment and issue are marked as reported, not verified.
+   */
+  completeRepair(input: Record<string, unknown>, actor: Actor) {
+    assertImpactCan("update_impact", actor);
+    const scenario = state.impact;
+    if (scenario.repairCompletedAt) fail(409, "READ_ONLY", "The repair has already been recorded as complete.");
+    const hours = hoursOf(input.actualOutageHours, "The actual outage");
+    if (hours === null || hours <= 0) fail(400, "VALIDATION_ERROR", "Enter how many hours the crusher was out, from the breakdown to the repair.");
+    const note = text(input.note);
+    const before = impactSnapshot(scenario, true);
+    scenario.outageHours = hours;
+    scenario.actualOutageHours = hours;
+    scenario.repairCompletedAt = tick();
+    scenario.updatedAt = scenario.repairCompletedAt;
+    scenario.updatedBy = actor.name;
+    const equipment = state.equipment.find((item) => item.id === scenario.equipmentId);
+    if (equipment) {
+      equipment.state = "available";
+      equipment.stateNote = "Repair recorded as complete. Not yet independently verified.";
+      equipment.stateQuality = "reported";
+      equipment.stateUpdatedAt = scenario.repairCompletedAt;
+      recordEquipment(equipment, actor, { type: "state_changed", summary: "Reported available: repair complete", note: note || null, state: "available", reason: null });
+    }
+    const issue = state.issues.find((item) => item.id === scenario.issueId);
+    if (issue && isOpen(issue) && issue.workflowState !== "resolution_reported") {
+      const previousState = issue.workflowState;
+      issue.workflowState = "resolution_reported";
+      issue.resolutionReportedBy = actor.name;
+      record(issue, actor, { type: "state_changed", summary: "Repair recorded as complete; waiting for independent verification", previousState, nextState: "resolution_reported", note: note || null });
+    }
+    logImpact("repair_complete", note || `Repair complete after ${hours} hours.`, actor, before);
+    notify(scenario.responsible, "Repair recorded complete (demo)", `${scenario.label}: actual outage ${hours} hours. The remaining shortfall is unchanged until a recovery is recorded. No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
+    return buildImpact(actor);
+  },
+
+  /** Records gold produced towards the shortfall. This is recorded progress. It is not verified stock and releases nothing for dispatch. */
+  recordRecovery(input: Record<string, unknown>, actor: Actor) {
+    assertImpactCan("record_recovery", actor);
+    const scenario = state.impact;
+    const result = impactResultOf(scenario);
+    if (!result.assessed || !result.remainingShortfallGrams) fail(409, "READ_ONLY", "There is no shortfall to recover.");
+    const grams = Number(input.grams);
+    if (!Number.isFinite(grams) || grams <= 0) fail(400, "VALIDATION_ERROR", "Enter the grams recovered, more than 0.");
+    if (grams > result.remainingShortfallGrams) fail(409, "TOO_MUCH", `Only ${result.remainingShortfallGrams} g is still short.`);
+    const reason = requireText(input.note, "The production record or plan", 5);
+    const before = impactSnapshot(scenario, true);
+    scenario.recoveredGrams = Math.round((scenario.recoveredGrams + grams) * 100) / 100;
+    scenario.updatedAt = tick();
+    scenario.updatedBy = actor.name;
+    logImpact("recovery", reason, actor, before);
+    return buildImpact(actor);
+  },
+
+  /** Puts the Gold demonstration back to how it started: the crusher stopped, a four hour estimate, and an empty history. */
+  resetImpact(actor: Actor) {
+    assertImpactCan("update_impact", actor);
+    state.impact = clone(seedImpactScenario);
+    state.impactHistory = [];
+    const index = (list: { id: string }[], id: string) => list.findIndex((item) => item.id === id);
+    state.equipment[index(state.equipment, GOLD_EQUIPMENT_ID)] = clone(goldEquipment);
+    state.issues[index(state.issues, GOLD_ISSUE_ID)] = clone(goldIssue);
+    state.readiness[index(state.readiness, GOLD_ACTIVITY_ID)] = clone(goldReadiness);
+    return buildImpact(actor);
   },
 
   // ---- Notifications ---------------------------------------------------------------------

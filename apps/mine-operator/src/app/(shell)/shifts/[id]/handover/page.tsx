@@ -1,11 +1,11 @@
 /**
- * Route page. Renders the shift page opened on its handover. Needs shift_handover.
+ * Route page. Renders the Handover tab for one shift. Needs shift_handover.
  * Routes only choose the screen and read the URL; the behaviour lives in the component.
  */
 import { FeatureGate } from "@/components/entitlement-gate";
-import { ShiftDetailScreen } from "@/components/shift-detail-screen";
+import { HandoverTabScreen } from "@/components/shift-control-screens";
 
 export default async function HandoverPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <FeatureGate feature="shift_handover"><ShiftDetailScreen id={id} handover /></FeatureGate>;
+  return <FeatureGate feature="shift_handover"><HandoverTabScreen id={id} /></FeatureGate>;
 }

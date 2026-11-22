@@ -56,6 +56,7 @@ import {
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
+import { WaitSection } from "./impact-panels";
 import { StatusBadge } from "./status-badge";
 import { useIssueMutations } from "./use-issue-mutations";
 
@@ -157,6 +158,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
 
       <section className="detail-layout">
         <div className="detail-layout__main">
+          <WaitSection issueId={issue.id} />
           <article className="card detail-card">
             <header className="card__header"><div><span className="eyebrow">Current coordination state</span><h2>Issue summary</h2></div><StatusBadge value={issue.quality} /></header>
             <dl className="definition-grid">
@@ -177,7 +179,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
             <div className="evidence-callout"><ShieldCheck /><div><strong>Reported information is not operational clearance</strong><p>Repair completion, independent verification, authorised release and operation resumption remain distinct events.</p></div></div>
           </article>
 
-          <article className="card detail-card">
+          <article className="card detail-card" id="actions">
             <header className="card__header">
               <div><span className="eyebrow">Action flow</span><h2>Actions</h2></div>
               <div className="card__tools">

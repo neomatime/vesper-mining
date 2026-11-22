@@ -8,19 +8,21 @@
  * Closing a shift sends its handover but does not mark it received: the incoming supervisor confirms receipt separately.
  */
 import type { OperationalIssue, ProductionRecord } from "@vesper/api-contracts";
-import { AlertTriangle, ArrowLeft, BarChart3, CalendarDays, Check, ClipboardList, Download, Info, Layers, Lock, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CalendarDays, Check, CheckCircle2, ClipboardList, Download, FileText, Info, Layers, Lock, RotateCcw, Send, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { demoFetch } from "@/lib/api";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isFinished, stateLabels } from "@/lib/issue-rules";
+import { draftShiftReport, reportSources, reportToText } from "@/lib/shift-report";
 import { formatTonnes, productionStateLabels, productionTone } from "@/lib/shipment-rules";
 import { formatDay, shiftTimes } from "@/lib/shift-format";
 import { canActOnShift, type ShiftView } from "@/lib/shift-rules";
 import { downloadCsv } from "@/lib/csv";
 import { useDemoContext } from "@/stores/demo-context";
+import { ConfirmDialog } from "./dialog";
 import { Field } from "./form-field";
 import { ShiftControlTabs } from "./module-tabs";
 import { PageHeader } from "./page-header";
@@ -151,23 +153,159 @@ export function ShiftReportsScreen() {
 
 // ---- Handover tab ------------------------------------------------------------------------------------------------------
 
-/** Opens the handover of the shift that is running now, or the next one, so the tab always leads somewhere useful. */
-export function HandoverTabScreen() {
-  const router = useRouter();
+/**
+ * The Handover tab: tell the next team what is done and what needs attention. It shows the shift that is running now (or the next
+ * one), or a given shift when opened from that shift's page. Sending the handover does not mean it was received: the incoming
+ * supervisor confirms receipt separately.
+ */
+export function HandoverTabScreen({ id }: { id?: string }) {
   const { data: shell, isLoading } = useShellData();
-  const target = shell ? (shell.shifts.find((shift) => shift.state === "in_progress") ?? shell.shifts.find((shift) => shift.state === "scheduled"))?.id : undefined;
-  useEffect(() => { if (target) router.replace(`/shifts/${target}/handover`); }, [target, router]);
-  if (isLoading) return <LoadingState />;
+  const target = id ?? (shell ? (shell.shifts.find((shift) => shift.state === "in_progress") ?? shell.shifts.find((shift) => shift.state === "scheduled"))?.id : undefined);
+  const query = useQuery({ queryKey: ["shift", target], queryFn: () => demoFetch<ShiftView>(`/shifts/${target}`), enabled: Boolean(target) });
+  const logistics = useLogistics();
+  if (!id && isLoading) return <LoadingState />;
   if (!target) {
     return (
       <div className="workspace-page">
-        <PageHeader eyebrow="Shift Control & Handover" title="Handover" description="Tell the next team what is done and what needs attention." icon={ClipboardList} />
+        <PageHeader eyebrow="Shift Control" title="Handover" description="Tell the next team what is done and what needs attention." icon={ClipboardList} />
         <ShiftControlTabs active="handover" />
         <section className="card empty-inline empty-inline--centered"><strong>No shift to hand over</strong><span>Schedule or start a shift first. <Link className="row-link" href="/shifts">Go to Shifts</Link></span></section>
       </div>
     );
   }
-  return <LoadingState />;
+  if (query.isPending || logistics.isPending) return <LoadingState />;
+  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (logistics.isError) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} />;
+  return <HandoverPage shift={query.data} production={logistics.data.production.filter((item) => item.shiftId === query.data.id)} />;
+}
+
+const handoverWords = { draft: "Draft", published: "Sent · waiting for receipt", acknowledged: "Received" } as const;
+const handoverTone = { draft: "draft", published: "needs_confirmation", acknowledged: "confirmed" } as const;
+
+function HandoverPage({ shift, production }: { shift: ShiftView; production: ProductionRecord[] }) {
+  const { context } = useDemoContext();
+  const actor = { name: context.persona, role: context.role };
+  const mutations = useShiftMutations(shift);
+  const { data: shell } = useShellData();
+  const { handover } = shift;
+  const [notes, setNotes] = useState(handover.notes);
+  const [sources, setSources] = useState<{ href: string; label: string }[]>([]);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  const nextShift = shell?.shifts.find((item) => item.id === shift.next?.id);
+  const canHandOver = canActOnShift("handover", actor, shift).allowed;
+  const isSender = handover.publishedBy === actor.name;
+  const canReceive = canActOnShift("acknowledge", actor, shift, shift.next).allowed && !isSender;
+  const started = shift.state === "in_progress" || shift.state === "closed";
+  const dirty = notes !== handover.notes;
+  const canEditNotes = canHandOver && handover.state === "draft" && shift.state !== "cancelled";
+  const unfinished = shift.work.filter((item) => !item.done);
+  const carried = [
+    ...unfinished.map((item) => ({ key: item.id, title: item.title, owner: item.owner, issueId: item.issueId })),
+    // Every open issue carries over as well, even when a task points at it, so none can be lost in a handover.
+    ...shift.issues.map((issue) => ({ key: issue.id, title: issue.title, owner: issue.owner, issueId: issue.id })),
+  ];
+  const dueOf = (issueId: string | null) => {
+    const issue = shift.issues.find((item) => item.id === issueId);
+    const due = issue ? activeActions(issue).filter((action) => action.state !== "complete" && action.dueAt).map((action) => action.dueAt as string).sort()[0] : undefined;
+    return due ? formatDemoDateTime(due) : shift.next ? `When ${shift.next.name} starts` : "Next shift";
+  };
+
+  // Builds the report from records already in VESPER and adds it to the notes as editable text, below anything already written.
+  const prepareDraft = () => {
+    if (!shell) return;
+    const draft = draftShiftReport({ shift, issues: shell.issues, equipment: shell.equipment, now: shell.now });
+    const text = reportToText(draft, shift.name);
+    setNotes(notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text);
+    setSources(reportSources(draft));
+  };
+
+  return (
+    <div className="workspace-page">
+      <PageHeader eyebrow="Shift Control" title="Handover" description="Tell the next team what is done and what needs attention." icon={ClipboardList} />
+      <ShiftControlTabs active="handover" />
+      <section className="card task-card">
+        <div className="fact-row" style={{ justifyContent: "space-between" }}>
+          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 300, letterSpacing: "-0.02em" }}>{shift.name} to {shift.next?.name ?? "the next shift"}</h2>
+          <StatusBadge value={handoverTone[handover.state]} label={handoverWords[handover.state]} />
+        </div>
+        <div className="task-grid" style={{ alignItems: "center", gridTemplateColumns: "1fr auto 1fr" }}>
+          <div className="fact"><span>Sender (from shift)</span><strong>{shift.supervisor ?? "No supervisor"}</strong><small>{shiftTimes(shift)}</small></div>
+          <ArrowRight aria-hidden="true" />
+          <div className="fact"><span>Receiver (to shift)</span><strong>{shift.next?.supervisor ?? "Not assigned"}</strong><small>{nextShift ? shiftTimes(nextShift) : "No next shift yet"}</small></div>
+        </div>
+
+        <section className="task-section">
+          <h2>1. Production</h2>
+          {production.length === 0 ? <p className="field-hint">No production was recorded for this shift. <Link className="row-link" href="/shifts/production/new">Record production</Link></p> : (
+            <div className="table-wrap"><table className="data-table"><tbody>
+              {production.map((item) => (
+                <tr key={item.id}><td data-label="Mineral">{item.mineral}</td><td data-label="Reported">{formatTonnes(item.reportedTonnes)} reported</td><td data-label="Status"><StatusBadge value={productionTone[item.state]} label={productionStateLabels[item.state]} /></td></tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </section>
+
+        <section className="task-section">
+          <h2>2. Work to carry forward</h2>
+          {carried.length === 0 ? <div className="note-bar note-bar--good"><Check /> <span>Nothing to carry forward. Every task is done and every issue is closed.</span></div> : (
+            <div className="table-wrap"><table className="data-table">
+              <thead><tr><th scope="col">Item</th><th scope="col">Next owner</th><th scope="col">Due</th></tr></thead>
+              <tbody>{carried.map((item) => (
+                <tr key={item.key}>
+                  <td data-label="Item">{item.issueId ? <Link className="row-link" href={`/exceptions/${item.issueId}`}>{item.title}</Link> : item.title}</td>
+                  <td data-label="Next owner">{item.owner ?? <span className="muted">Not assigned</span>}</td>
+                  <td data-label="Due">{dueOf(item.issueId)}</td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </section>
+
+        <section className="task-section">
+          <h2>3. Note for the next team</h2>
+          <textarea rows={Math.min(24, Math.max(4, notes.split("\n").length + 2))} value={notes} onChange={(event) => setNotes(event.target.value)} readOnly={!canEditNotes} aria-label="Note for the next team" />
+          <p className="field-hint">
+            {handover.state !== "draft" ? "A sent note is locked. Withdraw the handover to change it." : shift.state === "cancelled" ? "A cancelled shift has no handover." : canHandOver ? "Write what the next team must know." : `Viewing as ${context.role}. The handover belongs to ${shift.supervisor ?? "this shift's supervisor"} or the Mine Manager.`}
+          </p>
+          {canEditNotes ? (
+            <div className="handover-draft">
+              <button type="button" className="button button--quiet" onClick={prepareDraft} disabled={!shell}><FileText /> Prepare draft from shift records</button>
+              <small>Adds what VESPER already knows: work done, issues that moved, equipment changes and what carries over. You review and edit it before sending.</small>
+            </div>
+          ) : null}
+          {sources.length > 0 ? <div className="handover-sources" aria-label="Records the draft draws on"><small>Drawn from</small><ul>{sources.map((source) => <li key={source.href}><Link href={source.href}>{source.label}</Link></li>)}</ul></div> : null}
+        </section>
+
+        {handover.state === "acknowledged" ? (
+          <div className="inline-success"><CheckCircle2 /> Received by {handover.acknowledgedBy}{handover.acknowledgedAt ? ` at ${formatDemoDateTime(handover.acknowledgedAt)}` : ""}. Receipt confirms the information only. The issues themselves stay open.</div>
+        ) : null}
+        {canEditNotes && !started ? <small className="field-hint">Start the shift before sending the handover.</small> : null}
+        {canEditNotes && started && notes.trim().length < 20 ? <small className="field-hint">Write at least twenty characters to send it.</small> : null}
+        {handover.state === "published" && !canReceive ? <small className="field-hint">{isSender ? "The next supervisor confirms receipt, not the person who sent it." : `Only ${shift.next?.supervisor ?? "the next shift's supervisor"} or the Mine Manager can confirm receipt.`}</small> : null}
+
+        <div className="task-footer">
+          <p>{handover.state === "draft" ? `${shift.next?.supervisor ?? "The next supervisor"} will be asked to confirm receipt.` : handover.state === "published" ? `Sent by ${handover.publishedBy}${handover.publishedAt ? ` at ${formatDemoDateTime(handover.publishedAt)}` : ""}.` : ""}</p>
+          <div className="button-row">
+            {canEditNotes ? <button className="button button--quiet" disabled={!dirty || mutations.saveNotes.isPending} onClick={() => mutations.saveNotes.mutate(notes)}>{mutations.saveNotes.isPending ? "Saving…" : dirty ? "Save draft" : "Saved"}</button> : null}
+            {canEditNotes ? <button className="button button--primary" disabled={!started || mutations.publish.isPending || notes.trim().length < 20} onClick={() => mutations.publish.mutate(dirty ? notes : null)}><Send /> {mutations.publish.isPending ? "Sending…" : "Send handover"}</button> : null}
+            {handover.state === "published" && canHandOver ? <button className="button button--quiet" onClick={() => setWithdrawing(true)}><RotateCcw /> Withdraw handover</button> : null}
+            {handover.state === "published" ? <button className="button button--primary" disabled={!canReceive || mutations.acknowledge.isPending} onClick={() => mutations.acknowledge.mutate()}><Check /> {mutations.acknowledge.isPending ? "Recording…" : "Confirm receipt"}</button> : null}
+          </div>
+        </div>
+      </section>
+      {withdrawing ? (
+        <ConfirmDialog
+          title="Withdraw this handover?"
+          body="It goes back to a draft so the note can be changed. Nothing about the issues changes."
+          confirmLabel="Withdraw handover"
+          pending={mutations.withdraw.isPending}
+          onConfirm={() => mutations.withdraw.mutate(undefined, { onSettled: () => setWithdrawing(false) })}
+          onClose={() => setWithdrawing(false)}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 // ---- Close shift -------------------------------------------------------------------------------------------------------

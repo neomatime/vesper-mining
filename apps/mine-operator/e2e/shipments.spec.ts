@@ -21,6 +21,22 @@ test.describe("navigation", () => {
     for (const name of ["Overview", "Mineral Inventory", "Shipments", "Logistics", "History"]) await expect(tabs.getByRole("link", { name })).toBeVisible();
   });
 
+  test("the Handover tab is its own page: it keeps the tabs and shows the sender, the receiver, production, carried work and the note", async ({ page }) => {
+    await openAs(page, "/shifts", "Amina Patel");
+    await page.getByRole("navigation", { name: "Shift Control sections" }).getByRole("link", { name: "Handover" }).click();
+    await expect(page).toHaveURL(/\/shifts\/handover$/);
+    await expect(page.getByRole("heading", { name: "Handover", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Shift Control sections" }).getByRole("link", { name: "Handover" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("heading", { name: "Shift A to Shift B" })).toBeVisible();
+    await expect(page.getByText("Sender (from shift)")).toBeVisible();
+    await expect(page.getByText("Receiver (to shift)")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "1. Production" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "2. Work to carry forward" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "3. Note for the next team" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send handover" })).toBeVisible();
+    await expect(page.getByText(/will be asked to confirm receipt/)).toBeVisible();
+  });
+
   test("opens the Shift Control Exceptions and Reports tabs from the existing records", async ({ page }) => {
     await openAs(page, "/shifts/exceptions");
     await expect(page.getByRole("heading", { name: "Exceptions" })).toBeVisible();
@@ -237,6 +253,6 @@ test.describe("closing a shift", () => {
     await expect(page.getByText(/Shift A closed/)).toBeVisible();
     await actAs(page, "Sipho Nkosi");
     await page.goto("/shifts/shift-a-20250424/handover");
-    await expect(page.getByRole("button", { name: "Acknowledge handover" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Confirm receipt" })).toBeEnabled();
   });
 });

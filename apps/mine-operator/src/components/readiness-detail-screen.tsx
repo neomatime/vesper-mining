@@ -18,6 +18,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
+import { ImpactCard } from "./impact-panels";
 import { StatusBadge } from "./status-badge";
 import { useToast } from "./toast-provider";
 
@@ -98,6 +99,7 @@ function ReadinessDetail({ activity }: { activity: ReadinessActivity }) {
     <div className="workspace-page">
       <Link href="/resources" className="back-link"><ArrowLeft /> Resource Readiness</Link>
       <PageHeader eyebrow="Maintenance-delay prevention" title={activity.title} description="Review required parts, information certainty, inbound supply and the next authorised human action." icon={PackageCheck} action={<StatusBadge value={activity.status} label={readinessLabels[activity.status]} />} />
+      <ImpactCard focus="readiness" id={activity.id} />
       <section className="readiness-layout">
         <article className="card readiness-summary">
           <div><span><CalendarClock /></span><small>Scheduled need</small><strong>{formatDemoDateTime(activity.scheduledFor).split(" · ")[0]} 2025</strong><p>From the maintenance plan</p></div>

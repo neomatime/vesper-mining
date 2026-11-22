@@ -35,6 +35,7 @@ import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useEquipmentMutations } from "./use-equipment-mutations";
 import { useFeature } from "./use-entitlements";
+import { ImpactCard } from "./impact-panels";
 import { useServiceRequests } from "./use-service";
 import { canRequestService, isOpenRequest, requestStatusLabels } from "@/lib/service-rules";
 
@@ -170,6 +171,7 @@ function EquipmentDetail({ item }: { item: EquipmentView }) {
 
       <section className="detail-layout">
         <div className="detail-layout__main">
+          <ImpactCard focus="equipment" id={item.id} />
           <article className="card detail-card">
             <header className="card__header">
               <div><span className="eyebrow">Asset</span><h2>Details</h2></div>

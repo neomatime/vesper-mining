@@ -23,6 +23,7 @@ export const accounts: Account[] = [
   { email: "lebo.maseko@riverside.example", name: "Lebo Maseko", role: "Maintenance Planner", home: "/overview" },
   { email: "naledi.khoza@riverside.example", name: "Naledi Khoza", role: "Stores / Inventory Controller", home: "/overview" },
   { email: "thabo.molefe@riverside.example", name: "Thabo Molefe", role: "Field Employee", home: "/mobile/my-shift" },
+  { email: "zinhle.mahlangu@riverside.example", name: "Zinhle Mahlangu", role: "Commercial / Finance Officer", home: "/overview" },
 ];
 
 export function findAccount(email: string) {

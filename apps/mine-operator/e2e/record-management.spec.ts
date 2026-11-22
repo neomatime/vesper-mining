@@ -164,14 +164,14 @@ test.describe("record management", () => {
   test("publishes and acknowledges a handover with two different people", async ({ page }) => {
     await openApp(page, "/shifts/shift-a-20250424/handover");
     await actAs(page, "Amina Patel");
-    await page.getByRole("button", { name: "Publish handover" }).click();
-    await expect(page.getByText("Handover published")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Acknowledge handover" })).toBeDisabled();
-    await expect(page.getByText(/not the person who published it/)).toBeVisible();
+    await page.getByRole("button", { name: "Send handover" }).click();
+    await expect(page.getByText("Handover sent", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm receipt" })).toBeDisabled();
+    await expect(page.getByText(/not the person who sent it/)).toBeVisible();
 
     await actAs(page, "John Dlamini");
-    await page.getByRole("button", { name: "Acknowledge handover" }).click();
-    await expect(page.getByText(/Acknowledged by John Dlamini/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm receipt" }).click();
+    await expect(page.getByText(/Received by John Dlamini/)).toBeVisible();
     // Acknowledging receipt leaves the underlying issues open.
     await expect(page.getByText("Crusher C-02 — Feed Interruption")).toBeVisible();
   });

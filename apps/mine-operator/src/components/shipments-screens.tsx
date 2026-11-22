@@ -17,29 +17,37 @@ import { downloadCsv } from "@/lib/csv";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import {
   canActOnShipments,
+  blockerOf,
   canCancel,
   checkLabels,
   conditionLabels,
+  currentPrice,
   destinations,
+  formatMoney,
   formatTonnes,
   nextStepLabel,
   readinessProblems,
+  responsibleOf,
   shipmentFigures,
   shipmentStage,
   shipmentStages,
   shipmentStateLabels,
   shipmentTone,
   shortDate,
+  valueStatusLabels,
+  valueSummary,
 } from "@/lib/shipment-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { GoldDeliveryCard } from "./impact-panels";
 import { ShipmentTabs } from "./module-tabs";
 import { PageHeader } from "./page-header";
 import { ErrorState, LoadingState } from "./query-state";
 import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
+import { ValueCell, ValueSection, shipmentValuesOf } from "./value-panels";
 import { RegisterView, type Register } from "./workspace-screen";
 
 const useActor = () => {
@@ -78,6 +86,8 @@ export function ShipmentOverviewScreen() {
   const open = data.shipments.filter(isOpen);
   const count = (state: Shipment["state"]) => data.shipments.filter((item) => item.state === state).length;
   const available = data.stockpiles.reduce((total, item) => total + item.available, 0);
+  const values = shipmentValuesOf(data);
+  const summary = values.visible ? valueSummary(data.shipments, (item) => values.valueOf(item)!, values.requestOf, data.now) : null;
 
   const detail = (shipment: Shipment) => {
     const tonnes = `${formatTonnes(shipment.tonnes)} ${shipment.mineral.toLowerCase()}`;
@@ -109,12 +119,22 @@ export function ShipmentOverviewScreen() {
         action={canActOnShipments("manage_shipments", actor).allowed ? <Link className="button button--primary" href="/shipments/new"><Plus /> Create shipment</Link> : undefined}
       />
       <ShipmentTabs active="overview" />
+      <GoldDeliveryCard />
       <section className="kpi-row" aria-label="Summary">
         <article className="kpi"><span>Preparing</span><strong>{count("preparing") + count("declined")}</strong><small>Being made ready</small></article>
         <article className="kpi"><span>Waiting for transporter</span><strong>{count("waiting")}</strong><small>Request recorded, no reply yet</small></article>
         <article className="kpi"><span>Collection confirmed</span><strong>{count("confirmed")}</strong><small>The transporter has replied</small></article>
         <article className="kpi"><span>Available to reserve</span><strong>{formatTonnes(available)}</strong><small>Ready for shipment, not reserved</small></article>
       </section>
+      {summary ? (
+        <>
+          <section className="kpi-row" aria-label="Sales value">
+            <article className="kpi"><span>Value awaiting collection</span><strong>{formatMoney(summary.awaiting.amount)}</strong><small>{summary.awaiting.count} {summary.awaiting.count === 1 ? "shipment" : "shipments"} requested or confirmed, on time</small></article>
+            <article className={`kpi ${summary.delayed.count > 0 ? "kpi--attention" : ""}`}><span>Value of delayed shipments</span><strong>{formatMoney(summary.delayed.amount)}</strong><small>{summary.delayed.count} {summary.delayed.count === 1 ? "shipment" : "shipments"} past their collection date or declined</small></article>
+          </section>
+          <p className="notice-line">Estimated sales value, in {"ZAR"}. Each shipment is counted once, so the two totals never overlap. {summary.notPriced > 0 ? `${summary.notPriced} ${summary.notPriced === 1 ? "shipment is" : "shipments are"} not priced and left out. ` : ""}A delayed shipment’s value is what is at stake in a late collection, not a loss. Sales value is not revenue or cash.</p>
+        </>
+      ) : null}
       <section className="card register-card">
         <div className="card__header"><div><h2>What needs attention</h2></div></div>
         {open.length === 0 ? (
@@ -122,13 +142,16 @@ export function ShipmentOverviewScreen() {
         ) : (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th scope="col">Shipment</th><th scope="col">Details</th><th scope="col">Status</th><th scope="col">Next action</th></tr></thead>
+              <thead><tr><th scope="col">Shipment</th><th scope="col">Details</th><th scope="col">Status</th><th scope="col">Blocker</th><th scope="col">Responsible</th>{values.visible ? <th scope="col">Sales value</th> : null}<th scope="col">Next action</th></tr></thead>
               <tbody>
                 {open.map((shipment) => (
                   <tr key={shipment.id}>
-                    <td data-label="Shipment"><strong>{shipment.number}</strong></td>
+                    <td data-label="Shipment" style={{ whiteSpace: "nowrap" }}><strong>{shipment.number}</strong></td>
                     <td data-label="Details">{detail(shipment)}</td>
                     <td data-label="Status"><StatusBadge value={shipmentTone[shipment.state]} label={shipmentStateLabels[shipment.state]} /></td>
+                    <td data-label="Blocker">{blockerOf(shipment, values.requestOf(shipment), transporterOf(data, shipment.transporterId)) ?? <span className="muted">None</span>}</td>
+                    <td data-label="Responsible">{responsibleOf(shipment, transporterOf(data, shipment.transporterId))}</td>
+                    {values.visible ? <td data-label="Sales value"><ValueCell value={values.valueOf(shipment)} /></td> : null}
                     <td data-label="Next action"><Link className="button button--quiet button--small" href={`/shipments/${shipment.id}`}>{nextStepLabel(shipment)}</Link></td>
                   </tr>
                 ))}
@@ -246,6 +269,7 @@ export function ShipmentListScreen() {
   if (query.isPending) return <LoadingState />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   const data = query.data;
+  const values = shipmentValuesOf(data);
   const active = data.shipments.filter(isOpen);
   const reserved = active.reduce((total, item) => total + item.tonnes - shipmentFigures(item).dispatched, 0);
 
@@ -256,6 +280,7 @@ export function ShipmentListScreen() {
       { key: "shipment", label: "Shipment", render: (item) => item.number },
       { key: "material", label: "Material", render: (item) => `${item.mineral} · ${data.stockpiles.find((sp) => sp.id === item.stockpileId)?.code ?? ""}` },
       { key: "amount", label: "Amount", render: (item) => formatTonnes(item.tonnes) },
+      ...(values.visible ? [{ key: "value", label: "Estimated sales value", render: (item: Shipment) => <ValueCell value={values.valueOf(item)} /> }] : []),
       { key: "destination", label: "Destination", render: (item) => item.destination },
       { key: "collection", label: "Collection", render: (item) => collectionText(data, item) },
       { key: "status", label: "Status", render: (item) => <StatusBadge value={shipmentTone[item.state]} label={shipmentStateLabels[item.state]} /> },
@@ -276,7 +301,7 @@ export function ShipmentListScreen() {
     emptyBody: "Create a shipment from stock that is ready to ship.",
     footnote: `${active.length} active ${active.length === 1 ? "shipment" : "shipments"} · ${formatTonnes(reserved)} reserved. Open a shipment to see its checks, transport request and activity.`,
   };
-  return <RegisterView initialFilter={null} header={{ eyebrow: "Shipments", title: "Shipments", description: "Prepare each shipment and follow it through to delivery." }} register={register} tabs={<ShipmentTabs active="shipments" />} />;
+  return <RegisterView initialFilter={null} header={{ eyebrow: "Shipments", title: "Shipments", description: "Prepare each shipment and follow it through to delivery." }} register={register} tabs={<><ShipmentTabs active="shipments" /><GoldDeliveryCard /></>} />;
 }
 
 // ---- Logistics --------------------------------------------------------------------------------------------------------
@@ -384,6 +409,7 @@ export function HistoryScreen() {
   if (query.isPending) return <LoadingState />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   const data = query.data;
+  const values = shipmentValuesOf(data);
   const finished = data.shipments.filter((item) => !isOpen(item));
   const latest = finished.find((item) => item.state === "delivered") ?? finished[0];
 
@@ -396,6 +422,7 @@ export function HistoryScreen() {
       { key: "material", label: "Material", render: (item) => item.mineral },
       { key: "sent", label: "Sent", render: (item) => (item.dispatches.length ? formatTonnes(shipmentFigures(item).dispatched) : "—") },
       { key: "received", label: "Received", render: (item) => (item.deliveries.length ? formatTonnes(shipmentFigures(item).received) : "—") },
+      ...(values.visible ? [{ key: "value", label: "Sales value", render: (item: Shipment) => (item.state === "cancelled" ? <span className="muted">—</span> : <ValueCell value={values.valueOf(item)} />) }] : []),
       { key: "finished", label: "Finished", render: (item) => { const at = finishedAt(item); return at ? formatDemoDateTime(at).split(" · ")[0] : "—"; } },
       { key: "outcome", label: "Outcome", render: (item) => (item.state === "cancelled" ? <StatusBadge value="cancelled" label="Cancelled before dispatch" /> : <StatusBadge value={shipmentFigures(item).unreviewed.length ? "needs_confirmation" : "confirmed"} label={shipmentFigures(item).unreviewed.length ? "Delivered · Difference to review" : "Delivered · Checked"} />) },
       { key: "details", label: "Details", render: () => <span className="row-link-text">View</span> },
@@ -416,8 +443,12 @@ export function HistoryScreen() {
 
   const download = () =>
     downloadCsv("shipment-history.csv", [
-      ["Shipment", "Material", "Order reference", "Destination", "Sent (t)", "Received (t)", "Outcome"],
-      ...finished.map((item) => [item.number, item.mineral, item.orderRef, item.destination, shipmentFigures(item).dispatched, shipmentFigures(item).received, shipmentStateLabels[item.state]]),
+      // Sales value is only exported for people who may see it. Everyone else gets the operational columns alone.
+      ["Shipment", "Material", "Order reference", "Destination", "Sent (t)", "Received (t)", "Outcome", ...(values.visible ? ["Sales value (ZAR)", "Value status"] : [])],
+      ...finished.map((item) => {
+        const value = values.valueOf(item);
+        return [item.number, item.mineral, item.orderRef, item.destination, shipmentFigures(item).dispatched, shipmentFigures(item).received, shipmentStateLabels[item.state], ...(value ? [value.amount ?? "", valueStatusLabels[value.status]] : [])];
+      }),
     ]);
 
   return (
@@ -458,7 +489,9 @@ function CreateForm({ data }: { data: Logistics }) {
   const transporters = data.transporters.filter((item) => item.active);
   const [stockpileId, setStockpileId] = useState(eligible[0]?.id ?? "");
   const [amount, setAmount] = useState("");
+  const [kind, setKind] = useState<"sale" | "internal_transfer">("sale");
   const [orderRef, setOrderRef] = useState("");
+  const values = shipmentValuesOf(data);
   const [destination, setDestination] = useState(destinations[0]);
   const [date, setDate] = useState("");
   const [transporterId, setTransporterId] = useState(transporters[0]?.id ?? "");
@@ -493,7 +526,7 @@ function CreateForm({ data }: { data: Logistics }) {
     if (!date) return setError("Choose the preferred collection date.");
     if (!transporterId) return setError("Choose an approved transporter.");
     setError("");
-    create.mutate({ submissionId: submission.id, stockpileId, tonnes, orderRef, destination, preferredDate: date, transporterId, note });
+    create.mutate({ submissionId: submission.id, kind, stockpileId, tonnes, orderRef, destination, preferredDate: date, transporterId, note });
   };
 
   return (
@@ -517,10 +550,18 @@ function CreateForm({ data }: { data: Logistics }) {
         </section>
         <section className="task-section">
           <h2>2 · Delivery</h2>
-          <div className="task-grid task-grid--two">
-            <Field label="Customer or order reference"><input value={orderRef} placeholder="For example PO-2049" onChange={(event) => setOrderRef(event.target.value)} /></Field>
+          <div className="task-grid">
+            <Field label="Type of shipment"><Select value={kind} onChange={(event) => setKind(event.target.value as "sale" | "internal_transfer")}><option value="sale">Sale to a customer</option><option value="internal_transfer">Internal transfer</option></Select></Field>
+            <Field label={kind === "sale" ? "Customer or order reference" : "Transfer reference"}><input value={orderRef} placeholder={kind === "sale" ? "For example PO-2049" : "For example TR-0012"} onChange={(event) => setOrderRef(event.target.value)} /></Field>
             <Field label="Destination"><Select value={destination} onChange={(event) => setDestination(event.target.value)}>{destinations.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
           </div>
+          {kind === "internal_transfer" ? <div className="note-bar"><Info /> <span>An internal transfer moves material between the mine’s own places. It has no sales value.</span></div> : null}
+          {kind === "sale" && values.visible && orderRef.trim().length >= 3 ? (() => {
+            const price = currentPrice(values.commercial!.prices, orderRef);
+            return price
+              ? <div className="note-bar note-bar--good"><CheckCircle2 /> <span>{orderRef} is priced at {formatMoney(price.pricePerTonne)} per tonne ({price.source}).{entered ? ` Estimated sales value ${formatMoney(Math.round(tonnes * price.pricePerTonne))}.` : ""}</span></div>
+              : <div className="note-bar note-bar--warn"><AlertTriangle /> <span>Not priced yet. The Commercial / Finance Officer supplies the price, and the value appears once they do.</span></div>;
+          })() : null}
         </section>
         <section className="task-section">
           <h2>3 · Collection</h2>
@@ -615,6 +656,8 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
         {shipment.state !== "cancelled" ? <Stages shipment={shipment} /> : <div className="note-bar"><Info /> <span><strong>Cancelled:</strong> {shipment.cancelledReason} {formatTonnes(shipment.tonnes)} was released back to stock.</span></div>}
 
         {shipment.state === "declined" ? <div className="note-bar note-bar--warn" role="status"><AlertTriangle /> <span><strong>{transporter?.name} declined.</strong> {request?.reply} Choose a transporter again and send a new request.</span></div> : null}
+
+        <ValueSection data={data} shipment={shipment} />
 
         {preparing ? (
           <div className="split">
