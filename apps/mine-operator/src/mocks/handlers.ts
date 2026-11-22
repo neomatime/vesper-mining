@@ -341,6 +341,65 @@ export const handlers = [
   }),
 
   // ---- Notifications ------------------------------------------------------------------------
+  // ---- Production, inventory and shipments (demo and UAT scope) ----
+  http.get(`${API}/logistics`, () => envelope(demoDomain.logistics())),
+  http.post(`${API}/production`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordProduction(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/production/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/production/:id/check`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.checkProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/production/:id/send-back`, async ({ params, request }) => {
+    const input = await bodyOf<{ reason?: unknown; version?: number }>(request);
+    return run(() => demoDomain.sendBackProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createShipment(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shipments/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateShipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/ready`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.markShipmentReady(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/dispatch`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordDispatch(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/delivery`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordDelivery(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf<{ reason?: unknown; version?: number }>(request);
+    return run(() => demoDomain.cancelShipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/deliveries/:deliveryId/review`, ({ params, request }) =>
+    run(() => demoDomain.reviewDifference(param(params, "id"), param(params, "deliveryId"), actorOf(request))),
+  ),
+  http.post(`${API}/collection-requests/:id/reminder`, ({ params, request }) => run(() => demoDomain.sendReminder(param(params, "id"), actorOf(request)))),
+  http.get(`${API}/transport-response/:token`, ({ params }) => run(() => demoDomain.transportView(param(params, "token")))),
+  http.post(`${API}/transport-response/:token`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.transporterRespond(param(params, "token"), input));
+  }),
+  http.post(`${API}/transporters`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addTransporter(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/transporters/:id`, async ({ params, request }) => {
+    const input = await bodyOf<{ active?: boolean }>(request);
+    return run(() => demoDomain.setTransporterActive(param(params, "id"), input.active !== false, actorOf(request)));
+  }),
   http.get(`${API}/notifications`, ({ request }) => envelope(demoDomain.listNotifications(actorOf(request)))),
   http.post(`${API}/notifications/read-all`, ({ request }) => run(() => demoDomain.readAllNotifications(actorOf(request)))),
   http.patch(`${API}/notifications/:id`, async ({ params, request }) => {

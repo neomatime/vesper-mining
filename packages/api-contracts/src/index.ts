@@ -273,3 +273,5 @@ export * from "./equipment";
 export * from "./shift";
 export * from "./organisation";
 export * from "./service";
+
+export * from "./shipments";

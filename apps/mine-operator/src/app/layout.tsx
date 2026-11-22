@@ -14,6 +14,7 @@ import "./dark.generated.css";
 import "./dark.css";
 import "./login.css";
 import "./allocation.css";
+import "./modules.css";
 
 export const metadata: Metadata = {
   title: {

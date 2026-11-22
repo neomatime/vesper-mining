@@ -49,7 +49,10 @@ import {
   secondaryIssue,
   shifts,
 } from "./demo-data";
-import { demoTimeAt, formatDemoTime } from "./demo-clock";
+import type { CollectionRequest, MeasurementBasis, ProductionEvent, ProductionRecord, Shipment, ShipmentEvent, StockMovement, Transporter } from "@vesper/api-contracts";
+import { seedMovements, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedTransporters, shipmentCounters } from "./shipment-data";
+import { canActOnShipments, canCancel, checkDifference, formatTonnes, readinessProblems, shiftTargetTonnes, shipmentFigures, stockPosition, type ShipmentCapability } from "./shipment-rules";
+import { demoTimeAt, formatDemoDateTime, formatDemoTime } from "./demo-clock";
 import {
   activeActions,
   canAct,
@@ -135,14 +138,22 @@ const initialState = {
   site: seedSite,
   activity: seedActivity,
   notifications: notifications.map((item): DemoNotification => ({ ...item, recipient: null })),
+  stockpiles: seedStockpiles,
+  movements: seedMovements,
+  production: seedProduction,
+  shipments: seedShipments,
+  requests: seedCollectionRequests,
+  transporters: seedTransporters,
+  /** Submission ids already accepted, so a repeated submission is refused instead of saved twice. */
+  submissions: [] as string[],
   clock: 0,
-  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0 },
+  counters: { issue: 42, action: 4, dependency: 1, comment: 0, event: 200, review: 0, notification: 3, plan: 3, service: 3, equipmentEvent: 10, shift: 4, crew: 3, work: 4, shiftEvent: 20, member: 6, activity: 0, credential: 0, provider: 5, request: 0, invite: 0, requestEvent: 0, ...shipmentCounters },
 };
 
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v4";
+const STORAGE_KEY = "vesper-demo-state-v5";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -151,7 +162,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.shipments) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -615,6 +626,98 @@ function checkedDate(value: unknown, label: string, required = false) {
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(Date.parse(raw))) fail(400, "VALIDATION_ERROR", `Enter ${label} as a date.`);
   return raw;
+}
+
+// ---- Production, inventory and shipment helpers ---------------------------------------------
+
+/** A readable number such as SHP-0049: the prefix, then a four digit sequence. */
+function nextNumber(key: "shipment" | "production" | "collection", prefix: string) {
+  state.counters[key] += 1;
+  return `${prefix}-${String(state.counters[key]).padStart(4, "0")}`;
+}
+
+/**
+ * Stops a repeated submission (a double click, a retried request) from creating a second record. The screen sends one
+ * `submissionId` for each form it opens. A request whose id was already saved is refused. The id is remembered only by calling
+ * the returned function once the change has succeeded, so a form that failed validation can be corrected and sent again.
+ */
+function guardRepeat(input: Record<string, unknown>): () => void {
+  const id = text(input.submissionId);
+  if (!id) return () => {};
+  if (state.submissions.includes(id)) fail(409, "DUPLICATE", "This was already saved. Refresh the page to see it.");
+  return () => {
+    state.submissions = [...state.submissions.slice(-199), id];
+  };
+}
+
+function findProduction(id: string) {
+  return state.production.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This production record could not be found.");
+}
+function findShipment(id: string) {
+  return state.shipments.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", "This shipment could not be found.");
+}
+function findStockpile(id: unknown) {
+  return state.stockpiles.find((item) => item.id === id) ?? fail(400, "VALIDATION_ERROR", "Choose a stockpile from the list.");
+}
+function findTransporter(id: unknown) {
+  return state.transporters.find((item) => item.id === id) ?? fail(400, "VALIDATION_ERROR", "Choose a transporter from the list.");
+}
+function requestFor(shipment: Shipment) {
+  return shipment.requestId ? state.requests.find((item) => item.id === shipment.requestId) ?? null : null;
+}
+
+function assertShipmentsCan(capability: ShipmentCapability, actor: Actor, reportedBy?: string) {
+  const check = canActOnShipments(capability, actor, reportedBy);
+  if (!check.allowed) fail(403, "FORBIDDEN", check.reason ?? "You do not have access to this step.");
+}
+function assertShipmentVersion(shipment: Shipment, version: unknown) {
+  if (typeof version === "number" && version !== shipment.version) fail(409, "VERSION_CONFLICT", "This shipment changed while you were editing. Reload to see the latest version, then try again.");
+}
+function assertProductionVersion(record: ProductionRecord, version: unknown) {
+  if (typeof version === "number" && version !== record.version) fail(409, "VERSION_CONFLICT", "This record changed while you were editing. Reload to see the latest version, then try again.");
+}
+
+/** Adds a line to the stock ledger. Every balance in VESPER is worked out from these lines. */
+function addMovement(type: StockMovement["type"], stockpileId: string, tonnes: number, ref: string, actor: Actor, note: string | null = null) {
+  if (tonnes <= 0) return;
+  state.movements = [...state.movements, { id: nextId("movement", "mv"), at: tick(), type, stockpileId, tonnes, ref, actor: actor.name, note }];
+}
+
+function recordShipment(shipment: Shipment, actor: Actor, event: { type: ShipmentEvent["type"]; summary: string; note?: string | null }) {
+  shipment.events = [...shipment.events, { id: nextId("shipmentEvent", "sev"), type: event.type, summary: event.summary, actor: actor.name, occurredAt: tick(), note: event.note?.trim() || null }];
+  shipment.version += 1;
+}
+function recordProductionEvent(record: ProductionRecord, actor: Actor, event: { type: ProductionEvent["type"]; summary: string; note?: string | null }) {
+  record.events = [...record.events, { id: nextId("productionEvent", "pev"), type: event.type, summary: event.summary, actor: actor.name, occurredAt: tick(), note: event.note?.trim() || null }];
+  record.version += 1;
+}
+
+/** A tonnage the person typed: a number, not negative, with a sensible ceiling. */
+function tonnesOf(value: unknown, label: string, { positive = true }: { positive?: boolean } = {}) {
+  const parsed = Number(value);
+  if (value === "" || value === null || value === undefined || !Number.isFinite(parsed)) fail(400, "VALIDATION_ERROR", `${label} must be a number.`);
+  if (positive ? parsed <= 0 : parsed < 0) fail(400, "VALIDATION_ERROR", `${label} must be ${positive ? "more than 0" : "0 or more"}.`);
+  if (parsed > 1_000_000) fail(400, "VALIDATION_ERROR", `${label} looks too large. Check the number.`);
+  return Math.round(parsed * 100) / 100;
+}
+
+const basisOf = (value: unknown): MeasurementBasis => {
+  const found = ["estimate", "weighbridge", "survey", "other"].find((item) => item === value);
+  return (found as MeasurementBasis | undefined) ?? fail(400, "VALIDATION_ERROR", "Choose how the amount was measured.");
+};
+
+/** Reads and checks the fields of a production record from a form. Shared by recording and editing. */
+function readProduction(input: Record<string, unknown>) {
+  const stockpile = findStockpile(input.stockpileId);
+  return {
+    mineral: requireText(input.mineral, "The mineral", 3),
+    area: requireText(input.area, "The mining area", 2),
+    reportedTonnes: tonnesOf(input.reportedTonnes, "The amount produced"),
+    basis: basisOf(input.basis),
+    stockpileId: stockpile.id,
+    note: text(input.note).slice(0, 500),
+    evidence: readEvidence(input.evidence),
+  };
 }
 
 // ---- Organisation helpers -----------------------------------------------------------------
@@ -2104,6 +2207,357 @@ export const demoDomain = {
     state.context.siteName = name;
     logOrganisation(actor, "Updated site details");
     return state.site;
+  },
+
+  // ---- Production, inventory and shipments -------------------------------------------------
+  /** Everything the Shift Control Production tab and the Shipments module read, in one answer so their figures always agree. */
+  logistics() {
+    const stockpiles = state.stockpiles.map((item) => ({ ...item, ...stockPosition(item, state.movements) }));
+    const movements = [...state.movements].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 12);
+    const byNewest = <T extends { createdAt: string }>(items: T[]) => [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    return {
+      now: now(),
+      stockpiles,
+      movements,
+      production: byNewest(state.production),
+      shipments: [...state.shipments].sort((a, b) => b.number.localeCompare(a.number)),
+      requests: [...state.requests].sort((a, b) => b.number.localeCompare(a.number)),
+      transporters: state.transporters,
+    };
+  },
+
+  recordProduction(input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("record_production", actor);
+    const commit = guardRepeat(input);
+    const shift = typeof input.shiftId === "string" && input.shiftId ? findShift(input.shiftId) : null;
+    const fields = readProduction(input);
+    const submit = input.submit !== false;
+    const twin = state.production.find((item) => item.state === "needs_checking" && item.shiftId === (shift?.id ?? null) && item.mineral === fields.mineral && item.area === fields.area && item.reportedTonnes === fields.reportedTonnes && item.reportedBy === actor.name);
+    if (submit && twin) fail(409, "DUPLICATE", `${twin.number} already has these figures and is waiting to be checked.`);
+    const at = tick();
+    const record: ProductionRecord = {
+      id: `prod-${state.counters.production + 1}`,
+      number: nextNumber("production", "PR"),
+      shiftId: shift?.id ?? null,
+      shiftName: shift?.name ?? requireText(input.shiftName, "The shift", 2),
+      ...fields,
+      targetTonnes: shiftTargetTonnes,
+      reportedBy: actor.name,
+      state: submit ? "needs_checking" : "draft",
+      sentBackReason: null,
+      check: null,
+      events: [],
+      version: 1,
+      createdAt: at,
+    };
+    recordProductionEvent(record, actor, { type: submit ? "submitted" : "recorded", summary: submit ? "Sent for checking" : "Saved as a draft" });
+    record.version = 1;
+    state.production = [...state.production, record];
+    if (submit) notify(null, "Production needs checking", `${record.shiftName}: ${formatTonnes(record.reportedTonnes)} ${record.mineral.toLowerCase()} reported by ${actor.name}.`, `/shipments/inventory/check/${record.id}`, "production");
+    commit();
+    return record;
+  },
+
+  updateProduction(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("record_production", actor);
+    const record = findProduction(id);
+    assertProductionVersion(record, input.version);
+    if (record.state !== "draft" && record.state !== "sent_back") fail(409, "READ_ONLY", "Only a draft or a record that was sent back can be changed.");
+    Object.assign(record, readProduction(input));
+    const submit = input.submit === true;
+    if (submit) {
+      record.state = "needs_checking";
+      record.sentBackReason = null;
+    }
+    recordProductionEvent(record, actor, { type: submit ? "submitted" : "edited", summary: submit ? "Sent for checking" : "Draft saved" });
+    if (submit) notify(null, "Production needs checking", `${record.shiftName}: ${formatTonnes(record.reportedTonnes)} ${record.mineral.toLowerCase()} reported by ${record.reportedBy}.`, `/shipments/inventory/check/${record.id}`, "production");
+    return record;
+  },
+
+  checkProduction(id: string, input: Record<string, unknown>, actor: Actor) {
+    const record = findProduction(id);
+    assertShipmentsCan("check_production", actor, record.reportedBy);
+    assertProductionVersion(record, input.version);
+    if (record.state !== "needs_checking") fail(409, "READ_ONLY", record.state === "checked" ? "This amount has already been checked." : "Only an amount that is waiting to be checked can be confirmed.");
+    const confirmed = tonnesOf(input.confirmedTonnes, "The confirmed amount", { positive: false });
+    const basis = basisOf(input.basis);
+    const file = requireText(input.record, "The measurement record", 3);
+    const stockpile = findStockpile(input.stockpileId);
+    const difference = checkDifference(record, confirmed);
+    const reason = text(input.reason);
+    if (difference !== 0 && reason.length < 8) fail(400, "VALIDATION_ERROR", `The confirmed amount is ${formatTonnes(Math.abs(difference))} ${difference < 0 ? "less" : "more"} than reported. Record the reason (at least 8 characters).`);
+    record.check = { confirmedTonnes: confirmed, basis, record: file, reason: difference !== 0 ? reason : null, stockpileId: stockpile.id, checkedBy: actor.name, checkedAt: tick() };
+    record.state = "checked";
+    addMovement("receipt", stockpile.id, confirmed, record.number, actor, difference !== 0 ? reason : null);
+    recordProductionEvent(record, actor, { type: "checked", summary: `${formatTonnes(confirmed)} confirmed into ${stockpile.code}`, note: difference !== 0 ? reason : null });
+    notify(record.reportedBy, "Your production was checked", `${record.number}: ${formatTonnes(confirmed)} confirmed into ${stockpile.code}.`, "/shifts/production", "production");
+    return record;
+  },
+
+  sendBackProduction(id: string, input: { reason?: unknown; version?: number }, actor: Actor) {
+    const record = findProduction(id);
+    assertShipmentsCan("check_production", actor, record.reportedBy);
+    assertProductionVersion(record, input.version);
+    if (record.state !== "needs_checking") fail(409, "READ_ONLY", "Only an amount that is waiting to be checked can be sent back.");
+    const reason = requireText(input.reason, "The reason", 8);
+    record.state = "sent_back";
+    record.sentBackReason = reason;
+    recordProductionEvent(record, actor, { type: "sent_back", summary: "Sent back for correction", note: reason });
+    notify(record.reportedBy, "Production sent back", `${record.number}: ${reason}`, `/shifts/production/new?id=${record.id}`, "production");
+    return record;
+  },
+
+  createShipment(input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const commit = guardRepeat(input);
+    const stockpile = findStockpile(input.stockpileId);
+    if (stockpile.condition !== "ready_for_shipment") fail(409, "NOT_ELIGIBLE", `${stockpile.code} holds material that needs processing. It cannot be reserved for a shipment yet.`);
+    const tonnes = tonnesOf(input.tonnes, "The amount to reserve");
+    const position = stockPosition(stockpile, state.movements);
+    if (tonnes > position.available) fail(409, "INSUFFICIENT_STOCK", position.available > 0 ? `Only ${formatTonnes(position.available)} is available in ${stockpile.code}. Reduce the amount.` : `Nothing is available to reserve in ${stockpile.code}.`);
+    const orderRef = requireText(input.orderRef, "The customer or order reference", 3);
+    const clash = state.shipments.find((item) => item.state !== "cancelled" && item.orderRef.toLowerCase() === orderRef.toLowerCase());
+    if (clash) fail(409, "DUPLICATE", `${orderRef} is already used by ${clash.number}. Use a different reference, or open that shipment.`);
+    const destination = requireText(input.destination, "The destination", 3);
+    const date = text(input.preferredDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T12:00:00Z`))) fail(400, "VALIDATION_ERROR", "Choose the preferred collection date.");
+    const transporter = findTransporter(input.transporterId);
+    if (!transporter.active) fail(409, "NOT_ELIGIBLE", `${transporter.name} is not an approved transporter at the moment.`);
+    const shipment: Shipment = {
+      id: `ship-${state.counters.shipment + 1}`,
+      number: nextNumber("shipment", "SHP"),
+      mineral: stockpile.mineral,
+      stockpileId: stockpile.id,
+      tonnes,
+      orderRef,
+      destination,
+      preferredDate: date,
+      transporterId: transporter.id,
+      note: text(input.note).slice(0, 500),
+      state: "preparing",
+      checks: { quality: false, instructions: false, documents: false, loading: false },
+      requestId: null,
+      dispatches: [],
+      deliveries: [],
+      events: [],
+      preparedBy: actor.name,
+      cancelledReason: null,
+      version: 1,
+      createdAt: tick(),
+    };
+    addMovement("reserve", stockpile.id, tonnes, shipment.number, actor);
+    recordShipment(shipment, actor, { type: "created", summary: `Shipment created and ${formatTonnes(tonnes)} reserved` });
+    shipment.version = 1;
+    state.shipments = [...state.shipments, shipment];
+    commit();
+    return shipment;
+  },
+
+  updateShipment(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.state !== "preparing" && shipment.state !== "declined") fail(409, "READ_ONLY", "Checks and the transporter can only be changed before a collection request is sent.");
+    const before = JSON.stringify(shipment.checks) + shipment.transporterId + shipment.preferredDate;
+    if (input.checks && typeof input.checks === "object") {
+      const given = input.checks as Record<string, unknown>;
+      for (const key of ["quality", "instructions", "documents", "loading"] as const) if (typeof given[key] === "boolean") shipment.checks[key] = given[key] as boolean;
+    }
+    if (input.transporterId !== undefined) {
+      const transporter = findTransporter(input.transporterId);
+      if (!transporter.active) fail(409, "NOT_ELIGIBLE", `${transporter.name} is not an approved transporter at the moment.`);
+      shipment.transporterId = transporter.id;
+    }
+    if (input.preferredDate !== undefined) {
+      const date = text(input.preferredDate);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(400, "VALIDATION_ERROR", "Choose the preferred collection date.");
+      shipment.preferredDate = date;
+    }
+    if (before !== JSON.stringify(shipment.checks) + shipment.transporterId + shipment.preferredDate) recordShipment(shipment, actor, { type: "checks_updated", summary: "Checks or collection details updated" });
+    return shipment;
+  },
+
+  /** The one step that asks a transporter to collect. It creates exactly one request; asking again is refused. */
+  markShipmentReady(id: string, input: { version?: number }, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.state === "waiting" || shipment.state === "confirmed") fail(409, "ALREADY_SENT", `A collection request has already been recorded for ${shipment.number}.`);
+    if (shipment.state !== "preparing" && shipment.state !== "declined") fail(409, "READ_ONLY", "A collection request can only be sent while the shipment is being prepared.");
+    const transporter = state.transporters.find((item) => item.id === shipment.transporterId);
+    const problems = readinessProblems(shipment, transporter);
+    if (problems.length > 0) fail(409, "NOT_READY", problems[0]);
+    state.counters.token += 1;
+    const request: CollectionRequest = {
+      id: `req-${state.counters.collection + 1}`,
+      number: nextNumber("collection", "LR"),
+      shipmentId: shipment.id,
+      transporterId: shipment.transporterId,
+      token: `${shipment.number.toLowerCase().replace("shp", "lr")}-${(0xa1b2c3 + state.counters.token * 7919).toString(16)}`,
+      state: "sent",
+      sentAt: tick(),
+      collectionAt: null,
+      reply: null,
+      repliedAt: null,
+      reminders: 0,
+      simulated: true,
+    };
+    state.requests = [...state.requests, request];
+    shipment.requestId = request.id;
+    shipment.state = "waiting";
+    recordShipment(shipment, actor, { type: "request_sent", summary: `Collection request ${request.number} recorded for ${transporter?.name ?? "the transporter"} (demo: nothing was sent)` });
+    notify(actor.name, "Collection request recorded", `${shipment.number}: waiting for ${transporter?.name ?? "the transporter"} to reply. In this demo no message is sent.`, "/shipments/logistics", "logistics");
+    return { shipment, request };
+  },
+
+  sendReminder(requestId: string, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const request = state.requests.find((item) => item.id === requestId) ?? fail(404, "NOT_FOUND", "This request could not be found.");
+    if (request.state !== "sent") fail(409, "READ_ONLY", "A reminder only makes sense while the transporter has not replied.");
+    const shipment = findShipment(request.shipmentId);
+    request.reminders += 1;
+    recordShipment(shipment, actor, { type: "reminder_sent", summary: `Reminder recorded for ${request.number} (demo: nothing was sent)` });
+    return request;
+  },
+
+  /** What the transporter sees on their reply page, from the token in their link. No sign-in. */
+  transportView(token: string) {
+    const request = state.requests.find((item) => item.token === token) ?? fail(404, "NOT_FOUND", "This link is not valid. Ask the mine to send a new one.");
+    const shipment = findShipment(request.shipmentId);
+    const transporter = state.transporters.find((item) => item.id === request.transporterId);
+    return {
+      request,
+      mineName: state.company.name,
+      siteName: state.site.name,
+      transporterName: transporter?.name ?? "Transporter",
+      shipment: { number: shipment.number, mineral: shipment.mineral, tonnes: shipment.tonnes, destination: shipment.destination, preferredDate: shipment.preferredDate },
+      open: request.state === "sent",
+    };
+  },
+
+  transporterRespond(token: string, input: Record<string, unknown>) {
+    const request = state.requests.find((item) => item.token === token) ?? fail(404, "NOT_FOUND", "This link is not valid. Ask the mine to send a new one.");
+    if (request.state !== "sent") fail(409, "READ_ONLY", "This request has already been answered or was cancelled.");
+    const shipment = findShipment(request.shipmentId);
+    const transporter = state.transporters.find((item) => item.id === request.transporterId);
+    const actor: Actor = { name: transporter?.name ?? "Transporter", role: "Transporter" };
+    const who = shipment.preparedBy;
+    if (input.answer === "confirm") {
+      const date = text(input.date);
+      const time = text(input.time);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) fail(400, "VALIDATION_ERROR", "Choose the collection date and time.");
+      const when = `${date}T${time}:00+02:00`;
+      if (Date.parse(when) < Date.parse(now())) fail(400, "VALIDATION_ERROR", "The collection time cannot be in the past.");
+      request.state = "confirmed";
+      request.collectionAt = when;
+      request.reply = text(input.note).slice(0, 300) || null;
+      request.repliedAt = tick();
+      shipment.state = "confirmed";
+      recordShipment(shipment, actor, { type: "confirmed", summary: `${actor.name} confirmed collection on ${formatDemoDateTime(when)}` });
+      notify(who, "Collection confirmed", `${shipment.number}: ${actor.name} will collect on ${formatDemoDateTime(when)}.`, `/shipments/${shipment.id}`, "logistics");
+    } else if (input.answer === "decline") {
+      const reason = requireText(input.note, "The reason", 5);
+      request.state = "declined";
+      request.reply = reason;
+      request.repliedAt = tick();
+      shipment.state = "declined";
+      recordShipment(shipment, actor, { type: "declined", summary: `${actor.name} declined the collection request`, note: reason });
+      notify(who, "Collection declined", `${shipment.number}: ${actor.name} cannot collect. ${reason}`, `/shipments/${shipment.id}`, "logistics");
+    } else {
+      fail(400, "VALIDATION_ERROR", "Choose Confirm collection or Decline.");
+    }
+    return { state: request.state };
+  },
+
+  recordDispatch(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const commit = guardRepeat(input);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.state !== "confirmed" && shipment.state !== "dispatched") fail(409, "READ_ONLY", "Dispatch can be recorded once the transporter has confirmed collection.");
+    const figures = shipmentFigures(shipment);
+    const tonnes = tonnesOf(input.tonnes, "The amount dispatched");
+    if (tonnes > figures.remaining) fail(409, "TOO_MUCH", `Only ${formatTonnes(figures.remaining)} of ${shipment.number} is still at the mine.`);
+    shipment.dispatches = [...shipment.dispatches, { id: nextId("dispatch", "dsp"), at: tick(), tonnes, by: actor.name, reference: text(input.reference).slice(0, 120) || null }];
+    shipment.state = "dispatched";
+    addMovement("dispatch", shipment.stockpileId, tonnes, shipment.number, actor);
+    const after = shipmentFigures(shipment);
+    recordShipment(shipment, actor, { type: "dispatched", summary: after.remaining > 0 ? `${formatTonnes(tonnes)} dispatched; ${formatTonnes(after.remaining)} still at the mine` : `${formatTonnes(tonnes)} dispatched` });
+    commit();
+    return shipment;
+  },
+
+  recordDelivery(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const commit = guardRepeat(input);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (shipment.state !== "dispatched") fail(409, "READ_ONLY", "Delivery can be recorded once material has been dispatched.");
+    const figures = shipmentFigures(shipment);
+    if (figures.inTransit <= 0) fail(409, "READ_ONLY", "Everything dispatched has already been delivered.");
+    const settles = input.settles === undefined || input.settles === "" ? figures.inTransit : tonnesOf(input.settles, "The dispatched amount this delivery settles");
+    if (settles > figures.inTransit) fail(409, "TOO_MUCH", `Only ${formatTonnes(figures.inTransit)} is on its way.`);
+    const received = tonnesOf(input.tonnes, "The amount received", { positive: false });
+    const evidence = requireText(input.evidence, "The delivery evidence", 3);
+    const difference = Math.round((received - settles) * 100) / 100;
+    const reason = text(input.reason);
+    if (difference !== 0 && reason.length < 8) fail(400, "VALIDATION_ERROR", `${formatTonnes(Math.abs(difference))} ${difference < 0 ? "less" : "more"} arrived than was dispatched. Record the reason (at least 8 characters).`);
+    shipment.deliveries = [...shipment.deliveries, { id: nextId("delivery", "dlv"), at: tick(), tonnes: received, settles, by: actor.name, evidence, reason: difference !== 0 ? reason : null, reviewed: difference === 0, reviewedBy: null }];
+    const after = shipmentFigures(shipment);
+    const complete = after.remaining === 0 && after.inTransit === 0;
+    if (complete) shipment.state = "delivered";
+    recordShipment(shipment, actor, {
+      type: "delivered",
+      summary: complete ? `${formatTonnes(received)} received${difference !== 0 ? " with a difference to review" : " and checked"}` : `${formatTonnes(received)} received; ${formatTonnes(after.inTransit + after.remaining)} still to come`,
+      note: difference !== 0 ? reason : null,
+    });
+    commit();
+    return shipment;
+  },
+
+  reviewDifference(id: string, deliveryId: string, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    const delivery = shipment.deliveries.find((item) => item.id === deliveryId) ?? fail(404, "NOT_FOUND", "This delivery could not be found.");
+    if (delivery.reviewed) fail(409, "READ_ONLY", "This difference has already been reviewed.");
+    delivery.reviewed = true;
+    delivery.reviewedBy = actor.name;
+    recordShipment(shipment, actor, { type: "difference_reviewed", summary: "Delivery difference reviewed" });
+    return shipment;
+  },
+
+  cancelShipment(id: string, input: { reason?: unknown; version?: number }, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const shipment = findShipment(id);
+    assertShipmentVersion(shipment, input.version);
+    if (!canCancel(shipment)) fail(409, "READ_ONLY", shipment.dispatches.length > 0 ? "Some of this shipment has already left the mine, so it cannot be cancelled." : "This shipment is already finished.");
+    const reason = requireText(input.reason, "The reason", 8);
+    addMovement("release", shipment.stockpileId, shipment.tonnes, shipment.number, actor, reason);
+    const request = requestFor(shipment);
+    if (request && request.state === "sent") request.state = "cancelled";
+    shipment.state = "cancelled";
+    shipment.cancelledReason = reason;
+    recordShipment(shipment, actor, { type: "cancelled", summary: `Shipment cancelled before dispatch; ${formatTonnes(shipment.tonnes)} released`, note: reason });
+    return shipment;
+  },
+
+  addTransporter(input: Record<string, unknown>, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const commit = guardRepeat(input);
+    const name = requireText(input.name, "The company name", 3);
+    if (state.transporters.some((item) => item.name.toLowerCase() === name.toLowerCase())) fail(409, "DUPLICATE", `${name} is already on the list.`);
+    const transporter: Transporter = { id: nextId("transporter", "tr"), name, mode: requireText(input.mode, "The type of transport", 3), contact: text(input.contact).slice(0, 120), approvedUntil: text(input.approvedUntil) || null, active: true };
+    state.transporters = [...state.transporters, transporter];
+    commit();
+    return transporter;
+  },
+
+  setTransporterActive(id: string, active: boolean, actor: Actor) {
+    assertShipmentsCan("manage_shipments", actor);
+    const transporter = findTransporter(id);
+    if (!active && state.shipments.some((item) => item.transporterId === id && ["preparing", "waiting", "confirmed", "declined", "dispatched"].includes(item.state))) fail(409, "IN_USE", `${transporter.name} still has shipments in progress, so it cannot be switched off.`);
+    transporter.active = active;
+    return transporter;
   },
 
   // ---- Notifications ---------------------------------------------------------------------

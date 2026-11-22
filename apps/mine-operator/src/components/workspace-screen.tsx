@@ -23,6 +23,7 @@ import { EquipmentFormDialog } from "./equipment-dialogs";
 import { ShiftFormDialog } from "./shift-dialogs";
 import { ShiftCalendar } from "./shift-calendar";
 import { PageHeader } from "./page-header";
+import { ShiftControlTabs } from "./module-tabs";
 import { ErrorState, LoadingState } from "./query-state";
 import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
@@ -31,14 +32,14 @@ import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
 
 export type WorkspaceKey = "exceptions" | "equipment" | "resources" | "shifts";
 
-type Header = { eyebrow: string; title: string; description: string };
+export type Header = { eyebrow: string; title: string; description: string };
 type WorkspaceResponse<T> = Header & { records: T[] };
 
 type Tile = { label: string; value: string | number; hint: string; attention?: boolean };
 type Column<T> = { key: string; label: string; render: (row: T) => React.ReactNode };
 type Filter<T> = { key: string; label: string; test: (row: T) => boolean };
 
-type Register<T extends { id: string }> = {
+export type Register<T extends { id: string }> = {
   icon: LucideIcon;
   tiles: Tile[];
   columns: Column<T>[];
@@ -46,9 +47,11 @@ type Register<T extends { id: string }> = {
   href: (row: T) => string;
   text: (row: T) => string;
   rows: T[];
-  action?: { label: string; href?: string; onClick?: () => void; plus?: boolean };
+  action?: { label: string; href?: string; onClick?: () => void; plus?: boolean; /** A quieter button, for secondary actions such as a download. */ quiet?: boolean; icon?: LucideIcon };
   emptyTitle: string;
   emptyBody: string;
+  /** Replaces the default line under the table. */
+  footnote?: string;
 };
 
 const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
@@ -290,11 +293,12 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
                 </>
               }
             />
+            <ShiftControlTabs active="shifts" />
             <ShiftCalendar shifts={shifts} now={shell.now} onCreate={canManageShifts ? startCreating : null} />
           </div>
         ) : <LoadingState />
       ) : (
-        <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} viewSwitch={<ShiftViewSwitch view="list" />} register={shiftRegister(shifts, canManageShifts ? () => startCreating(null) : null)} />
+        <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} tabs={<ShiftControlTabs active="shifts" />} viewSwitch={<ShiftViewSwitch view="list" />} register={shiftRegister(shifts, canManageShifts ? () => startCreating(null) : null)} />
       )}
       {addingShift ? (
         <ShiftFormDialog
@@ -308,7 +312,8 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   );
 }
 
-function RegisterView<T extends { id: string }>({ header, register, initialFilter, viewSwitch }: { header: Header; register: Register<T>; initialFilter: string | null; viewSwitch?: React.ReactNode }) {
+/** A register page: header, summary tiles, search, filters and a table. Also used by the Production and Shipments screens. */
+export function RegisterView<T extends { id: string }>({ header, register, initialFilter, viewSwitch, tabs }: { header: Header; register: Register<T>; initialFilter: string | null; viewSwitch?: React.ReactNode; tabs?: React.ReactNode }) {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState(() =>
     register.filters.some((item) => item.key === initialFilter) ? (initialFilter as string) : "all",
@@ -334,8 +339,8 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
               {viewSwitch}
               {register.action ? (
             register.action.onClick ? (
-              <button className="button button--primary" onClick={register.action.onClick}>
-                {register.action.plus ? <CirclePlus /> : <ArrowRight />}
+              <button className={`button ${register.action.quiet ? "button--quiet" : "button--primary"}`} onClick={register.action.onClick}>
+                {register.action.icon ? <register.action.icon /> : register.action.plus ? <CirclePlus /> : <ArrowRight />}
                 {register.action.label}
               </button>
             ) : (
@@ -350,7 +355,9 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
         }
       />
 
-      <section className="kpi-row" aria-label="Summary">
+      {tabs}
+
+      {register.tiles.length > 0 ? <section className="kpi-row" aria-label="Summary">
         {register.tiles.map((tile) => (
           <article className={`kpi ${tile.attention ? "kpi--attention" : ""}`} key={tile.label}>
             <span>{tile.label}</span>
@@ -358,7 +365,7 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
             <small>{tile.hint}</small>
           </article>
         ))}
-      </section>
+      </section> : null}
 
       <section className="card register-card">
         <div className="register-toolbar">
@@ -406,7 +413,7 @@ function RegisterView<T extends { id: string }>({ header, register, initialFilte
             </table>
           </div>
         )}
-        <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}Reported and verified information stay separate.</p>
+        <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}{register.footnote ?? "Reported and verified information stay separate."}</p>
       </section>
     </div>
   );
