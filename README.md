@@ -39,6 +39,7 @@ pnpm dev            # http://localhost:3000
 | Equipment & Maintenance | Full equipment register, maintenance plans, service log, meter readings, availability reports with a reason, a **Downtime** card, and contractor service requests with quote comparison and a reply link |
 | Resource Readiness | Parts against planned work, with unknown stock kept separate from zero, and review decisions |
 | Shift Control & Handover | Shifts with crew and work, calendar (month, week, day), tasks marked done with an optional note and evidence, **handover draft built from the shift's records**, publish and acknowledge, and a printable **allocation sheet** |
+| Production, Inventory & Shipments (demo and UAT scope) | **Production** recorded by a shift and **checked** before it counts as stock, a stock ledger with reservations, **shipments** from ready stock, a **collection request** answered by the transporter on its own page, dispatch and delivery that reconcile, and a **Close shift** step that sends the handover. See `docs/architecture/VESPER_PRODUCTION_AND_SHIPMENTS.md` |
 | Reports | Six reports including **Recurring causes** (primary and secondary) |
 | Administration | People, roles and rights, service providers, site and company details |
 | Subscriptions | Five subscriptions on one product and one schema, defined once in `packages/api-contracts/src/subscription/` (feature entitlements, site allowances, upgrade rules, validated client-specific overrides), with a deployment manifest template for per-client instances. See `docs/architecture/` |

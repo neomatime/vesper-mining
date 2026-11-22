@@ -89,20 +89,21 @@ test.describe("shift management", () => {
     await expect(page.locator(`a[href="${created}"]`)).toHaveCount(0);
   });
 
-  test("runs a shift end to end: hand over, close, then the next supervisor starts", async ({ page }) => {
+  test("runs a shift end to end: close it with its handover, then the next supervisor confirms receipt and starts", async ({ page }) => {
     await openAs(page, "/shifts/shift-a-20250424", "Amina Patel");
-    await page.getByRole("button", { name: "Close shift" }).click();
-    await dialog(page).getByRole("button", { name: "Close shift" }).click();
-    await expect(page.getByText(/Publish the handover before closing/)).toBeVisible();
-
-    await page.goto("/shifts/shift-a-20250424/handover");
-    await page.getByRole("button", { name: "Publish handover" }).click();
-    await expect(page.getByText("Handover published")).toBeVisible();
-
-    await page.goto("/shifts/shift-a-20250424");
-    await page.getByRole("button", { name: "Close shift" }).click();
-    await dialog(page).getByRole("button", { name: "Close shift" }).click();
+    await page.getByRole("link", { name: "Close shift" }).click();
+    await expect(page.getByRole("heading", { name: "Close shift" })).toBeVisible();
+    await expect(page.getByText("Work to carry forward")).toBeVisible();
+    // The handover must be reviewed first.
+    await page.getByRole("button", { name: "Close shift & send handover" }).click();
+    await expect(page.getByText(/Tick .I have reviewed the handover/)).toBeVisible();
+    await page.getByLabel("I have reviewed the handover.").check();
+    await page.getByRole("button", { name: "Close shift & send handover" }).click();
     await expect(page.getByText(/Shift A closed/)).toBeVisible();
+    await expect(page).toHaveURL(/\/shifts$/);
+
+    // Closing sends the handover. It is not received until the next supervisor says so.
+    await page.goto("/shifts/shift-a-20250424");
     await expect(page.getByRole("button", { name: "Add crew" })).toHaveCount(0);
 
     await actAs(page, "Sipho Nkosi");

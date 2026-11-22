@@ -25,6 +25,7 @@ import {
   PanelLeftOpen,
   Search,
   ShieldCheck,
+  Truck,
   UsersRound,
   Wrench,
   X,
@@ -62,6 +63,7 @@ const primaryNavigation: NavigationItem[] = [
   { label: "Equipment & Maintenance", href: "/equipment", icon: Wrench },
   { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention", feature: "resource_readiness" },
   { label: "Shift Control", href: "/shifts", icon: UsersRound },
+  { label: "Shipments", href: "/shipments", icon: Truck },
   { label: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
@@ -73,7 +75,7 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
       { label: "Report an issue", href: "/exceptions/new", icon: CirclePlus },
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
       { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention", feature: "resource_readiness" },
-      { label: "Shift handover", href: "/shifts", icon: ShieldCheck, feature: "shift_handover" },
+      { label: "Shift handover", href: "/shifts/handover", icon: ShieldCheck, feature: "shift_handover" },
     ],
   },
   {

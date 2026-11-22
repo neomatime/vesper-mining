@@ -57,7 +57,7 @@ export function ShiftDetailScreen({ id, handover = false }: { id: string; handov
 
 const stateTone = { scheduled: "pending", in_progress: "in_progress", closed: "complete", cancelled: "unknown" } as const;
 
-type DialogState = { kind: "edit" } | { kind: "crew" } | { kind: "work" } | { kind: "cancel" } | { kind: "delete" } | { kind: "close" };
+type DialogState = { kind: "edit" } | { kind: "crew" } | { kind: "work" } | { kind: "cancel" } | { kind: "delete" };
 
 function ShiftDetail({ shift }: { shift: ShiftView }) {
   const { context } = useDemoContext();
@@ -96,7 +96,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
           <div className="header-actions">
             <StatusBadge value={stateTone[shift.state]} label={shiftStateLabels[shift.state]} />
             {shift.state === "scheduled" && canRun ? <button className="button button--primary" disabled={mutations.start.isPending} onClick={() => mutations.start.mutate()}><Play /> {mutations.start.isPending ? "Starting…" : "Start shift"}</button> : null}
-            {shift.state === "in_progress" && canRun ? <button className="button button--primary" onClick={() => setDialog({ kind: "close" })}><Square /> Close shift</button> : null}
+            {shift.state === "in_progress" && canRun ? <Link className="button button--primary" href={`/shifts/${shift.id}/close`}><Square /> Close shift</Link> : null}
             {live && canManage ? <button className="button button--quiet" onClick={() => setDialog({ kind: "edit" })}><Pencil /> Edit</button> : null}
             <MoreMenu>
               {(closeMenu) => (
@@ -252,21 +252,6 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
           tone="danger"
           pending={mutations.remove.isPending}
           onConfirm={() => mutations.remove.mutate(undefined, { onError: close })}
-          onClose={close}
-        />
-      ) : null}
-      {dialog?.kind === "close" ? (
-        <ConfirmDialog
-          title="Close this shift?"
-          body={
-            <>
-              {done} of {shift.work.length} tasks are finished. {shift.unresolved} {shift.unresolved === 1 ? "item continues" : "items continue"} into {shift.next ? shift.next.name : "the next shift"}, and the issues stay open.
-              {shift.handover.state === "draft" && shift.unresolved > 0 ? <> Publish the handover first.</> : null}
-            </>
-          }
-          confirmLabel="Close shift"
-          pending={mutations.close.isPending}
-          onConfirm={() => mutations.close.mutate(undefined, { onSuccess: close, onError: close })}
           onClose={close}
         />
       ) : null}
