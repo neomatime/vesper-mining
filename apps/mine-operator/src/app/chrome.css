@@ -77,3 +77,19 @@
 .topbar__report:hover { background: rgba(22, 134, 91, .14); }
 .topbar__report svg { width: 18px; height: 18px; }
 @media (max-width: 1100px) { .topbar__report span { display: none; } .topbar__report { padding: 0 11px; } }
+
+/* Sidebar groups: an uppercase heading, a thin divider between groups and even spacing. */
+.sidebar__nav { padding: 6px 0; gap: 0; }
+.sidebar__section { display: grid; gap: 3px; padding: 14px 0 12px; border-top: 1px solid var(--border-subtle); }
+.sidebar__section:first-child { padding-top: 8px; border-top: 0; }
+.sidebar__heading { margin: 0 10px 4px; color: var(--text-secondary); font-size: 11px; font-weight: var(--weight-strong); letter-spacing: 0.09em; text-transform: uppercase; }
+@media (max-width: 1023px) {
+  .sidebar__heading, .sidebar__section--secondary { display: none; }
+  .sidebar__section { padding: 8px 0; }
+}
+@media (max-width: 767px) {
+  .sidebar__heading { display: block; }
+  .sidebar__section--secondary { display: grid; }
+  .sidebar__section { padding: 14px 0 12px; }
+  .sidebar__section:first-child { padding-top: 8px; }
+}

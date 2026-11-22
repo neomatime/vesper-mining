@@ -36,6 +36,7 @@ import { StatusBadge } from "./status-badge";
 import { OperationalMapClient } from "./operational-map-client";
 import { consequenceText } from "./impact-panels";
 import { RoleHomeScreen } from "./role-home-screen";
+import { IntelligenceSlot } from "./intelligence-panels";
 import { useImpact } from "./use-impact";
 
 type OverviewResponse = {
@@ -133,6 +134,7 @@ export function OverviewScreen() {
               <small className="hero-card__note">Opens the recovery review. Nothing changes until an action is taken.</small>
             </div>
           </article>
+          <IntelligenceSlot part="insights" base={{ now, issues, equipment, readiness, shifts }} />
           {nextUp.length > 0 ? (
             <div className="attention-grid" aria-label="Also needs you">
               {nextUp.map((item) => (
@@ -149,6 +151,7 @@ export function OverviewScreen() {
           ) : null}
           </div>
 
+          <div className="needs-now__side">
           <article className="card recovery-card">
             <header className="card__header"><div><span className="eyebrow">Recovery progress</span><h2>Recovery status</h2></div><StatusBadge value={priorityIssue.quality} /></header>
             <div className="recovery-card__body">
@@ -172,6 +175,8 @@ export function OverviewScreen() {
               <Link className="button button--quiet button--small" href={`/exceptions/${priorityIssue.id}`}>Review evidence</Link>
             </div>
           </article>
+          {handoverIncluded ? <IntelligenceSlot part="briefing" base={{ now, issues, equipment, readiness, shifts }} /> : null}
+          </div>
         </div>
 
       </section>

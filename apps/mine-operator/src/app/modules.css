@@ -78,3 +78,45 @@
 @media (max-width: 767px) {
   .impact > :not(.card__header) { margin-inline: 18px; }
 }
+
+/* VESPER Intelligence on the Command Centre. Colours come from the shared theme tokens, so light and dark mode follow the selected theme. */
+.needs-now__side { display: grid; align-content: start; gap: 16px; min-width: 0; }
+.intel { display: grid; gap: 14px; padding: 18px 20px; }
+.intel__head { display: flex; gap: 12px; align-items: flex-start; }
+.intel__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-md); color: var(--brand-emerald); background: var(--surface-hover); }
+.intel__icon svg { width: 20px; height: 20px; }
+.intel__head h3 { margin: 0; font-size: 17px; line-height: 1.25; }
+.intel__head h3 small { margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 11px; font-weight: var(--weight-strong); }
+.intel__head p { margin: 2px 0 0; color: var(--text-secondary); font-size: 13px; }
+.intel__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.intel__item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+.intel__item-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-md); color: var(--text-secondary); background: var(--surface-hover); }
+.intel__item-icon svg { width: 18px; height: 18px; }
+.intel__item-body strong { font-size: 14.5px; }
+.intel__item-body p { margin: 2px 0 0; font-size: 13.5px; }
+.intel__item-body small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 12.5px; }
+.intel__more { justify-self: start; }
+.intel__empty { margin: 0; color: var(--text-secondary); }
+.intel__ask { display: flex; gap: 8px; align-items: center; padding: 6px 6px 6px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-hover); }
+.intel__ask input { flex: 1; min-width: 0; border: 0; outline: 0; color: inherit; background: transparent; font-size: 14px; }
+.intel__ask:focus-within { border-color: var(--brand-emerald); }
+.intel__send { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: var(--radius-md); color: #fff; background: var(--brand-emerald); cursor: pointer; }
+.intel__send:disabled { opacity: .45; cursor: default; }
+.intel__send svg { width: 17px; height: 17px; }
+.intel__answer { display: grid; gap: 6px; padding: 12px 14px; border-left: 3px solid var(--brand-emerald); border-radius: var(--radius-sm); background: var(--surface-hover); font-size: 14px; }
+.intel__answer p { margin: 0; }
+.intel__asked { color: var(--text-secondary); font-size: 12.5px; }
+.intel__missing { color: var(--text-secondary); font-size: 13px; }
+.intel__links { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
+.intel__links a { color: var(--brand-emerald-dark); font-weight: var(--weight-strong); }
+.intel__examples { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+.intel-briefing__list { display: grid; gap: 10px; margin: 0; padding: 4px 24px 8px; list-style: none; }
+.intel-briefing__line { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.intel-briefing__line > span { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--text-secondary); }
+.intel-briefing__line--good > span { color: var(--brand-emerald); }
+.intel-briefing__line svg { width: 17px; height: 17px; }
+.intel-briefing__next { margin: 4px 24px 8px; padding-top: 10px; border-top: 1px solid var(--border-subtle); }
+.intel-briefing__next small { color: var(--text-secondary); font-size: 12px; }
+.intel-briefing__next ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.intel-briefing__footer { padding: 4px 24px 18px; }
+@media (max-width: 767px) { .intel__item { grid-template-columns: 36px minmax(0, 1fr); } .intel__item > a { grid-column: 2; justify-self: start; } .intel-briefing__list, .intel-briefing__next, .intel-briefing__footer { padding-left: 18px; padding-right: 18px; margin-left: 0; margin-right: 0; } }

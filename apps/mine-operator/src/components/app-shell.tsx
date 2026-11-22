@@ -52,29 +52,39 @@ type NavigationItem = {
   feature?: FeatureCode;
 };
 
-/** The main workspaces, in the order they appear in the sidebar. `feature` hides an item the subscription does not include; `count` shows a live number. */
-const primaryNavigation: NavigationItem[] = [
-  { label: "Overview", href: "/overview", icon: LayoutDashboard },
-  { label: "Operational Map", href: "/map", icon: Map },
-  { label: "Work & Exceptions", href: "/exceptions", icon: AlertTriangle, count: "openIssues" },
-  { label: "Equipment & Maintenance", href: "/equipment", icon: Wrench },
-  { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention", feature: "resource_readiness" },
-  { label: "Shift Control", href: "/shifts", icon: UsersRound },
-  { label: "Shipments", href: "/shipments", icon: Truck },
-];
-
-/** Shortcut groups in the sidebar below the workspaces. */
-const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
+/**
+ * The sidebar, in groups: Overview, Operations, Workflow shortcuts and Intelligence. `feature` hides an item the subscription does not
+ * include; `count` shows a live number. The Workflow shortcuts are secondary: they are left out of the narrow, icon-only sidebar.
+ */
+const navigationSections: { label: string; secondary?: boolean; items: NavigationItem[] }[] = [
+  {
+    label: "Overview",
+    items: [
+      { label: "Overview", href: "/overview", icon: LayoutDashboard },
+      { label: "Operational Map", href: "/map", icon: Map },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { label: "Work & Exceptions", href: "/exceptions", icon: AlertTriangle, count: "openIssues" },
+      { label: "Equipment & Maintenance", href: "/equipment", icon: Wrench },
+      { label: "Resource Readiness", href: "/resources", icon: PackageCheck, count: "readinessAttention", feature: "resource_readiness" },
+      { label: "Shift Control", href: "/shifts", icon: UsersRound },
+      { label: "Shipments", href: "/shipments", icon: Truck },
+    ],
+  },
   {
     label: "Workflow",
+    secondary: true,
     items: [
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
       { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention", feature: "resource_readiness" },
     ],
   },
   {
-    label: "Intelligence",
     // Every measure is inside Reports, so it is the one entry here.
+    label: "Intelligence",
     items: [{ label: "Reports", href: "/reports", icon: BarChart3 }],
   },
 ];
@@ -173,33 +183,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {!sidebarCollapsed ? <div><strong>{context.siteName}</strong><small>Open pit</small></div> : null}
           </div>
           <nav className="sidebar__nav" aria-label="Primary workspaces">
-            {primaryNavigation.filter(included).map((item) => {
-              const count = countFor(item);
-              return (
-                <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
-                  <item.icon aria-hidden="true" />
-                  {!sidebarCollapsed ? <span>{item.label}</span> : null}
-                  {!sidebarCollapsed && count ? <em aria-label={`${count} need attention`}>{count}</em> : null}
-                </Link>
-              );
-            })}
+            {navigationSections.filter((section) => !(sidebarCollapsed && section.secondary)).map((section) => (
+              <div className={`sidebar__section ${section.secondary ? "sidebar__section--secondary" : ""}`} key={section.label}>
+                {!sidebarCollapsed ? <p className="sidebar__heading">{section.label}</p> : null}
+                {section.items.filter(included).map((item) => {
+                  const count = countFor(item);
+                  return (
+                    <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
+                      <item.icon aria-hidden="true" />
+                      {!sidebarCollapsed ? <span>{item.label}</span> : null}
+                      {!sidebarCollapsed && count ? <em aria-label={`${count} ${section.secondary ? "open" : "need attention"}`}>{count}</em> : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
-          {contextualNavigation.filter((group) => !sidebarCollapsed || group.label === "Intelligence").map((group) => (
-            <div className="sidebar__group" key={group.label}>
-              {!sidebarCollapsed ? <p>{group.label}</p> : null}
-              {group.items.filter(included).map((rawItem) => {
-                const item = rawItem;
-                const count = countFor(item);
-                return (
-                  <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
-                    <item.icon aria-hidden="true" />
-                    {!sidebarCollapsed ? <span>{item.label}</span> : null}
-                    {!sidebarCollapsed && count ? <em aria-label={`${count} open`}>{count}</em> : null}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
           <button className="sidebar__collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
             {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
             {!sidebarCollapsed ? <span>Collapse navigation</span> : null}
