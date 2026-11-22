@@ -81,6 +81,7 @@ import {
 } from "./transport-rules";
 import { GOLD_ACTIVITY_ID, GOLD_EQUIPMENT_ID, GOLD_ISSUE_ID, goldEquipment, goldIssue, goldReadiness, seedImpactScenario } from "./impact-data";
 import type { AssetCondition } from "@vesper/api-contracts";
+import { automationCatalogue, defaultRules, definitionOf, evaluate, recipientRoles, type AutomationRecipient, type AutomationRule, type AutomationRun, type Finding } from "./automation-rules";
 import { buildBriefing, canReviewBriefing, changedSinceApproval, effectiveLines, reviewMessage, type BriefingRecord } from "./intelligence-rules";
 import { calculateImpact, canActOnImpact, plannedSalesValue, type ImpactCapability, type ImpactChange, type ImpactScenario, type ImpactSnapshot } from "./impact-rules";
 import { seedFinance, seedMovements, seedPrices, seedProduction, seedRequests as seedCollectionRequests, seedShipments, seedStockpiles, seedValueHistory, shipmentCounters } from "./shipment-data";
@@ -189,6 +190,8 @@ const initialState = {
   impact: seedImpactScenario,
   impactHistory: [] as ImpactChange[],
   briefings: [] as BriefingRecord[],
+  automations: defaultRules() as AutomationRule[],
+  automationRuns: [] as AutomationRun[],
   /** Every version of every price, and every value a shipment has had. Nothing here is ever overwritten. */
   prices: seedPrices,
   finance: seedFinance,
@@ -202,7 +205,7 @@ const initialState = {
 export type DemoDomainState = typeof initialState;
 
 /** The localStorage key for the whole store. Change the suffix when the stored shape changes, so old browsers start clean. */
-const STORAGE_KEY = "vesper-demo-state-v12";
+const STORAGE_KEY = "vesper-demo-state-v13";
 
 /** Keeps the records across a page refresh and between tabs, so a provider's reply page sees the same request. Reset clears them. */
 function loadState(): DemoDomainState | null {
@@ -211,7 +214,7 @@ function loadState(): DemoDomainState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
-    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.briefings) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
+    const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.briefings) && Array.isArray(parsed.automations) && Array.isArray(parsed.automationRuns) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
     return valid ? (parsed as DemoDomainState) : null;
   } catch {
     return null;
@@ -3590,6 +3593,100 @@ export const demoDomain = {
 
 
   // ---- Impact ("What happens if we wait?") --------------------------------------------------
+  // ---- Automations ------------------------------------------------------------------------------
+
+  /** The seven rules as set, with their definitions, and the recent runs. Only the Mine Manager manages them. */
+  automations(actor?: Actor) {
+    const canManage = Boolean(actor && canManageOrganisation(actor).allowed);
+    return {
+      now: now(),
+      canManage,
+      recipients: recipientRoles,
+      rules: automationCatalogue.map((definition) => ({ definition, rule: state.automations.find((item) => item.key === definition.key)! })),
+      runs: [...state.automationRuns].reverse().slice(0, 15),
+    };
+  },
+
+  /** Switches a rule on or off, chooses who is told, or sets how early or late it counts. Every change is kept in the history. */
+  updateAutomation(key: string, input: Record<string, unknown>, actor: Actor) {
+    assertOrganisationManager(actor);
+    const definition = definitionOf(key) ?? fail(404, "NOT_FOUND", "This automation could not be found.");
+    const rule = state.automations.find((item) => item.key === definition.key)!;
+    const lines: string[] = [];
+    if (typeof input.enabled === "boolean" && input.enabled !== rule.enabled) {
+      rule.enabled = input.enabled;
+      // A rule that has been off starts fresh: whatever is wrong when it is switched back on counts as new.
+      if (!input.enabled) rule.fired = [];
+      lines.push(input.enabled ? "switched on" : "switched off");
+    }
+    if (input.recipient !== undefined && input.recipient !== rule.recipient) {
+      const recipient = String(input.recipient);
+      const allowed = recipient === "owner" ? definition.hasOwner : (recipientRoles as readonly string[]).includes(recipient);
+      if (!allowed) fail(400, "VALIDATION_ERROR", "Choose who is told from the list.");
+      rule.recipient = recipient as AutomationRecipient;
+      lines.push(`now tells ${recipient === "owner" ? "the owner of the record" : recipient}`);
+    }
+    if (input.threshold !== undefined && definition.threshold) {
+      const value = Number(input.threshold);
+      if (!Number.isFinite(value) || value < definition.threshold.min || value > definition.threshold.max) fail(400, "VALIDATION_ERROR", `Enter ${definition.threshold.label.toLowerCase()} between ${definition.threshold.min} and ${definition.threshold.max} ${definition.threshold.unit}.`);
+      if (value !== rule.threshold) {
+        rule.threshold = value;
+        rule.fired = [];
+        lines.push(`${definition.threshold.label.toLowerCase()} ${value} ${definition.threshold.unit}`);
+      }
+    }
+    if (lines.length === 0) fail(400, "VALIDATION_ERROR", "Nothing was changed.");
+    state.automationRuns = [...state.automationRuns, { id: nextId("automationRun", "arn"), at: tick(), actor: actor.name, kind: "setting", ruleKey: definition.key, found: 0, notified: 0, summary: `${definition.name}: ${lines.join(", ")}` }];
+    return demoDomain.automations(actor);
+  },
+
+  /**
+   * Runs one rule, or every rule that is on, against the records as they are now. New findings notify the chosen people; findings that
+   * were already announced are not announced again. Nothing but notifications is created, and nothing leaves VESPER.
+   */
+  runAutomations(input: Record<string, unknown>, actor: Actor) {
+    assertOrganisationManager(actor);
+    const key = typeof input.key === "string" && input.key ? input.key : null;
+    const selected = key ? [state.automations.find((item) => item.key === key) ?? fail(404, "NOT_FOUND", "This automation could not be found.")] : state.automations.filter((item) => item.enabled);
+    if (key && !selected[0].enabled) fail(409, "READ_ONLY", "Switch this automation on before running it.");
+    if (selected.length === 0) fail(409, "READ_ONLY", "No automation is switched on. Switch one on to run it.");
+    const vehicles = fleetVehicles();
+    const inputs = {
+      now: now(),
+      issues: demoDomain.listIssues(),
+      equipment: demoDomain.listEquipment(),
+      shifts: demoDomain.listShifts(),
+      shipments: state.shipments,
+      providers: state.providers,
+      fleetAlerts: state.shipments.flatMap((shipment) => fleetAlertsFor(shipment, vehicles).map((alert) => ({ shipment, alert }))),
+    };
+    const peopleWith = (role: string) => state.members.filter((member) => member.status !== "deactivated" && member.role === role).map((member) => member.name);
+    let totalFound = 0;
+    let totalNotified = 0;
+    for (const rule of selected) {
+      const definition = definitionOf(rule.key)!;
+      const findings: Finding[] = evaluate(rule.key, rule.threshold, inputs);
+      const fresh = findings.filter((item) => !rule.fired.includes(item.recordKey));
+      let notified = 0;
+      for (const finding of fresh) {
+        const names = rule.recipient === "owner" ? [finding.owner ?? peopleWith("Mine Manager")[0] ?? null] : peopleWith(rule.recipient);
+        for (const name of names) {
+          if (!name) continue;
+          notify(name, definition.name, `${finding.title}. ${finding.detail}`, finding.href, "automation");
+          notified += 1;
+        }
+      }
+      rule.fired = findings.map((item) => item.recordKey);
+      rule.lastRunAt = tick();
+      rule.lastFound = findings.length;
+      rule.lastNotified = notified;
+      totalFound += findings.length;
+      totalNotified += notified;
+      state.automationRuns = [...state.automationRuns, { id: nextId("automationRun", "arn"), at: rule.lastRunAt, actor: actor.name, kind: "run", ruleKey: rule.key, found: findings.length, notified, summary: findings.length === 0 ? `${definition.name}: nothing found` : `${definition.name}: ${findings.length} found, ${notified} notified${fresh.length < findings.length ? `, ${findings.length - fresh.length} already announced` : ""}` }];
+    }
+    return { ...demoDomain.automations(actor), summary: { rulesRun: selected.length, found: totalFound, notified: totalNotified } };
+  },
+
   // ---- Shift briefing review (VESPER Intelligence) ------------------------------------------
 
   /** The generated briefing for the current shift, any supervisor corrections, and whether it has been approved. Reading changes nothing. */
