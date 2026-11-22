@@ -24,7 +24,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  ShieldCheck,
   Truck,
   UsersRound,
   Wrench,
@@ -74,7 +73,6 @@ const contextualNavigation: { label: string; items: NavigationItem[] }[] = [
     items: [
       { label: "Awaiting dependency", href: "/exceptions?filter=waiting", icon: ClipboardCheck, count: "awaitingDependency" },
       { label: "Readiness risks", href: "/resources?filter=attention", icon: Boxes, count: "readinessAttention", feature: "resource_readiness" },
-      { label: "Shift handover", href: "/shifts/handover", icon: ShieldCheck, feature: "shift_handover" },
     ],
   },
   {
@@ -106,8 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { context, sidebarCollapsed, toggleSidebar } = useDemoContext();
-  const { counts, data: shellData } = useShellData();
-  const currentShift = shellData?.shifts.find((item) => item.state === "in_progress") ?? shellData?.shifts.find((item) => item.state === "scheduled");
+  const { counts } = useShellData();
   const isMobileExperience = pathname.startsWith("/mobile/");
   const mobileLocked = isMobileExperience && !entitlementsFor(context.tier).mobile;
 
@@ -196,7 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="sidebar__group" key={group.label}>
               <p>{group.label}</p>
               {group.items.filter(included).map((rawItem) => {
-                const item = rawItem.label === "Shift handover" && currentShift ? { ...rawItem, href: `/shifts/${currentShift.id}/handover` } : rawItem;
+                const item = rawItem;
                 const count = countFor(item);
                 return (
                   <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>
