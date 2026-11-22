@@ -84,7 +84,7 @@ test.describe("service providers and requests", () => {
     await expect(page.getByRole("checkbox", { name: /Ridge Hydraulics/ })).toHaveCount(0);
     await expect(page.getByRole("checkbox", { name: /Highveld Drilling Support/ })).toHaveCount(0);
     await expect(page.getByRole("checkbox", { name: /Northgate Fleet Services/ })).toHaveCount(0);
-    await expect(page.getByText(/Only approved providers that service this kind of asset/)).toBeVisible();
+    await expect(page.getByText(/Only providers already approved for this mine are shown/)).toBeVisible();
   });
 
   test("requests quotes, compares them, chooses a provider, books and completes the work", async ({ page }) => {
