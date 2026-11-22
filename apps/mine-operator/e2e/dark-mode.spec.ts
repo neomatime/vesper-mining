@@ -61,7 +61,7 @@ test.describe("on a device set to dark", () => {
     await signIn(page, "John Dlamini");
     await page.goto("/overview");
     await expect(page.getByRole("heading", { name: "Needs you now" })).toBeVisible();
-    for (const selector of ["h1", ".dashboard-greeting p", ".sidebar__nav a:not(.active)", ".sidebar__group > p", ".attention-card p", ".metric-card small"]) {
+    for (const selector of ["h1", ".dashboard-greeting p", ".sidebar__nav a:not(.active)", ".sidebar__heading", ".intel__item-body p", ".attention-card p", ".metric-card small"]) {
       expect(await contrastOf(page, selector), selector).toBeGreaterThanOrEqual(4.5);
     }
   });
