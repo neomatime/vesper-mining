@@ -15,6 +15,7 @@ import "./dark.css";
 import "./login.css";
 import "./allocation.css";
 import "./modules.css";
+import "./trade.css";
 
 export const metadata: Metadata = {
   title: {

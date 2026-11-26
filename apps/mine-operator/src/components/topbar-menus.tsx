@@ -3,13 +3,14 @@
 /**
  * The three menus in the top bar: site, notifications and profile.
  */
-import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Monitor, Settings2, Smartphone } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Monitor, Pickaxe, Settings2, Smartphone, Network } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { entitlementsFor } from "@/lib/entitlements";
 import { canManageOrganisation } from "@/lib/organisation-rules";
 import { initials, tierLabel } from "@/lib/personas";
+import { workspaceOf, workspacesFor } from "@/lib/workspaces";
 import { useDemoContext } from "@/stores/demo-context";
 import { useSession } from "@/stores/session";
 import { NotificationList, useNotifications } from "./notification-list";
@@ -117,6 +118,10 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
   const { context } = useDemoContext();
   const signOut = useSession((state) => state.signOut);
   const mobileIncluded = entitlementsFor(context.tier).mobile;
+  const pathname = usePathname();
+  const current = workspaceOf(pathname);
+  // Only the workspaces this role may open. Switching keeps the session, the site and the role; it only opens that workspace's Overview.
+  const available = inField ? [] : workspacesFor(context.role);
   const canAdminister = canManageOrganisation({ name: context.persona, role: context.role }).allowed;
   // Only true where the browser can install web apps and VESPER is not already installed.
   const { canInstall, install } = useInstallApp();
@@ -151,6 +156,31 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
             </div>
             <ChevronRight size={16} aria-hidden="true" className="profile-card__chevron" />
           </Link>
+
+          {available.length > 1 ? (
+            <div className="menu-section" role="group" aria-labelledby="switch-workspace-heading">
+              <p className="menu-section__heading" id="switch-workspace-heading">Switch workspace</p>
+              {available.map((item) => {
+                const active = item.key === current;
+                const Icon = item.key === "trade" ? Network : Pickaxe;
+                return (
+                  <button
+                    key={item.key}
+                    className={`menu-item ${active ? "menu-item--current" : ""}`}
+                    aria-current={active ? "true" : undefined}
+                    onClick={() => {
+                      close();
+                      if (!active) router.push(item.home);
+                    }}
+                  >
+                    <span className="menu-item__icon"><Icon size={16} /></span>
+                    <span className="menu-item__copy"><strong>{item.label}</strong><small>{item.description}</small></span>
+                    {active ? <Check size={16} className="menu-item__check" aria-label="Current workspace" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           <div className="menu-section">
             {inField ? (

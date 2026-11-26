@@ -14,10 +14,17 @@ import {
   Boxes,
   CirclePlus,
   ClipboardCheck,
+  Database,
+  FileText,
+  Files,
   HardHat,
+  Layers,
   LayoutDashboard,
+  Link2,
+  Mail,
   Map,
   Menu,
+  Network,
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -40,6 +47,7 @@ import { CommandSearch } from "./command-search";
 import { EntitlementGate } from "./entitlement-gate";
 import { useShellData } from "./shell-data";
 import { NotificationMenu, ProfileMenu, SiteMenu } from "./topbar-menus";
+import { workspaceOf, workspaces } from "@/lib/workspaces";
 
 type CountKey = "openIssues" | "awaitingDependency" | "readinessAttention";
 
@@ -89,6 +97,39 @@ const navigationSections: { label: string; secondary?: boolean; items: Navigatio
   },
 ];
 
+/** The Trade workspace's sidebar: the commercial side of the same mine. */
+const tradeSections: { label: string; secondary?: boolean; items: NavigationItem[] }[] = [
+  {
+    label: "Overview",
+    items: [
+      { label: "Overview", href: "/trade/overview", icon: LayoutDashboard },
+      { label: "Portfolio", href: "/trade/portfolio", icon: Layers },
+    ],
+  },
+  {
+    label: "Commercial Operations",
+    items: [
+      { label: "Enquiries", href: "/trade/enquiries", icon: Mail },
+      { label: "Agreements", href: "/trade/agreements", icon: FileText },
+      { label: "Deliveries", href: "/trade/deliveries", icon: Truck },
+      { label: "Logistics", href: "/trade/logistics", icon: Network },
+      { label: "Settlements", href: "/trade/settlements", icon: Database },
+    ],
+  },
+  {
+    label: "Workflow",
+    items: [
+      { label: "Approvals", href: "/trade/approvals", icon: ClipboardCheck },
+      { label: "Documents", href: "/trade/documents", icon: Files },
+      { label: "Linked Operations", href: "/trade/linked-operations", icon: Link2 },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [{ label: "Reports", href: "/trade/reports", icon: BarChart3 }],
+  },
+];
+
 /** The four tabs of the phone experience (pages under /mobile/). */
 const mobileNavigation: NavigationItem[] = [
   { label: "My Shift", href: "/mobile/my-shift", icon: HardHat },
@@ -111,6 +152,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { context, sidebarCollapsed, toggleSidebar } = useDemoContext();
   const { counts } = useShellData();
   const isMobileExperience = pathname.startsWith("/mobile/");
+  const workspace = workspaceOf(pathname);
+  const sections = workspace === "trade" ? tradeSections : navigationSections;
+  const home = workspaces[workspace].home;
   const mobileLocked = isMobileExperience && !entitlementsFor(context.tier).mobile;
 
   useEffect(() => {
@@ -129,7 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // A sidebar item is active on its own page and on pages beneath it. Items with a query string (filters) are never marked active.
   const active = (href: string) => {
     if (href.includes("?")) return false;
-    return pathname === href || (href !== "/overview" && pathname.startsWith(`${href}/`));
+    return pathname === href || (href !== home && pathname.startsWith(`${href}/`));
   };
 
   const included = (item: NavigationItem) => !item.feature || can(context.tier, item.feature);
@@ -147,7 +191,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             {mobileOpen ? <X /> : <Menu />}
           </button>
-          <Link href="/overview" className="wordmark" aria-label="VESPER overview">
+          <Link href={home} className="wordmark" aria-label={`VESPER ${workspaces[workspace].label} overview`}>
             VESPER
           </Link>
         </div>
@@ -180,10 +224,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <div className="sidebar__site-card">
             <div className="mine-thumbnail" aria-hidden="true"><span /></div>
-            {!sidebarCollapsed ? <div><strong>{context.siteName}</strong><small>Open pit</small></div> : null}
+            {!sidebarCollapsed ? (workspace === "trade" ? <div><strong>VESPER Trade</strong><small>{context.siteName}</small></div> : <div><strong>{context.siteName}</strong><small>Open pit</small></div>) : null}
           </div>
-          <nav className="sidebar__nav" aria-label="Primary workspaces">
-            {navigationSections.filter((section) => !(sidebarCollapsed && section.secondary)).map((section) => (
+          <nav className="sidebar__nav" aria-label={workspace === "trade" ? "Trade navigation" : "Primary workspaces"}>
+            {sections.filter((section) => !(sidebarCollapsed && section.secondary)).map((section) => (
               <div className={`sidebar__section ${section.secondary ? "sidebar__section--secondary" : ""}`} key={section.label}>
                 {!sidebarCollapsed ? <p className="sidebar__heading">{section.label}</p> : null}
                 {section.items.filter(included).map((item) => {
