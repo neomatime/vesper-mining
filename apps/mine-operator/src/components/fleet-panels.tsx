@@ -20,6 +20,7 @@ import { Field } from "./form-field";
 import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
+import { Busy } from "./busy";
 
 /** Two buttons, one choice. Used on the create form (controlled) and on the shipment page (it asks the server to switch). */
 export function TransportModeChoice({ value, onChange, disabled = false }: { value: "provider" | "own_fleet"; onChange: (mode: "provider" | "own_fleet") => void; disabled?: boolean }) {
@@ -49,7 +50,7 @@ export function TransportModeSwitch({ shipment, disabled }: { shipment: Shipment
       <TransportModeChoice value={shipment.transportMode} onChange={pick} disabled={disabled || change.isPending} />
       {asking ? (
         <Dialog title="Change who handles the transport?" description={`This shipment is priced from ${shipment.pricingSource?.label}. That pricing source is removed and kept in the history.`} onClose={() => setAsking(null)} locked={change.isPending}
-          footer={<><button className="button button--quiet" onClick={() => setAsking(null)} disabled={change.isPending}>Cancel</button><button className="button button--primary" disabled={change.isPending || reason.trim().length < 5} onClick={() => change.mutate({ mode: asking, reason, version: shipment.version })}>{change.isPending ? "Saving…" : "Change"}</button></>}>
+          footer={<><button className="button button--quiet" onClick={() => setAsking(null)} disabled={change.isPending}>Cancel</button><button className="button button--primary" disabled={change.isPending || reason.trim().length < 5} onClick={() => change.mutate({ mode: asking, reason, version: shipment.version })}><Busy pending={change.isPending} label="Saving…">Change</Busy></button></>}>
           <Field label="Why? (required)"><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
         </Dialog>
       ) : null}
@@ -149,7 +150,7 @@ export function FleetSection({ data, shipment, canManage, problems }: { data: Lo
         <div className="note-bar"><Info /> <span><strong>Waiting for {shipment.fleet.coordinator} to confirm the schedule.</strong> A plan is not a booking until it is confirmed.</span></div>
       ) : null}
       {shipment.state === "waiting" && canManage ? (
-        <div className="button-row button-row--end"><button className="button button--primary" disabled={confirm.isPending || alerts.length > 0} onClick={() => confirm.mutate({ version: shipment.version })}><CheckCircle2 /> {confirm.isPending ? "Confirming…" : "Confirm schedule"}</button></div>
+        <div className="button-row button-row--end"><button className="button button--primary" disabled={confirm.isPending || alerts.length > 0} onClick={() => confirm.mutate({ version: shipment.version })}><CheckCircle2 /> <Busy pending={confirm.isPending} label="Confirming…">Confirm schedule</Busy></button></div>
       ) : null}
       {adding ? <AssignDialog data={data} shipment={shipment} left={left} onClose={() => setAdding(false)} /> : null}
     </section>
@@ -170,7 +171,7 @@ function AssignDialog({ data, shipment, left, onClose }: { data: Logistics; ship
   const vehicle = vehicles.find((item) => item.id === vehicleId);
   return (
     <Dialog title="Assign vehicle and driver" description={`${shipment.number} · ${formatTonnes(left)} still to assign`} size="wide" onClose={onClose} locked={add.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={add.isPending}>Cancel</button><button className="button button--primary" disabled={add.isPending || !vehicle?.assignable || !driverName || !(Number(tonnes) > 0)} onClick={() => add.mutate({ vehicleId, driverName, tonnes: Number(tonnes), plannedCollectionAt: collect, plannedDeliveryAt: deliver, submissionId: submission.id, version: shipment.version })}>{add.isPending ? "Assigning…" : "Assign"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={add.isPending}>Cancel</button><button className="button button--primary" disabled={add.isPending || !vehicle?.assignable || !driverName || !(Number(tonnes) > 0)} onClick={() => add.mutate({ vehicleId, driverName, tonnes: Number(tonnes), plannedCollectionAt: collect, plannedDeliveryAt: deliver, submissionId: submission.id, version: shipment.version })}><Busy pending={add.isPending} label="Assigning…">Assign</Busy></button></>}>
       <div className="task-grid task-grid--two">
         <Field label="Vehicle" hint="From the equipment register.">
           <Select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>

@@ -16,6 +16,7 @@ import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type SettlementRow, type TradeView } from "../use-trade";
 import { SettlementStatus } from "./trade-status";
 import { CellMain, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, RailCard, RailList, Register, TradeData, TradeHeader } from "./trade-ui";
+import { Busy } from "../busy";
 
 export function SettlementsScreen() {
   return <TradeData label="Loading settlements">{(data) => <Settlements data={data} />}</TradeData>;
@@ -143,21 +144,21 @@ function SettlementDialog({ data, settlement, onClose }: { data: TradeView; sett
               <Field label="Amount (R)"><input inputMode="decimal" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field>
               <Field label="Payment reference"><input value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="EFT 0042" /></Field>
               <Field label="Date received"><input type="date" max={data.today} value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></Field>
-              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={pay.isPending || !(Number(form.amount) > 0) || form.reference.trim().length < 3} onClick={() => pay.mutate({ amount: Number(form.amount), reference: form.reference, date: form.date, version: settlement.version })}>{pay.isPending ? "Saving…" : "Save payment"}</button></div>
+              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={pay.isPending || !(Number(form.amount) > 0) || form.reference.trim().length < 3} onClick={() => pay.mutate({ amount: Number(form.amount), reference: form.reference, date: form.date, version: settlement.version })}><Busy pending={pay.isPending} label="Saving…">Save payment</Busy></button></div>
             </div>
           ) : null}
           {mode === "dispute" ? (
             <div className="form-grid">
               <Field label="Disputed amount (R)" hint="Optional"><input inputMode="decimal" value={form.credit} onChange={(event) => setForm({ ...form, credit: event.target.value })} /></Field>
               <Field label="What does the customer dispute?" wide><textarea rows={2} value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} /></Field>
-              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={dispute.isPending || form.reason.trim().length < 5} onClick={() => dispute.mutate({ reason: form.reason, amount: Number(form.credit) > 0 ? Number(form.credit) : null })}>{dispute.isPending ? "Saving…" : "Record dispute"}</button></div>
+              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={dispute.isPending || form.reason.trim().length < 5} onClick={() => dispute.mutate({ reason: form.reason, amount: Number(form.credit) > 0 ? Number(form.credit) : null })}><Busy pending={dispute.isPending} label="Saving…">Record dispute</Busy></button></div>
             </div>
           ) : null}
           {mode === "resolve" ? (
             <div className="form-grid">
               <Field label="Credit to issue (R)" hint="0 to resolve without a credit. A credit needs Mine Manager approval."><input inputMode="decimal" value={form.credit} onChange={(event) => setForm({ ...form, credit: event.target.value })} /></Field>
               <Field label="Resolution" wide><textarea rows={2} value={form.resolution} onChange={(event) => setForm({ ...form, resolution: event.target.value })} /></Field>
-              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={resolve.isPending || form.resolution.trim().length < 5} onClick={() => resolve.mutate({ resolution: form.resolution, credit: Number(form.credit) || 0 })}>{resolve.isPending ? "Saving…" : Number(form.credit) > 0 ? "Send credit for approval" : "Resolve"}</button></div>
+              <div className="button-row"><button className="button button--quiet" onClick={() => setMode(null)}>Cancel</button><button className="button button--primary" disabled={resolve.isPending || form.resolution.trim().length < 5} onClick={() => resolve.mutate({ resolution: form.resolution, credit: Number(form.credit) || 0 })}><Busy pending={resolve.isPending} label="Saving…">{Number(form.credit) > 0 ? "Send credit for approval" : "Resolve"}</Busy></button></div>
             </div>
           ) : null}
         </section>
@@ -179,7 +180,7 @@ function InvoiceDialog({ data, agreementId, onClose }: { data: TradeView; agreem
   const save = useTradeAction<Record<string, unknown>>({ path: "/trade/settlements", success: () => ({ title: "Invoice created" }), onDone: onClose });
   return (
     <Dialog title="Create invoice" description="Invoices cover customer-accepted tonnes that are not yet invoiced." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || chosen.length === 0} onClick={() => save.mutate({ agreementId: agreement, deliveryIds: chosen, submissionId: submission.id })}>{save.isPending ? "Saving…" : "Create invoice"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || chosen.length === 0} onClick={() => save.mutate({ agreementId: agreement, deliveryIds: chosen, submissionId: submission.id })}><Busy pending={save.isPending} label="Saving…">Create invoice</Busy></button></>}>
       {agreements.length === 0 ? <p className="muted">No accepted deliveries are waiting to be invoiced. Record customer acceptance on a delivery first.</p> : (
         <>
           <Field label="Agreement"><Select value={agreement} onChange={(event) => { setAgreement(event.target.value); setChosen(ready.filter((item) => item.agreementId === event.target.value).map((item) => item.id)); }}>{agreements.map((item) => <option key={item.id} value={item.id}>{item.number} · {item.clientName}</option>)}</Select></Field>

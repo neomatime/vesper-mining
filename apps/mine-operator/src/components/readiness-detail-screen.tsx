@@ -21,6 +21,7 @@ import { ErrorState, LoadingState } from "./query-state";
 import { ImpactCard } from "./impact-panels";
 import { StatusBadge } from "./status-badge";
 import { useToast } from "./toast-provider";
+import { Busy } from "./busy";
 
 type Part = ReadinessActivity["parts"][number];
 
@@ -46,8 +47,8 @@ export function ReadinessDetailScreen({ id }: { id: string }) {
     queryKey: ["readiness", id],
     queryFn: () => demoFetch<ReadinessActivity>(`/readiness/${id}`),
   });
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <ReadinessDetail activity={query.data} />;
 }
 
@@ -182,7 +183,7 @@ function ReviewDialog({ pending, onSave, onClose }: { pending: boolean; onSave: 
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave({ decision, note: note.trim() }))}>{pending ? "Saving…" : "Record review"}</button>
+          <button className="button button--primary" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave({ decision, note: note.trim() }))}><Busy pending={pending} label="Saving…">Record review</Busy></button>
         </>
       }
     >
@@ -240,7 +241,7 @@ function PartDialog({ part, canVerify, pending, onSave, onClose }: { part: Part;
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" disabled={pending} onClick={submit}>{pending ? "Saving…" : "Save figures"}</button>
+          <button className="button button--primary" disabled={pending} onClick={submit}><Busy pending={pending} label="Saving…">Save figures</Busy></button>
         </>
       }
     >

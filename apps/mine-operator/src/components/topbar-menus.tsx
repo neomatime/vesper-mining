@@ -140,7 +140,11 @@ export function ProfileMenu({ inField }: { inField: boolean }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={`Account menu for ${context.persona}`}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          // Opening the menu warms up the other workspace, so switching feels immediate.
+          if (!open) for (const item of available) router.prefetch(item.home);
+          setOpen((value) => !value);
+        }}
       >
         <span className="avatar">{initials(context.persona)}</span>
         <span><strong>{context.persona}</strong><small>{context.role}</small></span>

@@ -15,7 +15,7 @@ import { agreementState } from "./trade-status";
 import { dayLabel, KpiTiles, Money, RailCard, RailList, TradeData } from "./trade-ui";
 
 export function TradeOverviewScreen() {
-  return <TradeData label="Loading the commercial overview">{(data) => <Overview data={data} />}</TradeData>;
+  return <TradeData label="Loading the commercial overview" variant="dashboard">{(data) => <Overview data={data} />}</TradeData>;
 }
 
 /** Answers a question from the Trade records with simple rules. It says what it counted, and never guesses. */

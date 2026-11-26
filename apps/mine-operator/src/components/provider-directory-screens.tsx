@@ -25,6 +25,7 @@ import { StatusBadge } from "./status-badge";
 import { useProviderDetail, useProviderMutations, useProviders, type ProviderDetail, type ProviderInput } from "./use-service";
 import { useDismiss } from "./use-dismiss";
 import { useShellData } from "./shell-data";
+import { Busy } from "./busy";
 
 const PAGE_SIZE = 5;
 
@@ -77,7 +78,7 @@ export function ProviderDirectoryScreen() {
   const specialisations = useMemo(() => Array.from(new Set(all.flatMap((item) => item.categories))).sort((a, b) => categoryLabels[a].localeCompare(categoryLabels[b])), [all]);
 
   if (providers.isPending) return <LoadingState />;
-  if (providers.isError) return <ErrorState message={providers.error.message} onRetry={() => providers.refetch()} />;
+  if (providers.isError && !providers.data) return <ErrorState message={providers.error.message} onRetry={() => providers.refetch()} retrying={providers.isFetching} />;
 
   const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
   const visible = all.filter((item) => {
@@ -254,7 +255,7 @@ function ApprovalDialog({ provider, approval, actions, onClose }: { provider: Se
   const title = approval === "approved" ? (provider.approval === "inactive" ? `Reactivate ${provider.name}?` : `Approve ${provider.name}?`) : inactive ? `Make ${provider.name} inactive?` : `Return ${provider.name} to pending?`;
   return (
     <Dialog title={title} description={inactive ? "Their records and history are kept. They will not be offered for new repair requests." : approval === "approved" ? "They can then be offered for repair requests that match their specialisation." : undefined} onClose={onClose} locked={actions.setApproval.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={actions.setApproval.isPending}>Cancel</button><button className="button button--primary" disabled={actions.setApproval.isPending || (inactive && note.trim().length < 5)} onClick={() => actions.setApproval.mutate({ id: provider.id, approval, note, version: provider.version }, { onSuccess: onClose })}>{actions.setApproval.isPending ? "Saving…" : inactive ? "Make inactive" : approval === "approved" ? "Approve" : "Confirm"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={actions.setApproval.isPending}>Cancel</button><button className="button button--primary" disabled={actions.setApproval.isPending || (inactive && note.trim().length < 5)} onClick={() => actions.setApproval.mutate({ id: provider.id, approval, note, version: provider.version }, { onSuccess: onClose })}><Busy pending={actions.setApproval.isPending} label="Saving…">{inactive ? "Make inactive" : approval === "approved" ? "Approve" : "Confirm"}</Busy></button></>}>
       <Field label={inactive ? "Why? (required)" : "Note (optional)"}><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
   );
@@ -295,8 +296,8 @@ export function ProviderDetailScreen({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [asking, setAsking] = useState<"approved" | "inactive" | "pending" | null>(null);
   const [deleting, setDeleting] = useState(false);
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const detail: ProviderDetail = query.data;
   const { provider, requests, performance } = detail;
   const manage = canManageProviders(actor).allowed;

@@ -101,7 +101,7 @@ export function AdminScreen() {
     return (
       <div className="workspace-page">
         <PageHeader eyebrow="Administration" title="Organisation" description="Employees, user rights, site and plan." icon={Settings2} />
-        <LoadingState />
+        <LoadingState variant="panel" />
       </div>
     );
   }

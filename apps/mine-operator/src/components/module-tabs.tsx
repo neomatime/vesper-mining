@@ -19,11 +19,10 @@ const shiftTabs: Tab<"shifts" | "production" | "handover" | "exceptions" | "repo
   { key: "reports", label: "Reports", href: "/shifts/reports", icon: BarChart3 },
 ];
 
-const shipmentTabs: Tab<"overview" | "inventory" | "shipments" | "logistics" | "history">[] = [
+const shipmentTabs: Tab<"overview" | "inventory" | "shipments" | "history">[] = [
   { key: "overview", label: "Overview", href: "/shipments", icon: Package },
   { key: "inventory", label: "Mineral Inventory", href: "/shipments/inventory", icon: Layers },
   { key: "shipments", label: "Shipments", href: "/shipments/list", icon: Truck },
-  { key: "logistics", label: "Logistics", href: "/shipments/logistics", icon: Truck },
   { key: "history", label: "History", href: "/shipments/history", icon: History },
 ];
 
@@ -45,6 +44,6 @@ export function ShiftControlTabs({ active }: { active: "shifts" | "production" |
   return <Tabs tabs={handovers ? shiftTabs : shiftTabs.filter((tab) => tab.key !== "handover")} active={active} label="Shift Control sections" />;
 }
 
-export function ShipmentTabs({ active }: { active: "overview" | "inventory" | "shipments" | "logistics" | "history" }) {
+export function ShipmentTabs({ active }: { active: "overview" | "inventory" | "shipments" | "history" }) {
   return <Tabs tabs={shipmentTabs} active={active} label="Shipments sections" />;
 }

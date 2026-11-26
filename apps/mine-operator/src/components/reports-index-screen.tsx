@@ -28,7 +28,7 @@ export function ReportsIndexScreen() {
   const plan = entitlementsFor(context.tier);
   const query = useQuery({ queryKey: ["reports"], queryFn: () => demoFetch<ReportSummary[]>("/reports") });
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   const reports = query.data;
   const unlocked = reports.filter((report) => canSeeReport(context.tier, report.level)).length;

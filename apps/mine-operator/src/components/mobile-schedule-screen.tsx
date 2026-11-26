@@ -22,7 +22,7 @@ export function MobileScheduleScreen() {
     [shifts, scope, context.persona],
   );
   const byDay = useMemo(() => shiftsByDay(visible), [visible]);
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState variant="panel" />;
 
   const { view, selected, setSelected, today } = calendar;
   const emptyHint = scope === "mine" ? "You are not on a shift this day." : "No shifts are planned for this day.";

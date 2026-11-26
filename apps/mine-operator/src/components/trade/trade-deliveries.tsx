@@ -19,6 +19,7 @@ import { useTradeAction, type DeliveryRow, type TradeView } from "../use-trade";
 import { DeliveryStatus, DocumentStatus, SettlementStatus } from "./trade-status";
 import { UploadDialog } from "./trade-upload";
 import { ActionMenu, CellMain, Crumbs, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TabBar, TradeData, TradeHeader, ViewLink } from "./trade-ui";
+import { Busy } from "../busy";
 
 export function DeliveriesScreen() {
   return <TradeData label="Loading deliveries">{(data) => <Deliveries data={data} />}</TradeData>;
@@ -131,7 +132,7 @@ function PlanDeliveryDialog({ data, agreementId, onClose }: { data: TradeView; a
   };
   return (
     <Dialog title="Plan a delivery" description="Against one commitment of an active agreement." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Plan delivery"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">Plan delivery</Busy></button></>}>
       {error ? <p className="field-error" role="alert">{error}</p> : null}
       <div className="form-grid">
         <Field label="Agreement"><Select value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value, commitmentId: "" })}><option value="">Choose an agreement</option>{active.map((item) => <option key={item.id} value={item.id}>{item.number} · {item.clientName}</option>)}</Select></Field>
@@ -150,7 +151,7 @@ function PlanDeliveryDialog({ data, agreementId, onClose }: { data: TradeView; a
 type DeliveryTab = "overview" | "evidence" | "operations" | "financials" | "history";
 
 export function DeliveryScreen({ id }: { id: string }) {
-  return <TradeData label="Loading the delivery">{(data) => {
+  return <TradeData label="Loading the delivery" variant="detail">{(data) => {
     const delivery = data.deliveries.find((item) => item.id === id);
     if (!delivery) return <div className="workspace-page"><Crumbs items={[{ label: "Deliveries", href: "/trade/deliveries" }, { label: "Not found" }]} /><EmptyState title="This delivery could not be found" description="The link may be wrong." /></div>;
     return <DeliveryDetail data={data} delivery={delivery} />;
@@ -322,7 +323,7 @@ function AcceptanceDialog({ delivery, onClose }: { delivery: DeliveryRow; onClos
   const invalid = !(value >= 0) || value > delivery.quantities.received || (short > 0 && note.trim().length < 5);
   return (
     <Dialog title={`Record acceptance for ${delivery.number}`} description={`${formatTonnes(delivery.quantities.received)} received (${delivery.quantities.source}).`} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || invalid} onClick={() => save.mutate({ tonnes: value, note, version: delivery.version })}>{save.isPending ? "Saving…" : "Record acceptance"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || invalid} onClick={() => save.mutate({ tonnes: value, note, version: delivery.version })}><Busy pending={save.isPending} label="Saving…">Record acceptance</Busy></button></>}>
       <Field label="Accepted by the customer (t)" error={value > delivery.quantities.received ? "Cannot be more than was received." : undefined}><input inputMode="decimal" value={tonnes} onChange={(event) => setTonnes(event.target.value)} data-autofocus /></Field>
       <Field label={short > 0 ? `Why were ${formatTonnes(short)} not accepted? (required)` : "Note (optional)"}><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
@@ -335,7 +336,7 @@ function ReasonDialog({ title, path, field, label, confirm, success, withTonnes,
   const save = useTradeAction<Record<string, unknown>>({ path, success: () => ({ title: success }), onDone: onClose });
   return (
     <Dialog title={title} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Keep as is</button><button className={`button ${danger ? "button--danger" : "button--primary"}`} disabled={save.isPending || text.trim().length < 5} onClick={() => save.mutate({ [field]: text, tonnes: Number(tonnes), version })}>{save.isPending ? "Saving…" : confirm}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Keep as is</button><button className={`button ${danger ? "button--danger" : "button--primary"}`} disabled={save.isPending || text.trim().length < 5} onClick={() => save.mutate({ [field]: text, tonnes: Number(tonnes), version })}><Busy pending={save.isPending} label="Saving…">{confirm}</Busy></button></>}>
       {withTonnes ? <Field label="Tonnes in question"><input inputMode="decimal" value={tonnes} onChange={(event) => setTonnes(event.target.value)} /></Field> : null}
       <Field label={label}><textarea rows={3} value={text} onChange={(event) => setText(event.target.value)} data-autofocus /></Field>
     </Dialog>
@@ -348,7 +349,7 @@ function RescheduleDialog({ delivery, today, onClose }: { delivery: DeliveryRow;
   const save = useTradeAction<Record<string, unknown>>({ path: `/trade/deliveries/${delivery.id}/reschedule`, success: () => ({ title: "Delivery rescheduled" }), onDone: onClose });
   return (
     <Dialog title={`Reschedule ${delivery.number}`} description="A date after the commitment's due date needs the Mine Manager's approval." size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || note.trim().length < 5 || date === delivery.scheduledDate} onClick={() => save.mutate({ scheduledDate: date, note, version: delivery.version })}>{save.isPending ? "Saving…" : "Reschedule"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || note.trim().length < 5 || date === delivery.scheduledDate} onClick={() => save.mutate({ scheduledDate: date, note, version: delivery.version })}><Busy pending={save.isPending} label="Saving…">Reschedule</Busy></button></>}>
       <Field label="New date"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
       <Field label="Reason (required)"><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
@@ -362,7 +363,7 @@ function LinkShipmentDialog({ data, delivery, onClose }: { data: TradeView; deli
   const save = useTradeAction<Record<string, unknown>>({ path: `/trade/deliveries/${delivery.id}/shipment`, success: () => ({ title: "Shipment linked", detail: "Dispatch and receipt now come from Mining Operations." }), onDone: onClose });
   return (
     <Dialog title="Link a Mining Operations shipment" size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || !shipmentId} onClick={() => save.mutate({ shipmentId })}>{save.isPending ? "Linking…" : "Link shipment"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || !shipmentId} onClick={() => save.mutate({ shipmentId })}><Busy pending={save.isPending} label="Linking…">Link shipment</Busy></button></>}>
       {options.length === 0 ? <p className="muted">Every open shipment already carries a delivery.</p> : (
         <Field label="Shipment"><Select value={shipmentId} onChange={(event) => setShipmentId(event.target.value)}>{options.map((item) => <option key={item.id} value={item.id}>{item.number} · {formatTonnes(item.tonnes)} · {item.state}</option>)}</Select></Field>
       )}

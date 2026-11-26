@@ -15,6 +15,7 @@ import { Field } from "./form-field";
 import { Select } from "./select";
 import type { ProviderInput } from "./use-service";
 import { DateInput } from "./date-fields";
+import { Busy } from "./busy";
 
 const providerSchema = z.object({
   name: z.string().trim().min(3, "Enter the company name."),
@@ -75,7 +76,7 @@ export function ProviderDialog({
       footer={
         <>
           <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" form="provider-form" disabled={pending}>{pending ? "Saving…" : provider ? "Save changes" : "Add provider"}</button>
+          <button className="button button--primary" form="provider-form" disabled={pending}><Busy pending={pending} label="Saving…">{provider ? "Save changes" : "Add provider"}</Busy></button>
         </>
       }
     >

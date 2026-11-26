@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { sizeLabel, toEvidence, type EvidenceFile } from "@/lib/evidence";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
+import { Busy } from "./busy";
 
 /** Asks for an optional note and evidence when a task is marked done. Reopening a task needs neither. */
 export function TaskCompletionDialog({
@@ -33,7 +34,7 @@ export function TaskCompletionDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" disabled={pending} onClick={() => onSave({ note: note.trim() || undefined, evidence: files.map(toEvidence) })}>{pending ? "Saving…" : "Mark done"}</button>
+          <button className="button button--primary" disabled={pending} onClick={() => onSave({ note: note.trim() || undefined, evidence: files.map(toEvidence) })}><Busy pending={pending} label="Saving…">Mark done</Busy></button>
         </>
       }
     >

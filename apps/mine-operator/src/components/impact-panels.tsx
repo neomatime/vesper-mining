@@ -19,6 +19,7 @@ import { Field } from "./form-field";
 import { ErrorState, LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { useImpact, useImpactAction, type ImpactView } from "./use-impact";
+import { Busy } from "./busy";
 
 export const GOLD_LABEL = "Gold demonstration · simulated data";
 
@@ -41,8 +42,8 @@ export function WaitSection({ issueId }: { issueId: string }) {
   const query = useImpact();
   const [dialog, setDialog] = useState<"estimate" | "repair" | "recovery" | "reset" | null>(null);
   const scenarioSwitch = useImpactAction<{ outageHours: number; reason: string }>("/impact/estimate", (view) => ({ title: "Scenario changed", detail: `Outage of ${view.scenario.outageHours} hours. The forecast is updated everywhere.` }));
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="panel" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const view = query.data;
   if (!view.scenario.linkedIssueIds.includes(issueId)) return null;
   const { scenario, result } = view;
@@ -185,7 +186,7 @@ function EstimateDialog({ view, onClose }: { view: ImpactView; onClose: () => vo
       size="narrow"
       onClose={onClose}
       locked={save.isPending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5} onClick={() => save.mutate({ ...(done ? {} : { outageHours: numberOrNull(hours) }), usableStockTonnes: numberOrNull(stock), catchUpTonnes: numberOrNull(catchUp), reason })}>{save.isPending ? "Saving…" : "Save estimate"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5} onClick={() => save.mutate({ ...(done ? {} : { outageHours: numberOrNull(hours) }), usableStockTonnes: numberOrNull(stock), catchUpTonnes: numberOrNull(catchUp), reason })}><Busy pending={save.isPending} label="Saving…">Save estimate</Busy></button></>}
     >
       <div className="dialog__stack">
         {!done ? <Field label="Total outage (hours from the breakdown)" hint="Leave empty if it is not known. The impact then shows as not assessed."><input type="number" min="0" step="any" value={hours} onChange={(event) => setHours(event.target.value)} /></Field> : <p className="field-hint">The repair is complete, so the outage is the recorded actual.</p>}
@@ -208,7 +209,7 @@ function RepairDialog({ view, onClose }: { view: ImpactView; onClose: () => void
       size="narrow"
       onClose={onClose}
       locked={save.isPending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !(Number(hours) > 0)} onClick={() => save.mutate({ actualOutageHours: Number(hours), note })}>{save.isPending ? "Saving…" : "Record repair complete"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !(Number(hours) > 0)} onClick={() => save.mutate({ actualOutageHours: Number(hours), note })}><Busy pending={save.isPending} label="Saving…">Record repair complete</Busy></button></>}
     >
       <div className="dialog__stack">
         <Field label="Actual outage (hours, from the breakdown to the repair)"><input type="number" min="0" step="any" value={hours} onChange={(event) => setHours(event.target.value)} /></Field>
@@ -231,7 +232,7 @@ function RecoveryDialog({ view, onClose }: { view: ImpactView; onClose: () => vo
       size="narrow"
       onClose={onClose}
       locked={save.isPending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !(Number(grams) > 0) || note.trim().length < 5} onClick={() => save.mutate({ grams: Number(grams), note })}>{save.isPending ? "Saving…" : "Record recovery"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !(Number(grams) > 0) || note.trim().length < 5} onClick={() => save.mutate({ grams: Number(grams), note })}><Busy pending={save.isPending} label="Saving…">Record recovery</Busy></button></>}
     >
       <div className="dialog__stack">
         <Field label="Gold recovered (grams)"><input type="number" min="0" step="any" value={grams} onChange={(event) => setGrams(event.target.value)} /></Field>
@@ -326,8 +327,8 @@ export function GoldDeliveryCard() {
 /** The Gold delivery's own page: the commitment, the forecast and what links them. */
 export function GoldShipmentScreen() {
   const query = useImpact();
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="panel" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const view = query.data;
   const { scenario, result } = view;
   return (

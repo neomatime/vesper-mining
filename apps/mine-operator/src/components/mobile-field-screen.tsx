@@ -20,7 +20,7 @@ export function MobileFieldScreen({ kind }: { kind: Kind }) {
   const signOut = useSession((state) => state.signOut);
   const notifications = useNotifications();
 
-  if (notifications.isPending && kind === "notifications") return <LoadingState />;
+  if (notifications.isPending && kind === "notifications") return <LoadingState variant="panel" />;
   if (notifications.isError && kind === "notifications") return <ErrorState message="Notifications could not be loaded." />;
 
   if (kind === "profile") {

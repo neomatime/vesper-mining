@@ -46,7 +46,7 @@ export function EmployeeProfileScreen({ id }: { id: string }) {
       </div>
     );
   }
-  if (isPending || !data) return <div className="workspace-page"><LoadingState /></div>;
+  if (isPending || !data) return <div className="workspace-page"><LoadingState variant="detail" /></div>;
 
   const member = data.members.find((item) => item.id === id);
   if (!member) {

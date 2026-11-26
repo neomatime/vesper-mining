@@ -26,7 +26,7 @@ export function MapScreen() {
     queryFn: () => demoFetch<MapArea[]>("/areas"),
   });
   if (query.isPending) return <LoadingState label="Loading the operational map" />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   return (
     <div className="workspace-page">

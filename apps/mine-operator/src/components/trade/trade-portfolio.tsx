@@ -17,6 +17,7 @@ import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type ClientRow, type TradeView } from "../use-trade";
 import { AgreementStatus, ApprovalStatus, ClientStatus, DeliveryStatus, DocumentStatus, EnquiryStage, Readiness, SettlementStatus } from "./trade-status";
 import { ActionMenu, CellMain, Crumbs, dayLabel, KpiTiles, Money, Progress, RailCard, RailList, Register, TabBar, TradeData, TradeHeader } from "./trade-ui";
+import { Busy } from "../busy";
 
 export function PortfolioScreen() {
   return <TradeData label="Loading the portfolio">{(data) => <Portfolio data={data} />}</TradeData>;
@@ -119,7 +120,7 @@ function ClientPreview({ client, data }: { client: ClientRow; data: TradeView })
 type ClientTab = "overview" | "agreements" | "deliveries" | "settlements" | "enquiries" | "documents" | "operations";
 
 export function ClientScreen({ id }: { id: string }) {
-  return <TradeData label="Loading the client">{(data) => {
+  return <TradeData label="Loading the client" variant="detail">{(data) => {
     const client = data.clients.find((item) => item.id === id);
     if (!client) return <div className="workspace-page"><Crumbs items={[{ label: "Portfolio", href: "/trade/portfolio" }, { label: "Not found" }]} /><EmptyState title="This client could not be found" description="It may have been removed, or the link is wrong." /></div>;
     return <ClientDetail data={data} client={client} />;
@@ -280,7 +281,7 @@ function ClientDialog({ data, client, onClose }: { data: TradeView; client?: Cli
   };
   return (
     <Dialog title={client ? `Edit ${client.name}` : "Add client"} description="A customer or counterparty of the mine." size="wide" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : client ? "Save changes" : "Add client"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">{client ? "Save changes" : "Add client"}</Busy></button></>}>
       <div className="form-grid">
         <Field label="Client name" error={errors.name}><input value={form.name} onChange={set("name")} aria-invalid={Boolean(errors.name)} data-autofocus /></Field>
         <Field label="Registration number"><input value={form.registration} onChange={set("registration")} /></Field>
@@ -307,7 +308,7 @@ function ClientStatusDialog({ client, onClose }: { client: ClientRow; onClose: (
   const needsReason = status === "on_hold" || status === "inactive";
   return (
     <Dialog title={`Change status of ${client.name}`} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || status === client.status || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ status, note, version: client.version })}>{save.isPending ? "Saving…" : "Change status"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || status === client.status || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ status, note, version: client.version })}><Busy pending={save.isPending} label="Saving…">Change status</Busy></button></>}>
       <Field label="New status"><Select value={status} onChange={(event) => setStatus(event.target.value)}>{["active", "onboarding", "on_hold", "inactive"].map((item) => <option key={item} value={item} disabled={item === client.status}>{{ active: "Active", onboarding: "Onboarding", on_hold: "On hold", inactive: "Inactive" }[item]}</option>)}</Select></Field>
       <Field label={needsReason ? "Why? (required)" : "Note (optional)"}><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
@@ -326,7 +327,7 @@ function ContactDialog({ client, onClose }: { client: ClientRow; onClose: () => 
   };
   return (
     <Dialog title={`Add a contact at ${client.name}`} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><UserPlus /> {save.isPending ? "Saving…" : "Add contact"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><UserPlus /> <Busy pending={save.isPending} label="Saving…">Add contact</Busy></button></>}>
       {error ? <p className="field-error" role="alert">{error}</p> : null}
       <Field label="Name"><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} data-autofocus /></Field>
       <Field label="Role"><input value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} /></Field>

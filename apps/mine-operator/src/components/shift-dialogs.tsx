@@ -16,6 +16,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { Select } from "./select";
 import { DateInput, TimeInput } from "./date-fields";
+import { Busy } from "./busy";
 
 type Option = { id: string; name: string };
 
@@ -72,7 +73,7 @@ export function ShiftFormDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="shift-form" disabled={pending}>{pending ? "Saving…" : shift ? "Save changes" : "Create shift"}</button>
+          <button className="button button--primary" form="shift-form" disabled={pending}><Busy pending={pending} label="Saving…">{shift ? "Save changes" : "Create shift"}</Busy></button>
         </>
       }
     >
@@ -165,7 +166,7 @@ export function CrewDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="crew-form" disabled={pending}>{pending ? "Adding…" : "Add to shift"}</button>
+          <button className="button button--primary" form="crew-form" disabled={pending}><Busy pending={pending} label="Adding…">Add to shift</Busy></button>
         </>
       }
     >
@@ -230,7 +231,7 @@ export function WorkDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="work-form" disabled={pending}>{pending ? "Adding…" : "Add work"}</button>
+          <button className="button button--primary" form="work-form" disabled={pending}><Busy pending={pending} label="Adding…">Add work</Busy></button>
         </>
       }
     >
@@ -289,7 +290,7 @@ export function CancelShiftDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Keep the shift</button>
-          <button className="button button--danger" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave(reason.trim()))}>{pending ? "Cancelling…" : "Cancel shift"}</button>
+          <button className="button button--danger" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave(reason.trim()))}><Busy pending={pending} label="Cancelling…">Cancel shift</Busy></button>
         </>
       }
     >

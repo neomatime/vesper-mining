@@ -8,6 +8,7 @@ import { formatMoney, urgencyLabels } from "@/lib/service-rules";
 import { Field } from "./form-field";
 import { useProviderReply, useProviderRequest } from "./use-service";
 import { DateInput } from "./date-fields";
+import { Busy } from "./busy";
 
 type Values = { amount: string; reference: string; availableFrom: string; validUntil: string; notes: string; reason: string };
 
@@ -99,7 +100,7 @@ export function ProviderResponseScreen({ token }: { token: string }) {
             <Field label="Notes for the mine" wide><textarea rows={3} {...form.register("notes")} /></Field>
             {error ? <p className="signin__error form-field--wide" role="alert">{error}</p> : null}
             <div className="form-field--wide provider-page__actions">
-              <button className="button button--primary" disabled={reply.isPending}>{reply.isPending ? "Sending…" : view.state === "quoted" ? "Send a new quote" : "Send quote"}</button>
+              <button className="button button--primary" disabled={reply.isPending}><Busy pending={reply.isPending} label="Sending…">{view.state === "quoted" ? "Send a new quote" : "Send quote"}</Busy></button>
               {view.state !== "declined" ? <button type="button" className="button button--quiet" onClick={() => setDeclining((value) => !value)}>Decline this request</button> : null}
             </div>
           </form>

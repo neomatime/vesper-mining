@@ -1,0 +1,160 @@
+/*
+ * VESPER motion: one set of tokens for every transition in Mining Operations and Trade, loaded last so it governs the earlier sheets.
+ *
+ * Principles: short (150–250 ms), decelerating on entry and quicker on exit, opacity and transform only (no layout properties on
+ * anything that repeats), small distances (4–8 px), no bounce and no decorative motion. Charts may take a little longer on first
+ * display. Everything collapses to an instant change under prefers-reduced-motion (see the end of this file and globals.css).
+ */
+:root {
+  --motion-instant: 100ms;
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 250ms;
+  --motion-chart: 450ms;
+  /* Entry: decelerate. Exit: accelerate away. Movement within the page: ease in and out. */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-rise: 4px;
+  --motion-rise-lg: 8px;
+  /* Kept for the older rules that still read them. */
+  --ease-premium: var(--ease-standard);
+  --ease-out: var(--ease-standard);
+  /* Skeleton surface and its moving sheen, per theme. */
+  --skeleton-base: #edf1ee;
+  --skeleton-sheen: rgba(255, 255, 255, 0.55);
+}
+:root[data-theme="dark"] {
+  --skeleton-base: #1c2521;
+  --skeleton-sheen: rgba(255, 255, 255, 0.05);
+}
+
+/* ---- Entrances and exits ------------------------------------------------------------------------------------------------ */
+@keyframes page-in { from { opacity: 0; transform: translateY(var(--motion-rise)); } to { opacity: 1; transform: none; } }
+@keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.99); } to { opacity: 1; transform: none; } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(-4px) scale(0.99); } to { opacity: 1; transform: none; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(var(--motion-rise-lg)) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes dialog-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(var(--motion-rise)) scale(0.99); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(var(--motion-rise-lg)); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(12px); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rows-in { from { opacity: 0.35; } to { opacity: 1; } }
+@keyframes value-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes chart-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Pages settle in quietly; switching workspace is the same page change. */
+.main-content > *:not(.mobile-bottom-nav) { animation: page-in var(--motion-slow) var(--ease-standard) both; }
+.popover { animation: popover-in var(--motion-fast) var(--ease-standard); }
+.floating-panel { animation: panel-in var(--motion-fast) var(--ease-standard); }
+.search-dialog { animation: popover-in var(--motion-base) var(--ease-standard); }
+.dialog-backdrop { animation: fade-in var(--motion-base) var(--ease-standard); }
+.dialog { animation: dialog-in var(--motion-slow) var(--ease-standard); }
+.dialog-backdrop.is-closing { animation: fade-out var(--motion-fast) var(--ease-exit) forwards; pointer-events: none; }
+.dialog-backdrop.is-closing .dialog { animation: dialog-out var(--motion-fast) var(--ease-exit) forwards; }
+.toast { animation: toast-in var(--motion-slow) var(--ease-standard); }
+.toast.is-leaving { animation: toast-out var(--motion-fast) var(--ease-exit) forwards; pointer-events: none; }
+
+/* ---- Interactive states ------------------------------------------------------------------------------------------------- */
+.button { transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard); }
+.button:active:not(:disabled) { transform: scale(0.98); }
+.button:disabled { cursor: not-allowed; }
+.icon-button, .menu-item, .pager-number, .trade-folder, .trade-sort, .row-link-text, .trade-rail-list li > a { transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.icon-button:active:not(:disabled), .menu-item:active { transform: scale(0.98); }
+.register-search input, .form-field input, .form-field textarea, .field input, .composer textarea, .select__trigger, .trade-ask input { transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
+.card, .detail-card, .register-card, .kpi, .metric-card, .trade-kpi { transition: box-shadow var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard); }
+a.card:hover, a.metric-card:hover { transform: translateY(-2px); }
+.data-table tbody tr { transition: background var(--motion-fast) var(--ease-standard); }
+
+/* Sidebar: colour and background change, no sliding or growing icons. The collapse eases the width. */
+.sidebar__nav a, .sidebar__group a { transition: background var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard); }
+.sidebar__nav a:hover, .sidebar__group a:hover { transform: none; }
+.sidebar__nav a svg, .sidebar__group a svg { transition: color var(--motion-base) var(--ease-standard); }
+.sidebar__nav a:hover svg, .sidebar__group a:hover svg { transform: none; }
+.sidebar { transition: width var(--motion-slow) var(--ease-move); }
+.main-content { transition: padding-left var(--motion-slow) var(--ease-move); }
+.site-selector svg:last-child, .profile-chip > svg { transition: transform var(--motion-base) var(--ease-standard); }
+
+/* Tabs: the underline grows into place on the chosen tab. */
+.tab { transition: color var(--motion-fast) var(--ease-standard); }
+.tab::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: var(--brand-emerald); transform: scaleX(0); opacity: 0; transition: transform var(--motion-base) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard); }
+.tab--active::after, .tab[aria-selected="true"]::after { transform: scaleX(1); opacity: 1; }
+
+/* Filters and segmented controls. Table rows settle after a filter, sort or page change (opacity only, so nothing shifts). */
+.filter-chips button, .segmented button, .segmented a { transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.rows-settle { animation: rows-in var(--motion-base) var(--ease-standard); }
+
+/* ---- Loading -------------------------------------------------------------------------------------------------------------- */
+/* The top line shows only while something is really loading: a page or a background refresh. It never claims a percentage. */
+.route-progress { position: fixed; z-index: 3500; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; pointer-events: none; opacity: 0; transform: none; background: transparent; animation: none; transition: opacity var(--motion-base) var(--ease-standard); }
+.route-progress.is-active { opacity: 1; transition-delay: 180ms; }
+.route-progress::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(90deg, transparent, #3ad592 40%, #8af0c2 60%, transparent); animation: indeterminate 1.1s var(--ease-move) infinite; }
+
+.skeleton { background: var(--skeleton-base); }
+.skeleton::after { background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent); }
+.skeleton-page { display: grid; gap: 18px; }
+/* Inside a page skeleton every block fills its column unless it is one of the short text lines below. */
+.skeleton-page .skeleton { display: block; width: 100%; max-width: none; }
+.skeleton-page .skeleton--eyebrow { width: 160px; }
+.skeleton-page .skeleton--heading { width: 260px; }
+.skeleton-page .skeleton--line { width: min(520px, 80%); }
+.skeleton-page .skeleton--search { width: min(420px, 60%); }
+.skeleton-page .skeleton--chip { width: 74px; flex: 0 0 74px; }
+.skeleton-page .skeleton--title { width: 34%; }
+.skeleton-page .skeleton--mark { width: 64px; }
+.skeleton-page__header { display: grid; gap: 10px; }
+.skeleton--eyebrow { width: 160px; height: 12px; }
+.skeleton--heading { width: 260px; height: 30px; border-radius: var(--radius-md); }
+.skeleton--line { width: min(520px, 80%); height: 14px; }
+.skeleton-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.skeleton--tile { height: 96px; border-radius: var(--radius-lg); }
+.skeleton-card { display: grid; gap: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 18px; background: var(--surface-base); }
+.skeleton-card__toolbar { display: flex; gap: 10px; }
+.skeleton--search { width: min(420px, 60%); height: 40px; border-radius: var(--radius-md); }
+.skeleton--chip { width: 74px; height: 32px; border-radius: var(--radius-sm); }
+.skeleton--table-row { height: 46px; border-radius: var(--radius-sm); }
+.skeleton-split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; }
+.skeleton--hero { height: 240px; border-radius: var(--radius-lg); }
+.skeleton--panel { height: 200px; border-radius: var(--radius-lg); }
+.skeleton-detail-head { display: flex; align-items: center; gap: 16px; }
+.skeleton--mark { width: 64px; height: 64px; flex: 0 0 64px; border-radius: var(--radius-lg); }
+.skeleton-panel { display: grid; gap: 12px; padding: 20px; }
+@media (max-width: 900px) { .skeleton-split { grid-template-columns: minmax(0, 1fr); } }
+
+/* A small inline spinner for buttons that are working. The button keeps its width and its words change to say what is happening. */
+.busy-spinner { width: 14px; height: 14px; flex: 0 0 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; opacity: 0.8; animation: spin 700ms linear infinite; }
+.button:has(.busy-spinner) > svg { display: none; }
+.button[aria-busy="true"] { cursor: progress; }
+
+/* Upload progress: real bytes read, then an indeterminate line while the record is saved. */
+.upload-progress { display: grid; gap: 6px; margin: -4px 0 14px; font-size: 12.5px; color: var(--text-secondary); }
+.upload-progress__track { position: relative; height: 4px; overflow: hidden; border-radius: var(--radius-sm); background: var(--surface-muted); }
+.upload-progress__bar { position: absolute; inset: 0; transform-origin: left; background: var(--brand-emerald); transition: transform var(--motion-fast) linear; }
+.upload-progress__track--indeterminate .upload-progress__bar { width: 40%; transform: none; animation: indeterminate 1.1s var(--ease-move) infinite; }
+
+/* ---- Data: values, bars and charts ------------------------------------------------------------------------------------- */
+/* A figure that changes settles in; unchanged figures never move. */
+.value-tick { display: inline-block; animation: value-in var(--motion-base) var(--ease-standard); }
+.trade-progress__bar { width: 100% !important; transform: scaleX(var(--share, 0)); transform-origin: left; transition: transform var(--motion-slow) var(--ease-standard); animation: grow-x var(--motion-chart) var(--ease-standard); }
+.trade-donut__segment { transition: stroke-dasharray var(--motion-slow) var(--ease-standard), stroke-dashoffset var(--motion-slow) var(--ease-standard); }
+.trade-donut svg { animation: chart-in var(--motion-chart) var(--ease-standard); }
+.trade-bars-chart__bar { transform-origin: bottom; animation: grow-y var(--motion-chart) var(--ease-standard) both; }
+.trade-bars-chart__col:nth-child(2) .trade-bars-chart__bar { animation-delay: 30ms; }
+.trade-bars-chart__col:nth-child(3) .trade-bars-chart__bar { animation-delay: 60ms; }
+.trade-bars-chart__col:nth-child(4) .trade-bars-chart__bar { animation-delay: 90ms; }
+.trade-bars-chart__col:nth-child(5) .trade-bars-chart__bar { animation-delay: 120ms; }
+.trade-bars-chart__col:nth-child(6) .trade-bars-chart__bar { animation-delay: 150ms; }
+.trade-stack__part { transition: flex-grow var(--motion-slow) var(--ease-standard); }
+.status-badge { transition: color var(--motion-base) var(--ease-standard), background var(--motion-base) var(--ease-standard); }
+.status-badge__dot { transition: background var(--motion-base) var(--ease-standard); }
+
+/* ---- Reduced motion ------------------------------------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .route-progress::after, .upload-progress__track--indeterminate .upload-progress__bar { animation: none; width: 100%; opacity: 0.6; }
+  .busy-spinner { animation: none; border-right-color: currentColor; opacity: 0.5; }
+  .skeleton::after { display: none; }
+}

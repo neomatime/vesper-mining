@@ -20,6 +20,7 @@ import { useDemoContext } from "@/stores/demo-context";
 import { PageHeader } from "./page-header";
 import { useToast } from "./toast-provider";
 import { Select } from "./select";
+import { Busy } from "./busy";
 
 const reportSchema = z.object({
   title: z.string().min(4, "Use at least four characters."),
@@ -194,7 +195,7 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
             {connectivity === "online" ? "Work offline" : "Back online"}
           </button>
           <button className="button button--primary" disabled={mutation.isPending}>
-            <Send /> {mutation.isPending ? "Recording issue…" : connectivity === "online" ? "Record issue" : "Save pending report"}
+            <Send /> <Busy pending={mutation.isPending} label="Recording issue…">{connectivity === "online" ? "Record issue" : "Save pending report"}</Busy>
           </button>
         </div>
       </form>

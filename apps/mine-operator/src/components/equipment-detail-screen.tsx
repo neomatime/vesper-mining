@@ -173,8 +173,8 @@ export function EquipmentDetailScreen({ id }: { id: string; maintenance?: boolea
     queryKey: ["equipment", id],
     queryFn: () => demoFetch<EquipmentView>(`/equipment/${id}`),
   });
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <EquipmentDetail item={query.data} />;
 }
 

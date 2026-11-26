@@ -16,6 +16,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { Select } from "./select";
 import { DateTimeInput } from "./date-fields";
+import { Busy } from "./busy";
 
 type Option = { id: string; name: string };
 
@@ -107,7 +108,7 @@ export function EquipmentFormDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="equipment-form" disabled={pending}>{pending ? "Saving…" : item ? "Save changes" : infra ? "Add infrastructure" : "Add equipment"}</button>
+          <button className="button button--primary" form="equipment-form" disabled={pending}><Busy pending={pending} label="Saving…">{item ? "Save changes" : infra ? "Add infrastructure" : "Add equipment"}</Busy></button>
         </>
       }
     >
@@ -237,7 +238,7 @@ export function StateDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" disabled={pending} onClick={() => (noteInvalid || reasonInvalid ? setTouched(true) : onSave({ state, note: note.trim() || undefined, reason: state === "unavailable" && reason ? reason : undefined }))}>{pending ? "Saving…" : "Save"}</button>
+          <button className="button button--primary" disabled={pending} onClick={() => (noteInvalid || reasonInvalid ? setTouched(true) : onSave({ state, note: note.trim() || undefined, reason: state === "unavailable" && reason ? reason : undefined }))}><Busy pending={pending} label="Saving…">Save</Busy></button>
         </>
       }
     >
@@ -304,7 +305,7 @@ export function ReadingDialog({
             disabled={pending}
             onClick={() => (hoursInvalid || (lower && !correction) || noteInvalid ? setTouched(true) : onSave({ hours: parsed, correction: correction || undefined, note: note.trim() || undefined }))}
           >
-            {pending ? "Saving…" : "Record reading"}
+            <Busy pending={pending} label="Saving…">Record reading</Busy>
           </button>
         </>
       }
@@ -374,7 +375,7 @@ export function PlanDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="plan-form" disabled={pending}>{pending ? "Saving…" : plan ? "Save plan" : "Add plan"}</button>
+          <button className="button button--primary" form="plan-form" disabled={pending}><Busy pending={pending} label="Saving…">{plan ? "Save plan" : "Add plan"}</Busy></button>
         </>
       }
     >
@@ -473,7 +474,7 @@ export function ServiceDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="service-form" disabled={pending}>{pending ? "Saving…" : "Log entry"}</button>
+          <button className="button button--primary" form="service-form" disabled={pending}><Busy pending={pending} label="Saving…">Log entry</Busy></button>
         </>
       }
     >
@@ -550,7 +551,7 @@ export function RetireDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Keep active</button>
-          <button className="button button--danger" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave(reason.trim()))}>{pending ? "Retiring…" : "Retire equipment"}</button>
+          <button className="button button--danger" disabled={pending} onClick={() => (invalid ? setTouched(true) : onSave(reason.trim()))}><Busy pending={pending} label="Retiring…">Retire equipment</Busy></button>
         </>
       }
     >

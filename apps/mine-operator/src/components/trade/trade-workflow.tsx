@@ -18,6 +18,7 @@ import { useTradeAction, type ApprovalRow, type DocumentRow, type LinkRow, type 
 import { ApprovalStatus, DocumentStatus, Readiness, readinessLabels } from "./trade-status";
 import { UploadDialog } from "./trade-upload";
 import { ActionMenu, CellMain, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TradeData, TradeHeader } from "./trade-ui";
+import { Busy } from "../busy";
 
 // ---- Approvals -------------------------------------------------------------------------------------------------------------
 
@@ -93,7 +94,7 @@ function ApprovalDialog({ data, approval, href, onClose }: { data: TradeView; ap
   return (
     <Dialog title={`${approval.number} · ${approvalTypeLabels[approval.type]}`} description={approval.description} onClose={onClose} locked={decide.isPending}
       footer={approval.status === "pending" && approval.canDecide ? (
-        <><button className="button button--quiet" onClick={onClose}>Later</button><button className="button button--danger" disabled={decide.isPending || note.trim().length < 5} onClick={() => decide.mutate({ decision: "rejected", note, version: approval.version })}>Reject</button><button className="button button--primary" disabled={decide.isPending} onClick={() => decide.mutate({ decision: "approved", note, version: approval.version })}>{decide.isPending ? "Saving…" : "Approve"}</button></>
+        <><button className="button button--quiet" onClick={onClose}>Later</button><button className="button button--danger" disabled={decide.isPending || note.trim().length < 5} onClick={() => decide.mutate({ decision: "rejected", note, version: approval.version })}>Reject</button><button className="button button--primary" disabled={decide.isPending} onClick={() => decide.mutate({ decision: "approved", note, version: approval.version })}><Busy pending={decide.isPending} label="Saving…">Approve</Busy></button></>
       ) : <button className="button button--quiet" onClick={onClose}>Close</button>}>
       <dl className="trade-definitions">
         <div><dt>Record</dt><dd><Link className="row-link-text" href={href}>{approval.subjectNumber} <ExternalLink aria-hidden="true" /></Link></dd></div>
@@ -307,7 +308,7 @@ function LinkDialog({ data, agreementId, onClose }: { data: TradeView; agreement
   };
   return (
     <Dialog title="Link an operation" description="Connect a commitment to the Mining Operations work that fulfils it. Nothing operational is created or changed." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Link operation"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">Link operation</Busy></button></>}>
       {error ? <p className="field-error" role="alert">{error}</p> : null}
       <div className="form-grid">
         <Field label="Agreement"><Select value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value, commitmentId: "" })}><option value="">Choose an agreement</option>{active.map((item) => <option key={item.id} value={item.id}>{item.number} · {item.clientName}</option>)}</Select></Field>

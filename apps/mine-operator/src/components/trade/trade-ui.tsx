@@ -8,19 +8,21 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Ellipsis, Lock, Search, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
 import { formatPercent, formatRand } from "@/lib/trade-rules";
 import { PageHeader } from "../page-header";
-import { ErrorState, LoadingState } from "../query-state";
+import { Tick } from "../tick";
+import { ErrorState, LoadingState, type LoadingVariant } from "../query-state";
 import { StatusBadge } from "../status-badge";
 import { useDismiss } from "../use-dismiss";
 import { useTrade, type TradeView } from "../use-trade";
 
 /** Loads the Trade data once and hands it to the page; shows the shared loading and error states meanwhile. */
-export function TradeData({ children, label = "Loading Trade" }: { children: (data: TradeView) => React.ReactNode; label?: string }) {
+export function TradeData({ children, label = "Loading Trade", variant = "page" }: { children: (data: TradeView) => React.ReactNode; label?: string; variant?: LoadingVariant }) {
   const query = useTrade();
-  if (query.isPending) return <LoadingState label={label} />;
-  if (query.isError || !query.data) return <ErrorState message={query.error instanceof Error ? query.error.message : "Trade could not be loaded."} onRetry={() => void query.refetch()} />;
+  if (query.isPending) return <LoadingState label={label} variant={variant} />;
+  // A failed background refresh keeps the records on screen; only a failed first load shows the error.
+  if (!query.data) return <ErrorState message={query.error instanceof Error ? query.error.message : "Trade could not be loaded."} onRetry={() => void query.refetch()} retrying={query.isFetching} />;
   return <>{children(query.data)}</>;
 }
 
@@ -38,7 +40,7 @@ export function KpiTiles({ items, label = "Summary" }: { items: Kpi[]; label?: s
           <span className="trade-kpi__icon" aria-hidden="true"><item.icon /></span>
           <div>
             <span className="trade-kpi__label">{item.label}</span>
-            <strong>{item.value}</strong>
+            <strong><Tick value={item.value} /></strong>
             {item.hint ? <small>{item.hint}</small> : null}
           </div>
         </article>
@@ -58,7 +60,7 @@ export function Progress({ share, label, tone }: { share: number; label?: string
   return (
     <span className="trade-progress" role="img" aria-label={label ?? `${formatPercent(share)} complete`}>
       <span className="trade-progress__value">{formatPercent(share)}</span>
-      <span className="trade-progress__track"><span className={`trade-progress__bar trade-progress__bar--${resolved}`} style={{ width: `${Math.round(Math.min(1, share) * 100)}%` }} /></span>
+      <span className="trade-progress__track"><span className={`trade-progress__bar trade-progress__bar--${resolved}`} style={{ "--share": Math.max(0, Math.min(1, share)) } as React.CSSProperties} /></span>
     </span>
   );
 }
@@ -253,7 +255,9 @@ export function Register<T extends { id: string }>({
 
   const allChips: Chip<T>[] = useMemo(() => [{ key: "all", label: "All", test: () => true }, ...chips], [chips]);
   const activeChip = allChips.find((item) => item.key === chip) ?? allChips[0];
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // Typing stays immediate; the list catches up a moment later on long lists.
+  const deferredQuery = useDeferredValue(query);
+  const terms = deferredQuery.toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = rows.filter((row) => activeChip.test(row) && (!extra || extra.test(row)) && terms.every((term) => search(row).toLowerCase().includes(term)));
   const sortColumn = sort ? columns.find((item) => item.key === sort.key) : undefined;
   const sorted = sortColumn?.sort
@@ -316,7 +320,7 @@ export function Register<T extends { id: string }>({
                 {actions ? <th scope="col" className="align-end">Action</th> : null}
               </tr>
             </thead>
-            <tbody>
+            <tbody key={`${activeChip.key}-${sort?.key ?? ""}-${sort?.direction ?? ""}-${current}`} className="rows-settle">
               {visible.map((row) => (
                 <tr key={row.id} className={href ? "is-clickable" : undefined} onClick={(event) => { if (href && !(event.target as HTMLElement).closest("a, button, input, label")) router.push(href(row)); }}>
                   {columns.map((column, index) => (
@@ -374,3 +378,5 @@ export function exportCsv(filename: string, header: string[], rows: (string | nu
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export { Tick };
