@@ -228,6 +228,8 @@ export function Register<T extends { id: string }>({
   initialSort,
   empty,
   toolbarEnd,
+  beforeToolbar,
+  rowClass,
 }: {
   title: string;
   /** Plural, as in "Showing 1 – 8 of 14 agreements". */
@@ -246,6 +248,10 @@ export function Register<T extends { id: string }>({
   initialSort?: { key: string; direction: "asc" | "desc" };
   empty: { title: string; body: string; action?: React.ReactNode };
   toolbarEnd?: React.ReactNode;
+  /** Shown between the heading and the search, for example a map. */
+  beforeToolbar?: React.ReactNode;
+  /** An extra class for a row, for example to highlight it. */
+  rowClass?: (row: T) => string | undefined;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -277,6 +283,7 @@ export function Register<T extends { id: string }>({
   return (
     <section className="card register-card trade-register" aria-label={title}>
       <header className="trade-register__header"><h2>{title}</h2>{toolbarEnd}</header>
+      {beforeToolbar}
       <div className="register-toolbar trade-toolbar">
         <div className="register-search">
           <Search aria-hidden="true" />
@@ -322,7 +329,7 @@ export function Register<T extends { id: string }>({
             </thead>
             <tbody key={`${activeChip.key}-${sort?.key ?? ""}-${sort?.direction ?? ""}-${current}`} className="rows-settle">
               {visible.map((row) => (
-                <tr key={row.id} className={href ? "is-clickable" : undefined} onClick={(event) => { if (href && !(event.target as HTMLElement).closest("a, button, input, label")) router.push(href(row)); }}>
+                <tr key={row.id} className={[href ? "is-clickable" : "", rowClass?.(row) ?? ""].join(" ").trim() || undefined} onClick={(event) => { if (href && !(event.target as HTMLElement).closest("a, button, input, label")) router.push(href(row)); }}>
                   {columns.map((column, index) => (
                     <td key={column.key} data-label={column.label} className={column.align === "end" ? "align-end" : undefined}>
                       {index === 0 && href ? <Link className="row-link" href={href(row)}>{column.render(row)}</Link> : column.render(row)}

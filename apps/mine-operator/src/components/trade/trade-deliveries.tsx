@@ -5,10 +5,10 @@
  * the linked Mining Operations shipment (Trade never records a dispatch); the customer's acceptance, any discrepancy and the invoice are
  * Trade's. Proof of delivery is evidence only.
  */
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, CircleCheck, CircleDot, Circle, Download, FileText, Layers, Link2, PackageCheck, Target, TriangleAlert, Truck, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, CircleCheck, CircleDot, Circle, Download, FileText, Layers, Link2, PackageCheck, Target, TriangleAlert, Truck, Wallet, List, LocateFixed, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { addDays, deliveryStageLabels, formatTonnes } from "@/lib/trade-rules";
 import { Dialog } from "../dialog";
 import { Field } from "../form-field";
@@ -20,6 +20,12 @@ import { DeliveryStatus, DocumentStatus, SettlementStatus } from "./trade-status
 import { UploadDialog } from "./trade-upload";
 import { ActionMenu, CellMain, Crumbs, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TabBar, TradeData, TradeHeader, ViewLink } from "./trade-ui";
 import { Busy } from "../busy";
+import { loadsFor } from "@/lib/tracking/fleet";
+import { placeForDestination } from "@/lib/tracking/network";
+import type { TrackedDelivery } from "@/lib/tracking/tracking";
+import type { MapSelection } from "./delivery-map";
+import { DeliveryMapView, emptyFilters, filtersActive, journeyMatches, type MapFilters } from "./delivery-map-view";
+import { useLiveTracking } from "./use-live-tracking";
 
 export function DeliveriesScreen() {
   return <TradeData label="Loading deliveries">{(data) => <Deliveries data={data} />}</TradeData>;
@@ -32,9 +38,45 @@ function onTime(item: DeliveryRow) {
 
 function Deliveries({ data }: { data: TradeView }) {
   const params = useSearchParams();
+  const router = useRouter();
   const [planning, setPlanning] = useState<string | null>(params.get("plan"));
   const [agreement, setAgreement] = useState(params.get("agreement") ?? "");
+  const view: "list" | "map" = params.get("view") === "map" ? "map" : "list";
+  const setView = (next: "list" | "map") => router.replace(next === "map" ? "/trade/deliveries?view=map" : "/trade/deliveries", { scroll: false });
   const rows = data.deliveries;
+  const clientName = (id: string) => data.clients.find((c) => c.id === id)?.name ?? "";
+
+  // Live tracking: deliveries on the road to a known delivery point, each with its vehicles. Read only while the map is open.
+  const tracked: TrackedDelivery[] = useMemo(() => (view === "map"
+    ? rows.filter((item) => (item.stage === "in_transit" || item.stage === "received") && placeForDestination(item.destination) && loadsFor(item.id).length > 0)
+        .map((item) => ({ id: item.id, number: item.number, agreementNumber: item.agreementNumber, clientName: data.clients.find((c) => c.id === item.clientId)?.name ?? "", commodity: item.commodity, tonnes: item.tonnes, destination: item.destination }))
+    : []), [view, rows, data.clients]);
+  const tracking = useLiveTracking(tracked);
+  const [mapFilters, setMapFilters] = useState<MapFilters>(emptyFilters);
+  const [selection, setSelection] = useState<MapSelection>({ deliveryIds: [], vehicleId: null });
+  const [focusKey, setFocusKey] = useState("");
+  const select = (next: MapSelection, focus = false) => {
+    setSelection(next);
+    if (focus) setFocusKey(`${next.deliveryIds.join(",")}:${next.vehicleId ?? ""}:${Date.now()}`);
+  };
+  const deliveryOf = (id: string) => data.deliveries.find((d) => d.id === id);
+  const shownJourneys = tracking.journeys.filter((item) => journeyMatches(item, mapFilters)
+    && (!mapFilters.agreementId || deliveryOf(item.delivery.id)?.agreementId === mapFilters.agreementId)
+    && (!mapFilters.clientId || deliveryOf(item.delivery.id)?.clientId === mapFilters.clientId)
+    && (!mapFilters.mineral || item.delivery.commodity === mapFilters.mineral));
+  const trackingFilter = Boolean(mapFilters.statuses.length || mapFilters.provider || mapFilters.vehicle || mapFilters.destination || mapFilters.origin);
+  /** The same filters for the table: delivery fields directly, and tracking fields through the delivery's vehicles. */
+  const rowMatchesMap = (row: DeliveryRow) => {
+    const query = mapFilters.query.trim().toLowerCase();
+    const words = [row.number, row.agreementNumber, clientName(row.clientId), ...tracking.journeys.filter((j) => j.delivery.id === row.id).map((j) => j.registration)];
+    if (query && !words.some((value) => value.toLowerCase().includes(query))) return false;
+    if (mapFilters.agreementId && row.agreementId !== mapFilters.agreementId) return false;
+    if (mapFilters.clientId && row.clientId !== mapFilters.clientId) return false;
+    if (mapFilters.mineral && row.commodity !== mapFilters.mineral) return false;
+    if (trackingFilter && !shownJourneys.some((item) => item.delivery.id === row.id)) return false;
+    return true;
+  };
+  const isTracked = (row: DeliveryRow) => tracking.journeys.some((item) => item.delivery.id === row.id);
   const year = rows.filter((item) => item.scheduledDate.startsWith(data.today.slice(0, 4)) && item.stage !== "cancelled");
   const finished = rows.filter((item) => onTime(item) !== null);
   const punctual = finished.filter((item) => onTime(item)).length;
@@ -59,6 +101,32 @@ function Deliveries({ data }: { data: TradeView }) {
         <Register<DeliveryRow>
           title="Deliveries"
           noun="deliveries"
+          toolbarEnd={
+            <div className="segmented" role="group" aria-label="Deliveries view">
+              <button type="button" className={view === "list" ? "active" : ""} aria-pressed={view === "list"} onClick={() => setView("list")}><List aria-hidden="true" /> List view</button>
+              <button type="button" className={view === "map" ? "active" : ""} aria-pressed={view === "map"} onClick={() => setView("map")}><MapIcon aria-hidden="true" /> Map view</button>
+            </div>
+          }
+          beforeToolbar={view === "map" ? (
+            <DeliveryMapView
+              journeys={shownJourneys}
+              allJourneys={tracking.journeys}
+              now={tracking.now}
+              live={tracking.live}
+              onLiveChange={tracking.setLive}
+              filters={mapFilters}
+              onApply={(next) => { setMapFilters(next); setSelection({ deliveryIds: [], vehicleId: null }); }}
+              options={{
+                agreements: data.agreements.filter((item) => item.status === "active").map((item) => ({ id: item.id, label: `${item.number} · ${item.clientName}` })),
+                clients: data.clients.filter((item) => item.activeAgreements > 0).map((item) => ({ id: item.id, label: item.name })),
+                minerals: [...new Set(data.agreements.map((item) => item.commodity))],
+              }}
+              selection={selection}
+              onSelect={select}
+              focusKey={focusKey}
+            />
+          ) : null}
+          rowClass={(row) => (selection.deliveryIds.includes(row.id) ? "is-selected" : undefined)}
           rows={rows}
           searchLabel="Search deliveries by reference, agreement, customer or commodity"
           search={(row) => [row.number, row.agreementNumber, data.clients.find((c) => c.id === row.clientId)?.name, row.commodity, row.shipment?.number].join(" ")}
@@ -73,9 +141,9 @@ function Deliveries({ data }: { data: TradeView }) {
           ]}
           extra={{
             controls: <label className="trade-select"><span className="sr-only">Agreement</span><Select value={agreement} onChange={(event) => setAgreement(event.target.value)}><option value="">All agreements</option>{data.agreements.map((item) => <option key={item.id} value={item.id}>{item.number} · {item.clientName}</option>)}</Select></label>,
-            test: (row) => !agreement || row.agreementId === agreement,
-            active: Boolean(agreement),
-            clear: () => setAgreement(""),
+            test: (row) => (!agreement || row.agreementId === agreement) && (view !== "map" || rowMatchesMap(row)),
+            active: Boolean(agreement) || (view === "map" && filtersActive(mapFilters)),
+            clear: () => { setAgreement(""); setMapFilters(emptyFilters); },
           }}
           initialSort={{ key: "date", direction: "desc" }}
           columns={[
@@ -87,7 +155,14 @@ function Deliveries({ data }: { data: TradeView }) {
             { key: "date", label: "Scheduled", sort: (row) => row.scheduledDate, render: (row) => dayLabel(row.scheduledDate) },
             { key: "progress", label: "Accepted", sort: (row) => (row.tonnes ? row.quantities.accepted / row.tonnes : 0), render: (row) => (row.stage === "cancelled" ? <span className="muted">—</span> : <Progress share={row.tonnes ? row.quantities.accepted / row.tonnes : 0} label={`${formatTonnes(row.quantities.accepted)} of ${formatTonnes(row.tonnes)} accepted`} />) },
           ]}
-          actions={(row) => <ViewLink href={`/trade/deliveries/${row.id}`} name={row.number} />}
+          actions={(row) => (
+            <>
+              {view === "map" && isTracked(row) ? (
+                <button type="button" className="icon-button icon-button--light" aria-label={`Show ${row.number} on the map`} aria-pressed={selection.deliveryIds.includes(row.id)} onClick={() => { select({ deliveryIds: [row.id], vehicleId: null }, true); document.querySelector(".dm-view")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }}><LocateFixed /></button>
+              ) : null}
+              <ViewLink href={`/trade/deliveries/${row.id}`} name={row.number} />
+            </>
+          )}
           empty={{ title: "No deliveries yet", body: "Plan a delivery against an active agreement's commitment." }}
         />
         <aside className="trade-rail" aria-label="Delivery insights">
