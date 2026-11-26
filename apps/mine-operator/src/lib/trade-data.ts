@@ -203,9 +203,10 @@ const april = (agreementId: string) => seedAgreements.find((item) => item.id ===
 // Horizon Metals: one April load is on the road (recorded before shipments were linked), the rest is planned.
 {
   const commitment = april("ag-46");
-  const onRoad = planned("ag-46-apr-1", "ag-46", commitment, 800, "2025-04-23", "Horizon Metals, Middelburg", null);
-  onRoad.operations = { dispatched: 780, dispatchedAt: at("2025-04-23", "13:40"), received: 0, receivedAt: null, source: "Weighbridge ticket WB-22871 (Mining Operations)" };
-  onRoad.history.push(ev("2025-04-23", "Naledi Khoza", "780 t dispatched (Mining Operations)", null, "13:40"));
+  // On the road this morning: three 34 t loads left from 07:40 (see lib/tracking for the vehicles).
+  const onRoad = planned("ag-46-apr-1", "ag-46", commitment, 800, "2025-04-24", "Horizon Metals, Middelburg", null);
+  onRoad.operations = { dispatched: 102, dispatchedAt: at("2025-04-24", "07:40"), received: 0, receivedAt: null, source: "Weighbridge tickets WB-22875 to WB-22877 (Mining Operations)" };
+  onRoad.history.push(ev("2025-04-24", "Naledi Khoza", "102 t dispatched in 3 loads (Mining Operations)", null, "07:40"));
   seedDeliveries.push(onRoad, planned("ag-46-apr-2", "ag-46", commitment, 700, "2025-04-29", "Horizon Metals, Middelburg", null));
 }
 
@@ -217,15 +218,24 @@ const april = (agreementId: string) => seedAgreements.find((item) => item.id ===
   early.acceptance = { tonnes: 1120, at: at("2025-04-12", "09:00"), by: "John Dlamini", note: "60 t rejected for ash content." };
   early.discrepancy = { tonnes: 60, reason: "Ash content above specification on one load; customer rejected 60 t.", at: at("2025-04-12", "09:00"), by: "John Dlamini", resolution: "Accepted 1,120 t; 60 t to be replaced in the next load." };
   early.history.push(ev("2025-04-11", "Naledi Khoza", "1,180 t received", null, "07:10"), ev("2025-04-12", "John Dlamini", "1,120 t accepted; 60 t rejected", "Ash content above specification.", "09:00"));
-  seedDeliveries.push(early, planned("ag-45-apr-51", "ag-45", commitment, 300, "2025-04-27", "Highveld Power coal yard, Secunda", "ship-51", "John Dlamini"), planned("ag-45-apr-2", "ag-45", commitment, 1500, "2025-04-30", "Highveld Power coal yard, Secunda", null, "John Dlamini"));
+  // A coal run to Secunda that left from 06:40; one truck has stopped on the road (see lib/tracking).
+  const coalRun = planned("ag-45-apr-2", "ag-45", commitment, 1500, "2025-04-24", "Highveld Power coal yard, Secunda", null, "John Dlamini");
+  coalRun.operations = { dispatched: 102, dispatchedAt: at("2025-04-24", "06:40"), received: 0, receivedAt: null, source: "Weighbridge tickets WB-22868 to WB-22870 (Mining Operations)" };
+  coalRun.history.push(ev("2025-04-24", "Naledi Khoza", "102 t dispatched in 3 loads (Mining Operations)", null, "06:40"));
+  seedDeliveries.push(early, planned("ag-45-apr-51", "ag-45", commitment, 300, "2025-04-27", "Highveld Power coal yard, Secunda", "ship-51", "John Dlamini"), coalRun);
 }
 
-// The other active agreements: one planned delivery each in the coming days.
+// The other active agreements: one planned delivery each in the coming days; the Durban load-out left before dawn.
 seedDeliveries.push(
   planned("ag-43-apr-1", "ag-43", april("ag-43"), 1200, "2025-04-28", "Riverside Mine loading bay", null, "John Dlamini"),
   planned("ag-42-apr-1", "ag-42", april("ag-42"), 1000, "2025-04-22", "Riverside Mine loading bay", null),
   planned("ag-44-q2-1", "ag-44", seedAgreements.find((item) => item.id === "ag-44")!.commitments.find((item) => item.dueDate === "2025-06-30")!.id, 2200, "2025-05-06", "Riverside Mine loading bay", null),
-  planned("ag-41-q2-1", "ag-41", seedAgreements.find((item) => item.id === "ag-41")!.commitments.find((item) => item.dueDate === "2025-05-31")!.id, 1800, "2025-05-08", "Durban Bulk Terminal", null),
+  (() => {
+    const durban = planned("ag-41-q2-1", "ag-41", seedAgreements.find((item) => item.id === "ag-41")!.commitments.find((item) => item.dueDate === "2025-05-31")!.id, 1800, "2025-04-25", "Durban Bulk Terminal", null);
+    durban.operations = { dispatched: 102, dispatchedAt: at("2025-04-24", "04:50"), received: 0, receivedAt: null, source: "Weighbridge tickets WB-22864 to WB-22866 (Mining Operations)" };
+    durban.history.push(ev("2025-04-24", "Naledi Khoza", "102 t dispatched in 3 loads (Mining Operations)", null, "04:50"));
+    return durban;
+  })(),
 );
 
 // Number deliveries and invoices in date order, as they would have been issued.

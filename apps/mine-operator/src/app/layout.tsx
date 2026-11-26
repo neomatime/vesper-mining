@@ -16,6 +16,7 @@ import "./login.css";
 import "./allocation.css";
 import "./modules.css";
 import "./trade.css";
+import "./delivery-map.css";
 import "./motion.css";
 import "./refinements.css";
 
