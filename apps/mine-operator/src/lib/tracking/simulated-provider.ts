@@ -49,7 +49,7 @@ export function simulate(load: VehicleLoad, route: LatLng[], atIso: string) {
   };
 }
 
-export function createSimulatedProvider(destinationOf: (deliveryId: string) => string | null): TelematicsProvider {
+export function createSimulatedProvider(routeOf: (deliveryId: string) => LatLng[] | null): TelematicsProvider {
   return {
     id: "simulated",
     name: "Simulated fleet tracking",
@@ -57,8 +57,7 @@ export function createSimulatedProvider(destinationOf: (deliveryId: string) => s
       const readings: VehiclePosition[] = [];
       for (const load of vehicleLoads.filter((item) => vehicleIds.includes(item.vehicleId))) {
         if (load.feed === "none") continue;
-        const destination = destinationOf(load.deliveryId);
-        const route = destination ? routeFor(destination) : null;
+        const route = routeOf(load.deliveryId);
         if (!route) continue;
         const recordedAt = load.feed === "gap" ? new Date(Date.parse(atIso) - GAP_MINUTES * 60_000).toISOString() : atIso;
         const state = simulate(load, route, recordedAt);

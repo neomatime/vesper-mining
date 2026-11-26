@@ -10,7 +10,8 @@ import { DEMO_NOW } from "@/lib/demo-data";
 import { vehicleLoads } from "@/lib/tracking/fleet";
 import { readPositions, telematicsRegistry } from "@/lib/tracking/providers";
 import type { VehiclePosition } from "@/lib/tracking/telematics";
-import { trackJourneys, type Journey, type TrackedDelivery } from "@/lib/tracking/tracking";
+import type { LatLng } from "@/lib/tracking/telematics";
+import { journeyPath, trackJourneys, type Journey, type TrackedDelivery } from "@/lib/tracking/tracking";
 
 const SPEED = 20;
 const INTERVAL_MS = 3000;
@@ -20,14 +21,15 @@ export function useLiveTracking(deliveries: TrackedDelivery[]) {
   const [now, setNow] = useState(() => new Date(DEMO_NOW).toISOString());
   const [readings, setReadings] = useState<VehiclePosition[] | null>(null);
   const clock = useRef({ simulated: Date.parse(DEMO_NOW), real: 0 });
-  const deliveriesKey = JSON.stringify(deliveries.map((item) => [item.id, item.destination]));
-  const destinationMap = useMemo(() => new Map(JSON.parse(deliveriesKey) as [string, string][]), [deliveriesKey]);
-  const registry = useMemo(() => telematicsRegistry((id) => destinationMap.get(id) ?? null), [destinationMap]);
+  // Each delivery's route (stored plan or known road), keyed so a new list with the same routes does not restart tracking.
+  const routesKey = JSON.stringify(deliveries.map((item) => [item.id, journeyPath(item)?.route ?? null]));
+  const routeMap = useMemo(() => new Map((JSON.parse(routesKey) as [string, LatLng[] | null][]).filter((entry) => entry[1] !== null) as [string, LatLng[]][]), [routesKey]);
+  const registry = useMemo(() => telematicsRegistry((id) => routeMap.get(id) ?? null), [routeMap]);
 
   useEffect(() => {
     let cancelled = false;
     const state = clock.current;
-    const ids = vehicleLoads.filter((item) => destinationMap.has(item.deliveryId)).map((item) => item.vehicleId);
+    const ids = vehicleLoads.filter((item) => routeMap.has(item.deliveryId)).map((item) => item.vehicleId);
     const tick = async () => {
       const real = performance.now();
       if (state.real) state.simulated += (real - state.real) * SPEED;
@@ -50,7 +52,7 @@ export function useLiveTracking(deliveries: TrackedDelivery[]) {
       window.clearInterval(timer);
       state.real = 0;
     };
-  }, [live, registry, destinationMap]);
+  }, [live, registry, routeMap]);
 
   const journeys: Journey[] = useMemo(() => (readings ? trackJourneys(deliveries, readings, now) : []), [deliveries, readings, now]);
   return { journeys, now, live, setLive, ready: readings !== null };

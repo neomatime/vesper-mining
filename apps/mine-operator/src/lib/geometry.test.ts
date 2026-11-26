@@ -15,11 +15,11 @@ import { describe, expect, it } from "vitest";
 const ROUND = [
   ".status-badge__dot", ".notification-dot", ".context-pills__freshness", ".demo-pill > span", ".demo-launcher__label span",
   ".priority::before", ".cal__dot", ".lifecycle__dot", ".progress-orbit", ".spinner", ".brand-loader__halo", 
-  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle",
+  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle", ".lp-dot", ".lp-pin", ".dp-section__index", ".dp-vehicle-index", ".lp-search__busy",
 ];
 
 const app = join(__dirname, "..", "app");
-const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css", "delivery-map.css"];
+const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css", "delivery-map.css", "delivery-plan.css"];
 
 /** Every border-radius declaration with its selector, ignoring comments. */
 function radii() {

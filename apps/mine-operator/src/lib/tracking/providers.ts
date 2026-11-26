@@ -4,10 +4,10 @@
  */
 import { vehicleLoads } from "./fleet";
 import { createSimulatedProvider } from "./simulated-provider";
-import type { TelematicsProvider, VehiclePosition } from "./telematics";
+import type { LatLng, TelematicsProvider, VehiclePosition } from "./telematics";
 
-export function telematicsRegistry(destinationOf: (deliveryId: string) => string | null): Record<string, TelematicsProvider> {
-  const simulated = createSimulatedProvider(destinationOf);
+export function telematicsRegistry(routeOf: (deliveryId: string) => LatLng[] | null): Record<string, TelematicsProvider> {
+  const simulated = createSimulatedProvider(routeOf);
   return { "tr-001": simulated, "tr-002": simulated, "tr-003": simulated };
 }
 

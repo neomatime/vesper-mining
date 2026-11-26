@@ -302,7 +302,7 @@ function AgreementDetail({ data, agreement }: { data: TradeView; agreement: Agre
         </dl>
         <div className="header-actions">
           {manage && agreement.status === "draft" ? <button className="button button--primary" onClick={() => setDialog("submit")}>Send for approval</button> : null}
-          {data.can.manageDeliveries && agreement.status === "active" ? <Link className="button button--primary" href={`/trade/deliveries?plan=${agreement.id}`}><Truck /> Plan delivery</Link> : null}
+          {data.can.manageDeliveries && agreement.status === "active" ? <Link className="button button--primary" href={`/trade/deliveries/new?agreement=${agreement.id}`}><Truck /> Plan delivery</Link> : null}
           <ActionMenu label={`Actions for ${agreement.number}`} actions={[
             { label: "Propose an amendment", onClick: () => setDialog("amend"), hidden: !manage || agreement.status !== "active" },
             { label: "Link to operations", href: `/trade/linked-operations?link=${agreement.id}`, hidden: !data.can.linkOperations || agreement.status !== "active" },

@@ -14,13 +14,20 @@ import {
   type Commitment,
   type Commodity,
   type Delivery,
+  type DeliveryLocation,
+  type DeliveryPlan,
   type Enquiry,
   type OperationLink,
+  PLANNED_KPH,
+  type SavedLocation,
   type SavedReport,
   type Settlement,
   type TradeDocument,
   type TradeEvent,
+  STANDARD_LOAD_TONNES,
 } from "./trade-rules";
+import { vehicleLoads } from "./tracking/fleet";
+import { placeForDestination, places, routeLengthKm, routes } from "./tracking/network";
 
 export const TRADE_TODAY = "2025-04-24";
 const at = (date: string, time = "09:00") => `${date}T${time}:00+02:00`;
@@ -344,6 +351,55 @@ export const seedLinks: OperationLink[] = [
   { id: "lop-12", number: "LOP-012", agreementId: "ag-44", commitmentId: seedAgreements.find((item) => item.id === "ag-44")!.commitments.find((item) => item.dueDate === "2025-06-30")!.id, workstream: "Q2 concentrate stockpile build", areaId: "area-central-pit", shiftId: null, shipmentIds: [], createdBy: "Zinhle Mahlangu", createdAt: at("2025-04-05", "10:00"), note: "", removed: false },
 ];
 
+// ---- Saved locations and delivery plans ----------------------------------------------------------------------------------
+// The loading bay and each regular customer site, kept for reuse; deliveries to those sites carry their exact points and route.
+
+const mineBay: DeliveryLocation = { name: "Riverside Mine loading bay", address: "Riverside Mine, R555, Steelpoort district, Limpopo", position: places.riverside.position, source: "saved", placeId: null, savedLocationId: "loc-riverside-bay" };
+const siteAddress: Record<string, string> = {
+  middelburg_works: "Horizon Metals works, Middelburg, Mpumalanga",
+  secunda_yard: "Highveld Power coal yard, Secunda, Mpumalanga",
+  durban_terminal: "Durban Bulk Terminal, Maydon Wharf, Durban, KwaZulu-Natal",
+  richards_bay: "Richards Bay Terminal, Richards Bay, KwaZulu-Natal",
+  germiston_yard: "Customer Stockyard A, Germiston, Gauteng",
+};
+const clientFor = (placeId: string) => seedAgreements.find((agreement) => agreement.commitments.some((item) => placeForDestination(item.deliveryPoint)?.id === placeId))?.clientId ?? null;
+
+export const seedLocations: SavedLocation[] = [
+  { ...mineBay, id: "loc-riverside-bay", kind: "collection", clientId: null, notes: "Gate 2, weighbridge before and after loading.", createdBy: "Naledi Khoza", createdAt: at("2025-01-05") },
+  ...Object.keys(siteAddress).map((key, index) => ({
+    name: places[key].name, address: siteAddress[key], position: places[key].position, source: "saved" as const, placeId: null, savedLocationId: `loc-${key}`,
+    id: `loc-${key}`, kind: "delivery" as const, clientId: clientFor(key), notes: "", createdBy: "Naledi Khoza", createdAt: at(addDays("2025-01-05", index)),
+  })),
+];
+
+function seedPlan(delivery: Delivery): DeliveryPlan | null {
+  const place = placeForDestination(delivery.destination);
+  if (!place) return null;
+  const agreement = seedAgreements.find((item) => item.id === delivery.agreementId);
+  const client = seedClients.find((item) => item.id === agreement?.clientId);
+  const contact = client?.contacts[0];
+  const points = routes[place.id].points;
+  const km = Math.round(routeLengthKm(points));
+  const loads = vehicleLoads.filter((item) => item.deliveryId === delivery.id);
+  const coal = agreement?.commodity === "Coal";
+  return {
+    collection: { location: mineBay, contactName: "Naledi Khoza", contactPhone: "+27 13 230 4410", contactEmail: "", windowFrom: "05:00", windowTo: "15:00", instructions: "Report to Gate 2. Trucks are weighed empty and loaded." },
+    receiving: {
+      location: { name: place.name, address: siteAddress[place.id], position: place.position, source: "saved", placeId: null, savedLocationId: `loc-${place.id}` },
+      contactName: contact?.name ?? "Receiving office", contactPhone: contact?.phone ?? "", contactEmail: contact?.email ?? "", windowFrom: "07:00", windowTo: "17:00",
+      instructions: "Book in at the weighbridge office.", offloading: coal ? "end_tipper" : "side_tipper", weighbridgeOnSite: true, safetyRequirements: "Hard hat, safety boots and reflective vest. Site induction on first visit.",
+    },
+    route: { points, km, minutes: Math.round((km / PLANNED_KPH) * 60), source: "network" },
+    load: { grade: coal ? "RB1 thermal coal" : agreement?.commodity === "Chrome lumpy ore" ? "Lumpy 40-42% Cr2O3" : "Met grade 42% Cr2O3", form: "bulk", loadCount: Math.max(1, Math.ceil(delivery.tonnes / STANDARD_LOAD_TONNES)), tonnesPerLoad: STANDARD_LOAD_TONNES, moisturePercent: coal ? 8 : null },
+    logistics: {
+      transporterId: loads[0]?.providerId ?? null, transporterName: loads[0]?.providerName ?? "", trackingRequired: true,
+      vehicles: loads.map((item) => ({ registration: item.registration, driverName: "", driverPhone: "", trackingUnit: item.feed === "none" ? "" : `${item.providerName.split(" ")[0].toUpperCase()}-${item.vehicleId.slice(-3)}` })),
+    },
+    compliance: { documents: ["delivery_note", "weighbridge_ticket", ...(coal ? [] : ["quality_certificate" as const])], hazardous: false, specialInstructions: "" },
+  };
+}
+for (const delivery of seedDeliveries) delivery.plan = seedPlan(delivery);
+
 // ---- Reports -----------------------------------------------------------------------------------------------------------
 
 export const seedReports: SavedReport[] = [
@@ -355,4 +411,4 @@ export const seedReports: SavedReport[] = [
   { id: "rep-6", name: "Operational exposure report", kind: "operational_exposure", frequency: "monthly", owner: "John Dlamini", createdAt: at("2025-01-05"), lastRunAt: at("2025-04-16", "11:37"), standard: true },
 ];
 
-export const tradeCounters = { delivery: deliveryNumber, settlement: settlementNumber, invoice: invoiceNumber, enquiry: 105, agreement: 49, approval: 103, document: documentCounter, link: 16, report: 6, event: eventCounter, client: 10, contact: 0, payment: 0, quotation: 104 };
+export const tradeCounters = { delivery: deliveryNumber, settlement: settlementNumber, invoice: invoiceNumber, enquiry: 105, agreement: 49, approval: 103, document: documentCounter, link: 16, report: 6, location: seedLocations.length, event: eventCounter, client: 10, contact: 0, payment: 0, quotation: 104 };

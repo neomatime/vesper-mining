@@ -10,7 +10,7 @@ import { routeLengthKm, routes } from "./network";
 import { readPositions, telematicsRegistry } from "./providers";
 import { GAP_MINUTES } from "./simulated-provider";
 import { freshnessOf } from "./telematics";
-import { deliveryTrackingStatus, kmAlong, trackJourneys, type TrackedDelivery } from "./tracking";
+import { deliveryTrackingStatus, journeyPath, kmAlong, trackJourneys, type TrackedDelivery } from "./tracking";
 
 const NOW = "2025-04-24T08:47:00+02:00";
 const deliveries: TrackedDelivery[] = [
@@ -18,10 +18,10 @@ const deliveries: TrackedDelivery[] = [
   { id: "ag-46-apr-1", number: "DEL-0279", agreementNumber: "AGR-0046", clientName: "Horizon Metals", commodity: "Chrome lumpy ore", tonnes: 800, destination: "Horizon Metals, Middelburg" },
   { id: "ag-45-apr-2", number: "DEL-0281", agreementNumber: "AGR-0045", clientName: "Highveld Power Co-op", commodity: "Coal", tonnes: 1500, destination: "Highveld Power coal yard, Secunda" },
 ];
-const destinationOf = (id: string) => deliveries.find((item) => item.id === id)?.destination ?? null;
+const routeOf = (id: string) => { const delivery = deliveries.find((item) => item.id === id); return delivery ? journeyPath(delivery)?.route ?? null : null; };
 
 async function journeysAt(now: string) {
-  const readings = await readPositions(vehicleLoads.map((item) => item.vehicleId), now, telematicsRegistry(destinationOf));
+  const readings = await readPositions(vehicleLoads.map((item) => item.vehicleId), now, telematicsRegistry(routeOf));
   return trackJourneys(deliveries, readings, now);
 }
 
@@ -75,5 +75,19 @@ describe("vehicles on the morning of 24 April", () => {
     const arrived = (await journeysAt("2025-04-25T08:00:00+02:00")).find((item) => item.registration === "HXT 482 MP")!;
     expect(arrived).toMatchObject({ status: "arrived", moving: "arrived" });
     expect(arrived.remainingKm).toBeCloseTo(0, 1);
+  });
+});
+
+describe("stored plans", () => {
+  it("follow the delivery's own exact points and route instead of the known road network", async () => {
+    const own: [number, number][] = [[-24.66, 30.06], [-25.2, 29.9], [-25.77, 29.47]];
+    const planned: TrackedDelivery = { ...deliveries[1], plan: { origin: { name: "Riverside Mine loading bay", position: own[0] }, destination: { name: "Horizon Metals gate 3", position: own[2] }, route: own } };
+    const path = journeyPath(planned)!;
+    expect(path.route).toEqual(own);
+    expect(path.destination.name).toBe("Horizon Metals gate 3");
+    const readings = await readPositions(loadsFor(planned.id).map((item) => item.vehicleId), NOW, telematicsRegistry(() => own));
+    const journeys = trackJourneys([planned], readings, NOW);
+    expect(journeys).toHaveLength(3);
+    expect(journeys.every((item) => item.route === own && item.destination.name === "Horizon Metals gate 3")).toBe(true);
   });
 });

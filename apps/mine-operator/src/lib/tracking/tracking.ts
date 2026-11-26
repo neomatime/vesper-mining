@@ -12,7 +12,8 @@ import { distanceKm, places, placeForDestination, routeLengthKm, routes, type Pl
 import { simulate } from "./simulated-provider";
 import { freshnessOf, type Freshness, type LatLng, type VehiclePosition } from "./telematics";
 
-export const PLANNED_KPH = 65;
+import { PLANNED_KPH } from "../trade-rules";
+export { PLANNED_KPH };
 /** Remaining distance is estimated at the planned speed, so a vehicle keeping pace is on time. */
 const ESTIMATE_KPH = PLANNED_KPH;
 /** A stopped vehicle is assumed to need this long before it moves again, until the provider says otherwise. */
@@ -29,7 +30,22 @@ export type TrackedDelivery = {
   commodity: string;
   tonnes: number;
   destination: string;
+  /** The exact points and route from the delivery's plan. Without one, the destination text is matched to a known site. */
+  plan?: { origin: { name: string; position: LatLng }; destination: { name: string; position: LatLng }; route: LatLng[] } | null;
 };
+
+/** The route, ends and length a delivery's vehicles follow: the stored plan first, otherwise the known road network. */
+export function journeyPath(delivery: TrackedDelivery): { origin: Place; destination: Place; route: LatLng[] } | null {
+  if (delivery.plan && delivery.plan.route.length >= 2) {
+    return {
+      origin: { id: `${delivery.id}-a`, name: delivery.plan.origin.name, position: delivery.plan.origin.position, kind: "mine" },
+      destination: { id: `${delivery.id}-b`, name: delivery.plan.destination.name, position: delivery.plan.destination.position, kind: "destination" },
+      route: delivery.plan.route,
+    };
+  }
+  const destination = placeForDestination(delivery.destination);
+  return destination ? { origin: places.riverside, destination, route: routes[destination.id].points } : null;
+}
 
 export type Journey = {
   vehicleId: string;
@@ -102,17 +118,16 @@ function splitRoute(route: LatLng[], km: number) {
 export function trackJourneys(deliveries: TrackedDelivery[], readings: VehiclePosition[], now: string): Journey[] {
   const journeys: Journey[] = [];
   for (const delivery of deliveries) {
-    const destination = placeForDestination(delivery.destination);
-    if (!destination) continue;
-    const route = routes[destination.id].points;
-    const routeKm = routeLengthKm(route);
+    const path = journeyPath(delivery);
+    if (!path) continue;
+    const routeKm = routeLengthKm(path.route);
     const loads = loadsFor(delivery.id);
-    for (const load of loads) journeys.push(journeyOf(delivery, load, loads.length, destination, route, routeKm, readings.find((item) => item.vehicleId === load.vehicleId) ?? null, now));
+    for (const load of loads) journeys.push(journeyOf(delivery, load, loads.length, path.origin, path.destination, path.route, routeKm, readings.find((item) => item.vehicleId === load.vehicleId) ?? null, now));
   }
   return journeys;
 }
 
-function journeyOf(delivery: TrackedDelivery, load: VehicleLoad, loadCount: number, destination: Place, route: LatLng[], routeKm: number, reading: VehiclePosition | null, now: string): Journey {
+function journeyOf(delivery: TrackedDelivery, load: VehicleLoad, loadCount: number, origin: Place, destination: Place, route: LatLng[], routeKm: number, reading: VehiclePosition | null, now: string): Journey {
   const freshness = freshnessOf(reading?.recordedAt ?? null, now);
   const plannedArrivalAt = addMinutes(load.departedAt, (routeKm / PLANNED_KPH) * 60);
   let position: LatLng;
@@ -145,7 +160,7 @@ function journeyOf(delivery: TrackedDelivery, load: VehicleLoad, loadCount: numb
     loadCount,
     loadTonnes: load.loadTonnes,
     delivery,
-    origin: places.riverside,
+    origin,
     destination,
     route,
     routeKm,

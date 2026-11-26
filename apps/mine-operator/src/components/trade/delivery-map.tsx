@@ -60,15 +60,15 @@ const mineIcon = L.divIcon({ className: "dm-marker-wrap", iconSize: [0, 0], html
 const areaIcon = (name: string, kind: string) => L.divIcon({ className: "dm-marker-wrap", iconSize: [0, 0], html: `<span class="dm-region dm-region--${kind}">${escape(name)}</span>` });
 
 /** Names smaller towns only once the map is zoomed in far enough to fit them. */
-const showDetail = (map: L.Map) => map.getContainer().classList.toggle("is-detailed", map.getZoom() >= 7.5);
-function DetailLevel() {
+export const showDetail = (map: L.Map) => map.getContainer().classList.toggle("is-detailed", map.getZoom() >= 7.5);
+export function DetailLevel() {
   const map = useMapEvents({ zoomend: (event) => showDetail(event.target as L.Map) });
   useEffect(() => { showDetail(map); }, [map]);
   return null;
 }
 
 /** VESPER's own base map: sea, neighbouring countries, Kruger, national roads, haul roads and town names. */
-function BaseMap() {
+export function BaseMap() {
   const c = palette();
   const fill = (color: string, opacity = 1) => ({ stroke: false, fillColor: color, fillOpacity: opacity, interactive: false });
   return (

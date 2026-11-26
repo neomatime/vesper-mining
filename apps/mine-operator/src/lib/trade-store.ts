@@ -39,7 +39,17 @@ import {
   type Commitment,
   type Commodity,
   type Delivery,
+  type DeliveryLocation,
+  type DeliveryPlan,
   type Enquiry,
+  loadFormLabels,
+  locationSourceLabels,
+  offloadingLabels,
+  requiredDocumentLabels,
+  routeSourceLabels,
+  straightKm,
+  validPosition,
+  type SavedLocation,
   type Folder,
   type OperationLink,
   type ReportKind,
@@ -50,7 +60,7 @@ import {
   type TradeDocument,
   type TradeEvent,
 } from "./trade-rules";
-import { seedAgreements, seedApprovals, seedClients, seedDeliveries, seedDocuments, seedEnquiries, seedLinks, seedReports, seedSettlements, TRADE_TODAY, tradeCounters } from "./trade-data";
+import { seedAgreements, seedApprovals, seedClients, seedDeliveries, seedDocuments, seedEnquiries, seedLinks, seedLocations, seedReports, seedSettlements, TRADE_TODAY, tradeCounters } from "./trade-data";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -65,6 +75,7 @@ const initial = () => ({
   documents: clone(seedDocuments),
   links: clone(seedLinks),
   reports: clone(seedReports),
+  locations: clone(seedLocations),
   counters: { ...tradeCounters },
   submissions: [] as string[],
 });
@@ -80,7 +91,14 @@ function load(): TradeState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<TradeState>;
     const valid = typeof parsed.clock === "number" && [parsed.clients, parsed.enquiries, parsed.agreements, parsed.deliveries, parsed.settlements, parsed.approvals, parsed.documents, parsed.links, parsed.reports, parsed.submissions].every(Array.isArray) && Boolean(parsed.counters);
-    return valid ? (parsed as TradeState) : null;
+    if (!valid) return null;
+    // Saved before exact locations existed: add the standard locations and plans, keep everything else.
+    if (!Array.isArray(parsed.locations)) {
+      parsed.locations = clone(seedLocations);
+      parsed.counters = { ...parsed.counters!, location: seedLocations.length };
+      for (const delivery of parsed.deliveries!) if (delivery.plan === undefined) delivery.plan = clone(seedDeliveries.find((item) => item.id === delivery.id)?.plan ?? null);
+    }
+    return parsed as TradeState;
   } catch {
     return null;
   }
@@ -164,6 +182,98 @@ const nextNumber = (key: keyof TradeState["counters"], prefix: string, width = 4
   state.counters[key] += 1;
   return `${prefix}-${String(state.counters[key]).padStart(width, "0")}`;
 };
+
+const choice = <T extends Record<string, string>>(labels: T, value: unknown, label: string): keyof T & string => (typeof value === "string" && value in labels ? value : fail(400, "VALIDATION", `Choose ${label}.`));
+const clockTime = (value: unknown, label: string) => {
+  const result = typeof value === "string" ? value.trim() : "";
+  if (result && !/^([01]\d|2[0-3]):[0-5]\d$/.test(result)) fail(400, "VALIDATION", `${label} must be a time such as 07:00.`);
+  return result;
+};
+const phone = (value: unknown, label: string) => {
+  const result = optionalText(value, 30);
+  if (result && !/^\+?[\d\s()-]{7,20}$/.test(result)) fail(400, "VALIDATION", `${label} is not a valid phone number.`);
+  return result;
+};
+const email = (value: unknown, label: string) => {
+  const result = optionalText(value, 120);
+  if (result && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result)) fail(400, "VALIDATION", `${label} is not a valid email address.`);
+  return result;
+};
+const record = (value: unknown): Record<string, unknown> => (value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
+
+/** An exact point: a name, an address and coordinates, and where they came from. */
+function location(value: unknown, label: string): DeliveryLocation {
+  const input = record(value);
+  const position = Array.isArray(input.position) ? input.position.map(Number) : null;
+  if (!validPosition(position)) fail(400, "VALIDATION", `Set the ${label} on the map, by search or with coordinates.`);
+  return {
+    name: text(input.name, `The ${label} name`, 2, 120),
+    address: optionalText(input.address, 240),
+    position: [Math.round(position[0] * 1e6) / 1e6, Math.round(position[1] * 1e6) / 1e6],
+    source: choice(locationSourceLabels, input.source, `how the ${label} was found`),
+    placeId: optionalText(input.placeId, 300) || null,
+    savedLocationId: optionalText(input.savedLocationId, 60) || null,
+  };
+}
+
+/** The full plan: both sites with contacts and windows, the route, the load, transport and documents. */
+function deliveryPlan(value: unknown, tonnes: number): DeliveryPlan {
+  const input = record(value);
+  const collection = record(input.collection);
+  const receiving = record(input.receiving);
+  const route = record(input.route);
+  const load = record(input.load);
+  const logistics = record(input.logistics);
+  const compliance = record(input.compliance);
+  const from = location(collection.location, "collection point");
+  const to = location(receiving.location, "delivery point");
+  if (straightKm(from.position, to.position) < 0.2) fail(400, "VALIDATION", "The collection and delivery points are the same place. Check both locations.");
+  const site = (part: Record<string, unknown>, label: string) => {
+    const windowFrom = clockTime(part.windowFrom, `The ${label} window start`);
+    const windowTo = clockTime(part.windowTo, `The ${label} window end`);
+    if (windowFrom && windowTo && windowTo <= windowFrom) fail(400, "VALIDATION", `The ${label} window must end after it starts.`);
+    return { contactName: text(part.contactName, `The ${label} contact`, 2, 80), contactPhone: phone(part.contactPhone, `The ${label} phone`), contactEmail: email(part.contactEmail, `The ${label} email`), windowFrom, windowTo, instructions: optionalText(part.instructions, 500) };
+  };
+  const points = (Array.isArray(route.points) ? route.points : []).map((point) => (Array.isArray(point) ? point.map(Number) : null)).filter(validPosition);
+  const km = positive(route.km, "The route distance", 5000);
+  const loadCount = Math.round(positive(load.loadCount, "The number of loads", 500));
+  const tonnesPerLoad = positive(load.tonnesPerLoad, "The tonnes per load", 80);
+  if (loadCount * tonnesPerLoad < tonnes) fail(400, "VALIDATION", `${loadCount} loads of ${formatTonnes(tonnesPerLoad)} carry ${formatTonnes(loadCount * tonnesPerLoad)}, less than the ${formatTonnes(tonnes)} planned. Add loads.`);
+  const moisture = load.moisturePercent === null || load.moisturePercent === "" || load.moisturePercent === undefined ? null : Number(load.moisturePercent);
+  if (moisture !== null && (!Number.isFinite(moisture) || moisture < 0 || moisture > 40)) fail(400, "VALIDATION", "Moisture must be between 0 and 40%.");
+  const vehicles = (Array.isArray(logistics.vehicles) ? logistics.vehicles : []).map(record).map((vehicle, index) => ({
+    registration: text(vehicle.registration, `Vehicle ${index + 1} registration`, 4, 20).toUpperCase(),
+    driverName: optionalText(vehicle.driverName, 80),
+    driverPhone: phone(vehicle.driverPhone, `Vehicle ${index + 1} driver phone`),
+    trackingUnit: optionalText(vehicle.trackingUnit, 40),
+  }));
+  if (vehicles.length > loadCount) fail(400, "VALIDATION", `${vehicles.length} vehicles are listed for ${loadCount} loads.`);
+  if (new Set(vehicles.map((item) => item.registration)).size < vehicles.length) fail(400, "VALIDATION", "A vehicle is listed twice.");
+  const transporterId = optionalText(logistics.transporterId, 40) || null;
+  const transporter = transporterId ? demoDomain.get().transporters.find((item) => item.id === transporterId) ?? fail(400, "VALIDATION", "Choose a transport provider from the list.") : null;
+  const documents = (Array.isArray(compliance.documents) ? compliance.documents : []).filter((item): item is keyof typeof requiredDocumentLabels => typeof item === "string" && item in requiredDocumentLabels);
+  return {
+    collection: { location: from, ...site(collection, "collection") },
+    receiving: { location: to, ...site(receiving, "delivery"), offloading: choice(offloadingLabels, receiving.offloading, "the offloading method"), weighbridgeOnSite: receiving.weighbridgeOnSite === true, safetyRequirements: optionalText(receiving.safetyRequirements, 500) },
+    route: { points: points.length >= 2 ? points : [from.position, to.position], km: Math.round(km * 10) / 10, minutes: Math.round(positive(route.minutes, "The travel time", 10_000)), source: choice(routeSourceLabels, route.source, "the route source") },
+    load: { grade: optionalText(load.grade, 80), form: choice(loadFormLabels, load.form, "how the load is carried"), loadCount, tonnesPerLoad, moisturePercent: moisture },
+    logistics: { transporterId: transporter?.id ?? null, transporterName: transporter?.name ?? "", vehicles, trackingRequired: logistics.trackingRequired !== false },
+    compliance: { documents: [...new Set(documents)], hazardous: compliance.hazardous === true, specialInstructions: optionalText(compliance.specialInstructions, 1000) },
+  };
+}
+
+/** Saves the plan's new sites for reuse when the planner asked for it (saveCollection / saveDelivery). */
+function rememberLocations(plan: DeliveryPlan, clientId: string | null, input: Record<string, unknown>, actor: Actor) {
+  const keep = (point: DeliveryLocation, kind: "collection" | "delivery") => {
+    if (point.savedLocationId || state.locations.some((item) => item.kind === kind && straightKm(item.position, point.position) < 0.05)) return;
+    state.counters.location += 1;
+    const id = `loc-${String(state.counters.location).padStart(3, "0")}`;
+    state.locations.push({ ...point, id, savedLocationId: id, kind, clientId: kind === "delivery" ? clientId : null, notes: "", createdBy: actor.name, createdAt: now() });
+    point.savedLocationId = id;
+  };
+  if (input.saveCollection === true) keep(plan.collection.location, "collection");
+  if (input.saveDelivery === true) keep(plan.receiving.location, "delivery");
+}
 
 const find = <T extends { id: string }>(items: T[], id: string, what: string): T => items.find((item) => item.id === id) ?? fail(404, "NOT_FOUND", `This ${what} could not be found.`);
 const clientName = (id: string | null) => (id ? state.clients.find((item) => item.id === id)?.name ?? "Unknown client" : "All clients");
@@ -392,6 +502,8 @@ function buildView(actor: Actor) {
     hiddenDocuments: state.documents.length - documents.length,
     links,
     reports: state.reports,
+    locations: state.locations.map((item) => ({ ...item, clientName: item.clientId ? clientName(item.clientId) : null })),
+    transporters: mining.transporters.map((item) => ({ id: item.id, name: item.name, active: item.active })),
     transport,
     mining: {
       areas: mining.areas.map((area) => ({ id: area.id, name: area.name, status: area.status })),
@@ -727,18 +839,62 @@ export const tradeDomain = {
       if (!demoDomain.get().shipments.some((item) => item.id === shipmentId)) fail(400, "VALIDATION", "That shipment does not exist in Mining Operations.");
       if (state.deliveries.some((item) => item.shipmentId === shipmentId && !item.cancelled)) fail(409, "DUPLICATE", "That shipment already carries another delivery.");
     }
+    const plan = input.plan === undefined || input.plan === null ? null : deliveryPlan(input.plan, tonnes);
     guardRepeat(input);
     const number = nextNumber("delivery", "DEL");
     const delivery: Delivery = {
-      id: `del-${number.slice(4)}`, number, agreementId: agreement.id, commitmentId: commitment.id, tonnes, scheduledDate, destination: optionalText(input.destination, 100) || commitment.deliveryPoint,
-      shipmentId, operations: null, acceptance: null, discrepancy: null, cancelled: null, version: 1, history: [],
+      id: `del-${number.slice(4)}`, number, agreementId: agreement.id, commitmentId: commitment.id, tonnes, scheduledDate,
+      destination: plan?.receiving.location.name ?? (optionalText(input.destination, 100) || commitment.deliveryPoint),
+      shipmentId, operations: null, acceptance: null, discrepancy: null, cancelled: null, plan, version: 1, history: [],
     };
-    delivery.history.push(event(actor, `Delivery planned for ${scheduledDate}`));
+    delivery.history.push(event(actor, `Delivery planned for ${scheduledDate}`, plan ? `${plan.collection.location.name} to ${plan.receiving.location.name}, ${Math.round(plan.route.km)} km` : null));
+    if (plan) rememberLocations(plan, agreement.clientId, input, actor);
     state.deliveries.push(delivery);
     if (client?.status === "on_hold") {
       requestApproval("delivery", { id: delivery.id, number }, `Release delivery to a client on hold (${formatTonnes(tonnes)})`, client.id, (agreement.pricePerTonne ?? 0) * tonnes, actor);
     }
     return delivery;
+  },
+
+  /** Changes the locations, route and details of a delivery that has not left yet. */
+  updateDeliveryPlan(id: string, input: Record<string, unknown>, actor: Actor) {
+    assertCan("manage_deliveries", actor);
+    const delivery = find(state.deliveries, id, "delivery");
+    checkVersion(delivery, input);
+    if (delivery.cancelled || delivery.acceptance) fail(409, "STAGE", "This delivery is closed; its plan can no longer change.");
+    const { shipments } = miningFacts();
+    const shipment = delivery.shipmentId ? shipments.get(delivery.shipmentId) : undefined;
+    if (quantitiesOf(delivery, shipment).dispatched > 0) fail(409, "STAGE", "This delivery has left the mine. Its route and sites can no longer change.");
+    const plan = deliveryPlan(input.plan, delivery.tonnes);
+    const agreement = state.agreements.find((item) => item.id === delivery.agreementId);
+    const moved = !delivery.plan || straightKm(delivery.plan.receiving.location.position, plan.receiving.location.position) > 0.05 || straightKm(delivery.plan.collection.location.position, plan.collection.location.position) > 0.05;
+    delivery.plan = plan;
+    delivery.destination = plan.receiving.location.name;
+    delivery.version += 1;
+    delivery.history.push(event(actor, moved ? "Locations and route updated" : "Delivery details updated", moved ? `${plan.collection.location.name} to ${plan.receiving.location.name}, ${Math.round(plan.route.km)} km` : null));
+    rememberLocations(plan, agreement?.clientId ?? null, input, actor);
+    return delivery;
+  },
+
+  /** Keeps a collection or delivery point for reuse. */
+  saveLocation(input: Record<string, unknown>, actor: Actor) {
+    assertCan("manage_deliveries", actor);
+    const point = location(input, "location");
+    const kind = input.kind === "collection" ? "collection" : "delivery";
+    const duplicate = state.locations.find((item) => item.kind === kind && straightKm(item.position, point.position) < 0.05);
+    if (duplicate) fail(409, "DUPLICATE", `${duplicate.name} is already saved at this point.`);
+    state.counters.location += 1;
+    const id = `loc-${String(state.counters.location).padStart(3, "0")}`;
+    const saved: SavedLocation = { ...point, source: point.source === "saved" ? "coordinates" : point.source, id, savedLocationId: id, kind, clientId: optionalText(input.clientId, 40) || null, notes: optionalText(input.notes, 300), createdBy: actor.name, createdAt: now() };
+    state.locations.push(saved);
+    return saved;
+  },
+
+  removeLocation(id: string, actor: Actor) {
+    assertCan("manage_deliveries", actor);
+    const saved = find(state.locations, id, "saved location");
+    state.locations = state.locations.filter((item) => item.id !== saved.id);
+    return { id };
   },
 
   rescheduleDelivery(id: string, input: Record<string, unknown>, actor: Actor) {
