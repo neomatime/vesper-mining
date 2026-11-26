@@ -37,15 +37,6 @@ export const places: Record<string, Place> = {
   pretoria: { id: "pretoria", name: "Pretoria", position: [-25.75, 28.19], kind: "town" },
 };
 
-/** Province names for the map, placed near their centres. */
-export const regions: { name: string; position: LatLng }[] = [
-  { name: "LIMPOPO", position: [-24.1, 29.3] },
-  { name: "MPUMALANGA", position: [-25.95, 30.55] },
-  { name: "GAUTENG", position: [-26.05, 28.25] },
-  { name: "KWAZULU-NATAL", position: [-28.6, 30.9] },
-  { name: "FREE STATE", position: [-28.4, 27.6] },
-];
-
 const path = (...ids: string[]): LatLng[] => ids.map((id) => places[id].position);
 
 /** Haul routes from the mine, by destination. */

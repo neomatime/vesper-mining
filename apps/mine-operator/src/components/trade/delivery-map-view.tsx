@@ -8,7 +8,8 @@
 import { ChevronLeft, ChevronRight, Filter, Truck, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatTonnes } from "@/lib/trade-rules";
 import { freshnessLabels } from "@/lib/tracking/telematics";
 import { deliveryTrackingStatus, trackingStatusLabels, type Journey, type TrackingStatus } from "@/lib/tracking/tracking";
@@ -57,9 +58,17 @@ export function DeliveryMapView({ journeys, allJourneys, now, live, onLiveChange
 }) {
   const [panelOpen, setPanelOpen] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  // Full screen sits above the whole app (top bar and sidebar included), so it is drawn on the page body, not inside the page.
+  // A placeholder keeps the page's height while the map is out, so the table does not jump.
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState(0);
+  const toggleExpanded = () => {
+    if (!expanded) setPlaceholderHeight(placeholderRef.current?.offsetHeight ?? 0);
+    setExpanded(!expanded);
+  };
   useEffect(() => {
     if (!expanded) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setExpanded(false); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape" && !document.querySelector(".floating-panel")) setExpanded(false); };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -74,7 +83,7 @@ export function DeliveryMapView({ journeys, allJourneys, now, live, onLiveChange
   const vehicle = journeys.find((item) => item.vehicleId === selection.vehicleId) ?? allJourneys.find((item) => item.vehicleId === selection.vehicleId) ?? null;
   const chosenDeliveries = selection.deliveryIds.map((id) => allJourneys.filter((item) => item.delivery.id === id)).filter((group) => group.length);
 
-  return (
+  const view = (
     <div className={`dm-view ${expanded ? "is-expanded" : ""} ${panelOpen ? "" : "is-collapsed"}`} role="region" aria-label="Delivery map">
       <aside className="dm-filters" aria-label="Map filters">
         <header className="dm-filters__head">
@@ -92,7 +101,7 @@ export function DeliveryMapView({ journeys, allJourneys, now, live, onLiveChange
           selection={selection}
           focusKey={focusKey}
           expanded={expanded}
-          onToggleExpanded={() => setExpanded(!expanded)}
+          onToggleExpanded={toggleExpanded}
           onSelectVehicle={(journey, add) => onSelect(add ? { deliveryIds: [...new Set([...selection.deliveryIds, journey.delivery.id])], vehicleId: journey.vehicleId } : { deliveryIds: [journey.delivery.id], vehicleId: journey.vehicleId })}
         />
         <div className="dm-live">
@@ -116,6 +125,16 @@ export function DeliveryMapView({ journeys, allJourneys, now, live, onLiveChange
       </div>
     </div>
   );
+
+  if (expanded) {
+    return (
+      <>
+        <div className="dm-view-placeholder" style={{ height: placeholderHeight }} aria-hidden="true" />
+        {createPortal(<div className="dm-fullscreen">{view}</div>, document.body)}
+      </>
+    );
+  }
+  return <div ref={placeholderRef} className="dm-view-host">{view}</div>;
 }
 
 function FilterForm({ filters, onApply, options, providers, vehicles, destinations }: {
