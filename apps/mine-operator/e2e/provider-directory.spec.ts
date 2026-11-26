@@ -115,10 +115,11 @@ test.describe("manage service providers", () => {
     // Lebo (planner) asks OreTech to quote, so OreTech now has history.
     await page.goto("/equipment/eq-crusher-c02");
     await page.getByRole("link", { name: /Request service/ }).first().click();
-    await page.getByLabel("Work required").fill("500 hour inspection");
-    await pick(page.getByLabel("Urgency"), "Urgent");
+    await page.getByLabel("Fault / issue").fill("500 hour inspection");
+    await page.getByRole("radio", { name: /Request quotation/ }).check();
+    await pick(page.getByLabel("Priority"), "Urgent");
     await page.getByRole("checkbox", { name: /OreTech Services/ }).check();
-    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByRole("button", { name: "Send Repair Request" }).click();
     await expect(page.getByRole("heading", { name: "500 hour inspection", level: 1 })).toBeVisible();
 
     await actAs(page, "John Dlamini");

@@ -185,3 +185,39 @@
 .automation__status { display: grid; gap: 6px; justify-items: end; text-align: right; }
 .automation__status small { color: var(--text-secondary); font-size: 12px; }
 @media (max-width: 767px) { .automation { grid-template-columns: auto minmax(0, 1fr); } .automation__status { grid-column: 1 / -1; justify-items: start; text-align: left; } }
+
+/* Repair Requests band on Assets, and the asset row menu. */
+.repair-band { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; margin-bottom: 16px; padding: 16px 22px; }
+.repair-band__icon { display: grid; place-items: center; width: 40px; height: 40px; color: var(--text-secondary); }
+.repair-band__icon svg { width: 26px; height: 26px; }
+.repair-band__title { display: grid; flex: 1 1 220px; gap: 2px; }
+.repair-band__title strong { font-size: 17px; }
+.repair-band__title small { color: var(--text-secondary); font-size: 13px; }
+.repair-band__stats { display: flex; gap: 36px; margin: 0; }
+.repair-band__stats div { display: grid; gap: 2px; text-align: center; }
+.repair-band__stats dd { margin: 0; font-size: 26px; line-height: 1.1; }
+.repair-band__stats dt { color: var(--text-secondary); font-size: 13px; }
+.repair-band__link { display: inline-flex; align-items: center; gap: 6px; color: var(--brand-emerald-dark); font-weight: var(--weight-strong); }
+.repair-band__link svg { width: 16px; height: 16px; }
+.menu-item__icon { display: inline-grid; place-items: center; margin-right: 10px; color: var(--text-secondary); }
+
+/* Request Repair. */
+.repair-asset { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 6px 24px 18px; }
+.repair-asset__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-md); color: var(--text-secondary); background: var(--surface-hover); }
+.repair-asset__icon svg { width: 26px; height: 26px; }
+.repair-asset__name { display: grid; gap: 2px; min-width: 0; }
+.repair-asset__name small { color: var(--text-secondary); }
+.repair-asset__hours { display: grid; gap: 2px; padding-left: 18px; border-left: 1px solid var(--border-subtle); text-align: right; }
+.repair-asset__hours small { color: var(--text-secondary); font-size: 12px; }
+.repair-providers { display: grid; gap: 14px; padding: 4px 24px 18px; }
+.repair-mode { display: flex; flex-wrap: wrap; gap: 22px; }
+.repair-provider-card { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-hover); }
+.repair-provider-card small { color: var(--text-secondary); }
+.repair-provider-card dl { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 6px 0 0; }
+.repair-provider-card dt { color: var(--text-secondary); font-size: 12px; }
+.repair-provider-card dd { margin: 0; font-size: 14px; }
+.repair-steps { display: grid; gap: 14px; margin: 8px 24px 20px; padding-left: 22px; }
+.repair-steps small { display: block; color: var(--text-secondary); font-size: 13px; }
+.definition-grid--stack { grid-template-columns: 1fr; }
+.repair-footer { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 12px; padding: 14px 0 4px; }
+@media (max-width: 767px) { .repair-asset { grid-template-columns: auto minmax(0, 1fr); } .repair-asset__hours { grid-column: 1 / -1; padding-left: 0; border-left: 0; text-align: left; } }

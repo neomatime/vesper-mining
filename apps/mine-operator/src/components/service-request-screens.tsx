@@ -9,11 +9,11 @@ import type { ServiceRequest } from "@vesper/api-contracts";
 import { ArrowLeft, CalendarCheck, CheckCircle2, Send, Wrench, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { demoFetch } from "@/lib/api";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { categoryLabels, type EquipmentView } from "@/lib/equipment-rules";
-import { approvalLabel, canManageProviders, canRequestService, eligibleProviders, formatMoney, inviteStateLabels, requestStatusLabels, urgencyLabels } from "@/lib/service-rules";
+import { approvalLabel, canManageProviders, canRequestService, eligibleProviders, formatMoney, inviteStateLabels, requestStatusLabels, responseLabel, urgencyLabels } from "@/lib/service-rules";
 import { useDemoContext } from "@/stores/demo-context";
 import { CancelRequestDialog, CompleteDialog, ScheduleDialog } from "./service-request-dialogs";
 import { Field } from "./form-field";
@@ -45,7 +45,13 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
   const actor = { name: context.persona, role: context.role };
   const plan = equipment.data?.plans.find((item) => item.id === planId);
   const form = useForm<NewValues>({ values: { title: plan ? `${plan.name}` : "", description: "", urgency: "routine", preferredDate: "", providerIds: [] } });
+  const priority = useWatch({ control: form.control, name: "urgency" });
+  const issue = useWatch({ control: form.control, name: "title" });
+  const required = useWatch({ control: form.control, name: "preferredDate" });
+  const selected = useWatch({ control: form.control, name: "providerIds" });
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"approved" | "quotation">("approved");
+  const [providerId, setProviderId] = useState("");
 
   if (equipment.isPending || providers.isPending) return <LoadingState />;
   if (equipment.isError) return <ErrorState message={equipment.error.message} onRetry={() => equipment.refetch()} />;
@@ -68,63 +74,129 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
 
   const submit = form.handleSubmit((values) => {
     if (values.title.trim().length < 4) return setError("Describe the work in at least four characters.");
-    if (values.providerIds.length === 0) return setError("Choose at least one service provider to ask.");
+    const providerIds = mode === "approved" ? (providerId ? [providerId] : []) : values.providerIds;
+    if (providerIds.length === 0) return setError(mode === "approved" ? "Choose a service provider." : "Choose at least one service provider to ask.");
     setError("");
-    create.mutate({ equipmentId: item.id, planId: plan?.id ?? null, title: values.title, description: values.description, urgency: values.urgency, preferredDate: values.preferredDate, providerIds: values.providerIds });
+    create.mutate({ equipmentId: item.id, planId: plan?.id ?? null, title: values.title, description: values.description, urgency: values.urgency, preferredDate: values.preferredDate, providerIds });
   });
+
+  const chosen = eligible.filter((provider) => (mode === "approved" ? provider.id === providerId : selected.includes(provider.id)));
+  const picked = eligible.find((provider) => provider.id === providerId);
+  const available = item.state === "available";
 
   return (
     <div className="workspace-page">
-      <Link href={`/equipment/${item.id}`} className="back-link"><ArrowLeft /> {item.name}</Link>
-      <PageHeader eyebrow={`${item.code} · ${categoryLabels[item.category]}`} title="Request service" description={`Ask approved service providers to quote for work on ${item.name}.`} icon={Wrench} />
+      <nav className="crumbs" aria-label="Breadcrumb">
+        <Link href={`/equipment/${item.id}`} aria-label={`Back to ${item.name}`}><ArrowLeft aria-hidden="true" /></Link>
+        <Link href="/equipment">Assets</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Request Repair</span>
+      </nav>
+      <PageHeader eyebrow={`${item.code} · ${categoryLabels[item.category]}`} title="Request Repair" description="Send a repair request to an approved service provider." icon={Wrench} />
 
       <form onSubmit={submit} noValidate className="detail-layout">
         <div className="detail-layout__main">
+          <section className="card detail-card" aria-labelledby="asset-heading">
+            <header className="card__header"><div><h2 id="asset-heading">Asset</h2></div></header>
+            <div className="repair-asset">
+              <span className="repair-asset__icon" aria-hidden="true"><Wrench /></span>
+              <div className="repair-asset__name"><strong>{item.name}</strong><small>{item.code} · {categoryLabels[item.category]}{item.areaName ?? item.location ? ` · ${item.areaName ?? item.location}` : ""}</small></div>
+              <StatusBadge value={available ? "complete" : "blocked"} label={available ? "Available" : "Unavailable"} />
+              <div className="repair-asset__hours"><small>Operating hours</small><strong>{item.hours !== null ? item.hours.toLocaleString("en-GB") : "—"}</strong></div>
+            </div>
+          </section>
+
           <section className="card detail-card" aria-labelledby="work-heading">
-            <header className="card__header"><div><span className="eyebrow">The job</span><h2 id="work-heading">What needs doing</h2></div></header>
+            <header className="card__header"><div><h2 id="work-heading">Repair Details</h2></div></header>
             <div className="form-grid form-grid--card">
-              <Field label="Work required" error={errors.title?.message} wide>
-                <input data-autofocus placeholder="For example, 500 hour inspection" {...form.register("title")} />
+              <Field label="Fault / issue *" error={errors.title?.message} wide hint="What is wrong, or what work is needed. For example, 500 hour inspection.">
+                <textarea data-autofocus rows={2} maxLength={120} {...form.register("title")} />
               </Field>
-              <Field label="Details for the provider" wide><textarea rows={4} {...form.register("description")} /></Field>
-              <Field label="Urgency">
+              <Field label="Priority *">
                 <Select {...form.register("urgency")}>
                   <option value="routine">Routine</option>
                   <option value="urgent">Urgent</option>
                   <option value="critical">Critical</option>
                 </Select>
               </Field>
-              <Field label="Preferred date"><DateInput {...form.register("preferredDate")} /></Field>
+              <Field label="Required by"><DateInput {...form.register("preferredDate")} /></Field>
+              <Field label="Additional details (optional)" wide><textarea rows={3} placeholder="Add any other relevant information (for example suspected cause, access requirements)." {...form.register("description")} /></Field>
             </div>
             {plan ? <p className="card-note">This request is linked to the maintenance plan “{plan.name}”. Completing it resets that plan.</p> : null}
           </section>
+
+          <section className="card detail-card" aria-labelledby="providers-heading">
+            <header className="card__header"><div><h2 id="providers-heading">Service Provider</h2></div></header>
+            {eligible.length === 0 ? (
+              <div className="empty-inline">
+                <strong>No approved provider for {categoryLabels[item.category].toLowerCase()}</strong>
+                <span>{canManageProviders(actor).allowed ? <>Add or approve one under <Link href="/equipment/providers">Manage Service Providers</Link>.</> : "Ask the Mine Manager or the Maintenance Planner to add one under Manage Service Providers."}</span>
+              </div>
+            ) : (
+              <div className="repair-providers">
+                <div className="repair-mode" role="radiogroup" aria-label="How to choose a provider">
+                  <label className="check-option"><input type="radio" name="mode" checked={mode === "approved"} onChange={() => setMode("approved")} /><span>Select from approved providers</span></label>
+                  <label className="check-option"><input type="radio" name="mode" checked={mode === "quotation"} onChange={() => setMode("quotation")} /><span>Request quotation from several providers</span></label>
+                </div>
+                {mode === "approved" ? (
+                  <>
+                    <Field label="Service provider *">
+                      <Select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
+                        <option value="">Choose a provider</option>
+                        {eligible.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+                      </Select>
+                    </Field>
+                    {picked ? (
+                      <div className="repair-provider-card">
+                        <strong>{picked.name}</strong>
+                        <small>{picked.specialisation || picked.categories.map((value) => categoryLabels[value]).join(", ")}</small>
+                        <dl><div><dt>Response time</dt><dd>{responseLabel(picked.responseHours)}</dd></div><div><dt>Service area</dt><dd>{picked.serviceAreas.length > 0 ? picked.serviceAreas.join(", ") : "Not recorded"}</dd></div></dl>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <ul className="provider-pick">
+                    {eligible.map((provider) => (
+                      <li key={provider.id}>
+                        <label className="check-option check-option--card">
+                          <input type="checkbox" value={provider.id} {...form.register("providerIds")} />
+                          <span><strong>{provider.name}</strong><small>{provider.specialisation || approvalLabel(provider, shell?.now ?? "")} · {responseLabel(provider.responseHours)}</small></span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="card-note">Only approved providers that service this kind of asset at this site are shown. Each provider gets a private reply link and sends their own quote.</p>
+              </div>
+            )}
+          </section>
+          {error ? <p className="signin__error" role="alert">{error}</p> : null}
         </div>
 
         <aside className="detail-layout__aside">
-          <section className="card detail-card" aria-labelledby="providers-heading">
-            <header className="card__header"><div><span className="eyebrow">Who to ask</span><h2 id="providers-heading">Approved providers</h2></div></header>
-            {eligible.length === 0 ? (
-              <div className="empty-inline">
-                <strong>No approved provider for {categoryLabels[item.category].toLowerCase()} equipment</strong>
-                <span>{canManageProviders(actor).allowed ? <>Add one under <Link href="/admin">Administration</Link>.</> : "Ask the Mine Manager to add one under Administration."}</span>
-              </div>
-            ) : (
-              <ul className="provider-pick">
-                {eligible.map((provider) => (
-                  <li key={provider.id}>
-                    <label className="check-option check-option--card">
-                      <input type="checkbox" value={provider.id} {...form.register("providerIds")} />
-                      <span><strong>{provider.name}</strong><small>{approvalLabel(provider, shell?.now ?? "")}{provider.contactName ? ` · ${provider.contactName}` : ""}</small></span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="card-note">Only providers already approved for this mine are shown. After sending, give each provider their private reply link. They submit their own quote.</p>
+          <section className="card detail-card" aria-labelledby="summary-heading">
+            <header className="card__header"><div><h2 id="summary-heading">Request Summary</h2></div></header>
+            <dl className="definition-grid definition-grid--stack">
+              <div><dt>Asset</dt><dd>{item.name}</dd></div>
+              <div><dt>Issue</dt><dd>{issue.trim() || <span className="muted">Not described yet</span>}</dd></div>
+              <div><dt>Priority</dt><dd>{urgencyLabels[priority as keyof typeof urgencyLabels]}</dd></div>
+              <div><dt>Required by</dt><dd>{required || <span className="muted">Not set</span>}</dd></div>
+              <div><dt>Service provider</dt><dd>{chosen.length > 0 ? chosen.map((provider) => provider.name).join(", ") : <span className="muted">Not chosen yet</span>}</dd></div>
+            </dl>
+            <h3 className="detail-subhead">What happens next?</h3>
+            <ol className="repair-steps">
+              <li><strong>Send request</strong><small>The provider receives the repair request and a private reply link.</small></li>
+              <li><strong>Quote and confirmation</strong><small>The provider sends their quote and confirms availability.</small></li>
+              <li><strong>Repair in progress</strong><small>You choose the provider, schedule the work and track it.</small></li>
+              <li><strong>Completion</strong><small>Verify the repair and close the request.</small></li>
+            </ol>
           </section>
-          {error ? <p className="signin__error" role="alert">{error}</p> : null}
-          <button className="button button--primary button--wide button--large" disabled={create.isPending || eligible.length === 0}><Send /> {create.isPending ? "Sending…" : "Send request"}</button>
         </aside>
+
+        <footer className="repair-footer">
+          <Link className="button button--quiet" href={`/equipment/${item.id}`}>Cancel</Link>
+          <button className="button button--primary" disabled={create.isPending || eligible.length === 0}><Send /> {create.isPending ? "Sending…" : "Send Repair Request"}</button>
+        </footer>
       </form>
     </div>
   );

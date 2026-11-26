@@ -98,4 +98,32 @@ test.describe("assets", () => {
     await expect(panel).toContainText("C-02, CV-07 depend on it");
     await expect(panel.getByRole("link", { name: "Open asset" })).toHaveAttribute("href", "/equipment/eq-sub-01");
   });
+
+  test("every asset row has a menu: Request Repair, View Details and Maintenance History", async ({ page }) => {
+    await openAs(page, "/equipment", "Lebo Maseko");
+    await page.getByRole("button", { name: /Actions for Primary Crusher C-02/ }).click();
+    const menu = page.getByRole("group", { name: /Actions for Primary Crusher C-02/ });
+    await expect(menu.getByRole("link", { name: "Request Repair" })).toHaveAttribute("href", "/equipment/eq-crusher-c02/service/new");
+    await expect(menu.getByRole("link", { name: "View Details" })).toHaveAttribute("href", "/equipment/eq-crusher-c02");
+    await expect(menu.getByRole("link", { name: "Maintenance History" })).toHaveAttribute("href", "/equipment/eq-crusher-c02#service-history");
+    await menu.getByRole("link", { name: "Request Repair" }).click();
+    await expect(page.getByRole("heading", { name: "Request Repair", level: 1 })).toBeVisible();
+    // Someone who cannot request repairs still sees View Details and Maintenance History.
+    await actAs(page, "Amina Patel");
+    await page.goto("/equipment");
+    await page.getByRole("button", { name: /Actions for Primary Crusher C-02/ }).click();
+    await expect(page.getByRole("link", { name: "Request Repair" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "View Details" })).toBeVisible();
+  });
+
+  test("the Repair Requests band counts real requests and opens the full list", async ({ page }) => {
+    await openAs(page, "/equipment");
+    const band = page.getByRole("region", { name: "Repair Requests" });
+    await expect(band).toContainText("Repairs and service work with external providers.");
+    await expect(band.locator("div", { hasText: /^0Open$/ })).toBeVisible();
+    await band.getByRole("link", { name: "View all" }).click();
+    await expect(page).toHaveURL(/\/equipment\/repairs$/);
+    await expect(page.getByRole("heading", { name: "Repair Requests", level: 1 })).toBeVisible();
+    await expect(page.getByText("No repair requests yet")).toBeVisible();
+  });
 });

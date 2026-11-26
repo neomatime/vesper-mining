@@ -6,7 +6,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts";
-import { CalendarDays, ChevronDown, CirclePlus, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, CirclePlus, Ellipsis, FileText, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useRef, useState } from "react";
@@ -14,6 +14,7 @@ import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { activeActions, isFinished, openDependencies, stateLabels } from "@/lib/issue-rules";
+import { canRequestService } from "@/lib/service-rules";
 import { assetGroupLabels, assetGroups, canActOnEquipment, categoryLabels, planTone, type AssetKind, type EquipmentView } from "@/lib/equipment-rules";
 import { formatDay, shiftTimes, suggestNextShift } from "@/lib/shift-format";
 import { canActOnShift, handoverLabels, shiftStateLabels, shiftTone, type ShiftView } from "@/lib/shift-rules";
@@ -29,6 +30,7 @@ import { useShellData } from "./shell-data";
 import { useDismiss } from "./use-dismiss";
 import { StatusBadge } from "./status-badge";
 import { useCreateEquipment } from "./use-equipment-mutations";
+import { useServiceRequests } from "./use-service";
 import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
 
 export type WorkspaceKey = "exceptions" | "equipment" | "resources" | "shifts";
@@ -107,7 +109,7 @@ function issueRegister(records: OperationalIssue[]): Register<OperationalIssue> 
   };
 }
 
-function equipmentRegister(allRecords: EquipmentView[], issues: OperationalIssue[], kind: AssetKind): Register<EquipmentView> {
+function equipmentRegister(allRecords: EquipmentView[], issues: OperationalIssue[], kind: AssetKind, canRequest: boolean): Register<EquipmentView> {
   // The two tabs are one register with two views, so each tab counts only its own assets.
   const records = allRecords.filter((item) => item.kind === kind);
   const infra = kind === "infrastructure";
@@ -133,6 +135,7 @@ function equipmentRegister(allRecords: EquipmentView[], issues: OperationalIssue
       { key: "state", label: infra ? "Status" : "Availability", render: (item) => (item.retiredAt ? <StatusBadge value="unknown" label="Retired" /> : item.state === "unavailable" ? <StatusBadge value="blocked" label="Unavailable" /> : infra && item.condition === "needs_attention" ? <StatusBadge value="at_risk" label="Needs attention" /> : <StatusBadge value="complete" label="Available" />) },
       { key: "service", label: "Next service", render: (item) => (item.retiredAt ? <span className="muted">—</span> : item.nextService ? <StatusBadge value={planTone[item.nextService.state]} label={item.nextService.label} /> : <span className="muted">No plan</span>) },
       { key: "hours", label: infra ? "Hours / usage" : "Hours", render: (item) => (item.hours !== null ? item.hours.toLocaleString("en-GB") : item.usage ?? <span className="muted">—</span>) },
+      { key: "actions", label: "Actions", render: (item) => <AssetRowMenu item={item} canRequest={canRequest} /> },
     ],
     filters: infra
       ? [
@@ -263,6 +266,53 @@ function AssetTabs({ active }: { active: AssetKind }) {
 }
 
 /** "Add asset" with a short menu: the two kinds of asset share one register. */
+/** The "…" menu on an asset row: ask for a repair, open the asset, or go to its maintenance history. */
+function AssetRowMenu({ item, canRequest }: { item: EquipmentView; canRequest: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, ref);
+  return (
+    <div className="popover-anchor" ref={ref}>
+      <button className="icon-button icon-button--light" aria-haspopup="true" aria-expanded={open} aria-label={`Actions for ${item.name}`} onClick={() => setOpen(!open)}><Ellipsis /></button>
+      {open ? (
+        <div className="popover popover--menu" role="group" aria-label={`Actions for ${item.name}`}>
+          <div className="menu-section">
+            {canRequest && !item.retiredAt ? <Link className="menu-item" href={`/equipment/${item.id}/service/new`} onClick={close}><span className="menu-item__icon"><Wrench size={16} /></span>Request Repair</Link> : null}
+            <Link className="menu-item" href={`/equipment/${item.id}`} onClick={close}><span className="menu-item__icon"><FileText size={16} /></span>View Details</Link>
+            <Link className="menu-item" href={`/equipment/${item.id}#service-history`} onClick={close}><span className="menu-item__icon"><CalendarDays size={16} /></span>Maintenance History</Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Repairs and service work with external providers, as three counts from the repair requests themselves: open (awaiting quotes), in
+ * progress (a provider chosen or the work scheduled) and completed this month. Nothing is estimated.
+ */
+function RepairRequestsBand({ now }: { now: string }) {
+  const requests = useServiceRequests();
+  if (!requests.data) return null;
+  const month = now.slice(0, 7);
+  const open = requests.data.filter((item) => item.status === "open").length;
+  const progress = requests.data.filter((item) => item.status === "awarded" || item.status === "scheduled").length;
+  const done = requests.data.filter((item) => item.status === "completed" && (item.completedAt ?? "").slice(0, 7) === month).length;
+  return (
+    <section className="card repair-band" aria-label="Repair Requests">
+      <span className="repair-band__icon" aria-hidden="true"><Wrench /></span>
+      <div className="repair-band__title"><strong>Repair Requests</strong><small>Repairs and service work with external providers.</small></div>
+      <dl className="repair-band__stats">
+        <div><dd>{open}</dd><dt>Open</dt></div>
+        <div><dd>{progress}</dd><dt>In progress</dt></div>
+        <div><dd>{done}</dd><dt>Completed (this month)</dt></div>
+      </dl>
+      <Link className="repair-band__link" href="/equipment/repairs">View all <ArrowRight /></Link>
+    </section>
+  );
+}
+
 function AddAssetMenu({ onChoose }: { onChoose: (kind: AssetKind) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -318,7 +368,8 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
           key={`${kind}-${requestedFilter}`}
           initialFilter={requestedFilter}
           header={{ ...header, title: "Assets", description: "Manage equipment and site infrastructure, maintenance and availability." }}
-          register={equipmentRegister(all, shell?.issues ?? [], kind)}
+          register={equipmentRegister(all, shell?.issues ?? [], kind, canRequestService({ name: context.persona, role: context.role }).allowed)}
+          afterTiles={<RepairRequestsBand now={shell?.now ?? ""} />}
           tabs={<AssetTabs active={kind} />}
           viewSwitch={
             <>
@@ -381,7 +432,7 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
 }
 
 /** A register page: header, summary tiles, search, filters and a table. Also used by the Production and Shipments screens. */
-export function RegisterView<T extends { id: string }>({ header, register, initialFilter, viewSwitch, tabs }: { header: Header; register: Register<T>; initialFilter: string | null; viewSwitch?: React.ReactNode; tabs?: React.ReactNode }) {
+export function RegisterView<T extends { id: string }>({ header, register, initialFilter, viewSwitch, tabs, afterTiles }: { header: Header; register: Register<T>; initialFilter: string | null; viewSwitch?: React.ReactNode; tabs?: React.ReactNode; /** Shown between the summary figures and the table. */ afterTiles?: React.ReactNode }) {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState(() =>
     register.filters.some((item) => item.key === initialFilter) ? (initialFilter as string) : "all",
@@ -434,6 +485,8 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
           </article>
         ))}
       </section> : null}
+
+      {afterTiles}
 
       <section className="card register-card">
         <div className="register-toolbar">
