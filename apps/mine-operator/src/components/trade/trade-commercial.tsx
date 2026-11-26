@@ -64,7 +64,7 @@ function Enquiries({ data }: { data: TradeView }) {
             { key: "customer", label: "Customer", sort: (row) => row.clientName, render: (row) => <Link className="row-link-text" href={`/trade/portfolio/${row.clientId}`}>{row.clientName}</Link> },
             { key: "commodity", label: "Commodity", sort: (row) => row.commodity, render: (row) => row.commodity },
             { key: "quantity", label: "Requested", sort: (row) => row.tonnes, render: (row) => formatTonnes(row.tonnes) },
-            { key: "window", label: "Delivery window", render: (row) => row.deliveryWindow },
+            { key: "window", label: "Window", render: (row) => row.deliveryWindow },
             { key: "stage", label: "Stage", sort: (row) => stages.indexOf(row.stage), render: (row) => <EnquiryStage enquiry={row} /> },
             { key: "owner", label: "Owner", sort: (row) => row.owner, render: (row) => row.owner },
           ]}
@@ -94,7 +94,7 @@ function Enquiries({ data }: { data: TradeView }) {
 
 function nextStepLabel(enquiry: EnquiryRow) {
   if (enquiry.quotationPending) return "View";
-  return ({ new: "Qualify", qualified: "Quote", quotation_sent: "Follow up", negotiation: "Update", won: "View", lost: "View outcome" } as const)[enquiry.stage];
+  return ({ new: "Qualify", qualified: "Quote", quotation_sent: "Follow up", negotiation: "Update", won: "View", lost: "Outcome" } as const)[enquiry.stage];
 }
 
 function EnquiryDialog({ data, clientId, onClose }: { data: TradeView; clientId: string; onClose: () => void }) {

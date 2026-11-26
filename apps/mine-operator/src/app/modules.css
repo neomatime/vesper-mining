@@ -9,6 +9,8 @@
 /* A page that is a task rather than a list: a form or a step-by-step screen */
 .task-page { max-width: 1040px; margin: 0 auto; }
 .task-card { display: grid; gap: 22px; padding: 22px 24px; }
+/* Cards stacked on a task page keep a clear gap, so each reads as its own panel. */
+.task-page > .card + .card, .task-page > .card + section, .task-page > section + .card { margin-top: 16px; }
 .task-section { display: grid; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px; }
 .task-section:first-child { border-top: 0; padding-top: 0; }
 .task-section > h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 20px; font-weight: 400; letter-spacing: -0.015em; }
@@ -112,15 +114,17 @@
 .intel__examples { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
 .intel-briefing__list { display: grid; gap: 10px; margin: 0; padding: 4px 24px 8px; list-style: none; }
 .intel-briefing__line { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
-.intel-briefing__line > span { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--text-secondary); }
-.intel-briefing__line--good > span { color: var(--brand-emerald); }
+.intel-briefing__line > span:first-child { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--text-secondary); }
+.intel-briefing__line--good > span:first-child { color: var(--brand-emerald); }
 .intel-briefing__line svg { width: 17px; height: 17px; }
 .intel-briefing__next { margin: 4px 24px 8px; padding-top: 10px; border-top: 1px solid var(--border-subtle); }
 .intel-briefing__next small { color: var(--text-secondary); font-size: 12px; }
-.intel-briefing__next ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.intel-briefing__next ul { display: grid; gap: 4px; margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; }
 .intel-briefing__footer { padding: 4px 24px 18px; }
 @media (max-width: 767px) { .intel__item { grid-template-columns: 36px minmax(0, 1fr); } .intel__item > a { grid-column: 2; justify-self: start; } .intel-briefing__list, .intel-briefing__next, .intel-briefing__footer { padding-left: 18px; padding-right: 18px; margin-left: 0; margin-right: 0; } }
 
+.intel-briefing__text { display: grid; flex: 1; min-width: 0; gap: 2px; line-height: 1.45; overflow-wrap: anywhere; }
+.intel-briefing__line--good .intel-briefing__text { color: var(--text-primary); }
 .intel-briefing__text small { color: var(--text-secondary); font-size: 12px; }
 .intel-briefing__stale { font-weight: var(--weight-strong); }
 .intel-briefing__note { display: grid; gap: 2px; margin: 4px 24px 8px; padding: 10px 12px; border-left: 3px solid var(--brand-emerald); border-radius: var(--radius-sm); background: var(--surface-hover); font-size: 13.5px; }

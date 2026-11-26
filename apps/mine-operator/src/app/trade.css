@@ -69,6 +69,17 @@
 .trade-sort svg { width: 13px; height: 13px; opacity: 0.6; }
 .trade-sort:focus-visible { outline: 2px solid var(--brand-emerald); outline-offset: 2px; border-radius: var(--radius-sm); }
 .trade-table tr.is-clickable { cursor: pointer; }
+/* Tables fit their card: headings stay on one line, the action column takes only what its button needs. */
+.trade-table { width: 100%; }
+.trade-table th, .trade-table td { padding-left: 10px; padding-right: 10px; }
+.trade-table th:first-child, .trade-table td:first-child { padding-left: 16px; }
+.trade-table th:last-child, .trade-table td:last-child { padding-right: 16px; }
+.trade-table th { line-height: 1.35; vertical-align: bottom; }
+.trade-table .trade-sort { text-align: left; }
+.trade-table .trade-sort svg { flex: 0 0 auto; }
+.trade-table .status-badge { white-space: normal; text-align: left; }
+.trade-table th:last-child, .trade-table td:last-child { width: 1%; white-space: nowrap; }
+.trade-register .table-wrap { padding: 0 8px 8px; }
 .trade-row-actions { display: inline-flex; justify-content: flex-end; gap: 6px; }
 .trade-view svg { width: 14px; height: 14px; }
 .trade-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px 16px; color: var(--text-secondary); font-size: 13px; }
@@ -76,7 +87,7 @@
 .trade-menu { right: 0; left: auto; min-width: 220px; }
 .trade-mini-empty { padding: 22px; }
 
-.trade-progress { display: inline-grid; grid-template-columns: 38px minmax(60px, 110px); align-items: center; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.trade-progress { display: inline-grid; grid-template-columns: 36px minmax(48px, 90px); align-items: center; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .trade-progress__track { height: 6px; overflow: hidden; border-radius: var(--radius-sm); background: var(--surface-muted); }
 .trade-progress__bar { display: block; height: 100%; border-radius: var(--radius-sm); background: var(--brand-emerald); }
 .trade-progress__bar--warning { background: var(--trade-warning); }
@@ -93,8 +104,9 @@
 .trade-rail-card { display: grid; gap: 10px; padding: 16px; }
 .trade-rail-card__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .trade-rail-card__header h2 { margin: 0; font-size: 15px; font-weight: var(--weight-strong); }
-.trade-rail-card__header .row-link-text { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
-.trade-rail-card__header .row-link-text svg { width: 13px; height: 13px; }
+.trade-rail-card__header h2 { min-width: 0; }
+.trade-rail-card__action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; border: 0; padding: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: var(--weight-strong); white-space: nowrap; cursor: pointer; }
+.trade-rail-card__action svg { width: 13px; height: 13px; }
 .trade-rail-empty { margin: 0; font-size: 13px; }
 .trade-rail-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .trade-rail-list li > a, .trade-rail-list li > div { display: flex; align-items: center; gap: 10px; min-height: 44px; border-radius: var(--radius-md); padding: 6px 6px; color: inherit; text-decoration: none; }
@@ -306,9 +318,13 @@
 .trade-crumb { display: inline-flex; align-items: center; gap: 8px; }
 
 /* ---- Responsive: tablet and phone -------------------------------------------------------------------------------------- */
-@media (max-width: 1180px) {
-  .trade-layout, .trade-overview-grid { grid-template-columns: minmax(0, 1fr); }
+/* Below 1600px a register needs the full width, so the side panels move under it in a row of their own. */
+@media (max-width: 1599px) {
+  .trade-layout { grid-template-columns: minmax(0, 1fr); }
   .trade-rail { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+}
+@media (max-width: 1180px) {
+  .trade-overview-grid { grid-template-columns: minmax(0, 1fr); }
   .trade-intel-row { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {

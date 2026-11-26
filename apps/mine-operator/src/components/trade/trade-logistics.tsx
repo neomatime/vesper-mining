@@ -91,9 +91,8 @@ function Logistics({ transport, shipments }: { transport: TransportData; shipmen
               { key: "name", label: "Provider", sort: (row) => row.name, render: (row) => <CellMain title={row.name} detail={row.contactPerson || row.email} /> },
               { key: "service", label: "Service", sort: (row) => row.mode, render: (row) => <span className="trade-tags"><span className="trade-tag">{row.mode}</span>{row.serviceNote ? <span className="trade-tag">{row.serviceNote}</span> : null}</span> },
               { key: "areas", label: "Areas served", render: (row) => row.areasServed.join(", ") || <span className="muted">Not recorded</span> },
-              { key: "agreements", label: "Active agreements", sort: (row) => activeAgreements.filter((item) => item.providerId === row.id).length, render: (row) => (terms ? activeAgreements.filter((item) => item.providerId === row.id).length : "—") },
-              { key: "status", label: "Status", sort: (row) => row.approval, render: (row) => <Status family={row.approval === "approved" ? "done" : row.approval === "needs_review" ? "attention" : "unknown"} label={approvalLabels[row.approval]} /> },
-              { key: "until", label: "Approved until", sort: (row) => row.approvedUntil ?? "", render: (row) => (row.approvedUntil ? dayLabel(row.approvedUntil) : <span className="muted">—</span>) },
+              { key: "agreements", label: "Agreements", sort: (row) => activeAgreements.filter((item) => item.providerId === row.id).length, render: (row) => (terms ? activeAgreements.filter((item) => item.providerId === row.id).length : "—") },
+              { key: "status", label: "Status", sort: (row) => row.approval, render: (row) => <span className="cell-main"><Status family={row.approval === "approved" ? "done" : row.approval === "needs_review" ? "attention" : "unknown"} label={approvalLabels[row.approval]} />{row.approvedUntil ? <small>Until {dayLabel(row.approvedUntil)}</small> : null}</span> },
             ]}
             actions={(row) => <ViewLink href={`/trade/logistics/${row.id}`} name={row.name} />}
             toolbarEnd={transport.can.manage ? <button className="button button--quiet button--small" onClick={() => setAdding(true)}><CirclePlus /> Add provider</button> : undefined}

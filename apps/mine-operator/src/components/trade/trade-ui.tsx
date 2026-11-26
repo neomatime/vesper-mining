@@ -74,7 +74,7 @@ export function RailCard({ title, action, children, label }: { title: string; ac
     <article className="card trade-rail-card" aria-label={label ?? title}>
       <header className="trade-rail-card__header">
         <h2>{title}</h2>
-        {action ? (action.href ? <Link className="row-link-text" href={action.href}>{action.label} <ArrowRight aria-hidden="true" /></Link> : <button className="button button--quiet button--small" onClick={action.onClick}>{action.label}</button>) : null}
+        {action ? (action.href ? <Link className="row-link-text trade-rail-card__action" href={action.href}>{action.label} <ArrowRight aria-hidden="true" /></Link> : <button type="button" className="row-link-text trade-rail-card__action" onClick={action.onClick}>{action.label} <ArrowRight aria-hidden="true" /></button>) : null}
       </header>
       {children}
     </article>
