@@ -132,18 +132,14 @@
 .intel-briefing__footer { display: flex; flex-wrap: wrap; gap: 10px; }
 
 /* Assets: the Equipment and Infrastructure tabs, and the dependency picker in the asset form. */
-.segmented.asset-tabs { display: flex; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; background: transparent; }
-.asset-tabs a { min-height: 44px; padding: 0 28px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-primary); background: var(--surface-muted); font-size: 14.5px; }
-.asset-tabs a.active { color: #fff; border-color: var(--brand-emerald); background: var(--brand-emerald); box-shadow: none; }
+/* Equipment and Infrastructure use the same underlined tabs as the rest of VESPER. */
+.asset-tabs { margin-bottom: 18px; }
 .asset-dependencies { margin: 0; padding: 0; border: 0; }
 .asset-dependencies legend { margin-bottom: 4px; padding: 0; font-size: 12px; font-weight: var(--weight-strong); }
 .asset-dependencies__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; margin-top: 8px; }
 .asset-dependencies__list label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
 /* The form rule `.form-field input` stretches every input to the full width; a checkbox must stay a checkbox. */
 .asset-dependencies__list input[type="checkbox"] { flex: none; width: 17px; height: 17px; padding: 0; border-radius: var(--radius-xs); accent-color: var(--brand-emerald); }
-:root[data-theme="dark"] .segmented.asset-tabs { border: 0; background: transparent; }
-:root[data-theme="dark"] .segmented.asset-tabs a { color: var(--text-primary); border: 1px solid var(--border-subtle); background: transparent; box-shadow: none; }
-:root[data-theme="dark"] .segmented.asset-tabs a.active { color: #fff; border-color: var(--brand-emerald); background: var(--brand-emerald); }
 .detail-subhead { margin: 14px 24px 4px; color: var(--text-secondary); font-size: 12px; font-weight: var(--weight-strong); letter-spacing: 0.06em; text-transform: uppercase; }
 
 /* Manage Service Providers. */

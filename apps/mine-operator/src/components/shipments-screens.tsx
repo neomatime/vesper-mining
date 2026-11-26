@@ -137,7 +137,7 @@ export function ShipmentOverviewScreen() {
             <article className="kpi"><span>Value awaiting collection</span><strong>{formatMoney(summary.awaiting.amount)}</strong><small>{summary.awaiting.count} {summary.awaiting.count === 1 ? "shipment" : "shipments"} requested or confirmed, on time</small></article>
             <article className={`kpi ${summary.delayed.count > 0 ? "kpi--attention" : ""}`}><span>Value of delayed shipments</span><strong>{formatMoney(summary.delayed.amount)}</strong><small>{summary.delayed.count} {summary.delayed.count === 1 ? "shipment" : "shipments"} past their collection date or declined</small></article>
           </section>
-          <p className="notice-line">Estimated sales value, in {"ZAR"}. Each shipment is counted once, so the two totals never overlap. {summary.notPriced > 0 ? `${summary.notPriced} ${summary.notPriced === 1 ? "shipment is" : "shipments are"} not priced and left out. ` : ""}A delayed shipment’s value is what is at stake in a late collection, not a loss. Sales value is not revenue or cash.</p>
+          <p className="notice-line">Estimated sales value in ZAR; each shipment counted once. {summary.notPriced > 0 ? `${summary.notPriced} ${summary.notPriced === 1 ? "shipment is" : "shipments are"} not priced and left out. ` : ""}Delayed value is at stake, not a loss.</p>
         </>
       ) : null}
       <section className="card register-card">
@@ -157,7 +157,7 @@ export function ShipmentOverviewScreen() {
                     <td data-label="Blocker">{blockerOf(shipment, values.requestOf(shipment), transporterOf(data, shipment.transporterId)) ?? <span className="muted">None</span>}</td>
                     <td data-label="Responsible">{responsibleOf(shipment, transporterOf(data, shipment.transporterId))}</td>
                     {values.visible ? <td data-label="Sales value"><ValueCell value={values.valueOf(shipment)} /></td> : null}
-                    <td data-label="Next action"><Link className="button button--quiet button--small" href={`/shipments/${shipment.id}`}>{nextStepLabel(shipment)}</Link></td>
+                    <td data-label="Next action"><Link className="button button--quiet button--small nowrap" href={`/shipments/${shipment.id}`}>{nextStepLabel(shipment)}</Link></td>
                   </tr>
                 ))}
               </tbody>
@@ -540,9 +540,9 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
   const save = useLogisticsAction<Record<string, unknown>, Shipment>({ path: `/shipments/${shipment.id}`, method: "PATCH", success: () => ({ title: "Saved", detail: "Your checks are saved. You can finish them later." }) });
   const ready = useLogisticsAction<{ version: number }, { shipment: Shipment; request: CollectionRequest }>({
     path: `/shipments/${shipment.id}/ready`,
-    success: (result) => ({ title: "Collection request recorded", detail: `${result.request.number} is waiting for ${chosen?.name ?? "the transporter"} to reply. Demo: no message is sent.` }),
+    success: (result) => ({ title: "Collection request recorded", detail: `${result.request.number} is waiting for ${chosen?.name ?? "the transporter"} to reply.` }),
   });
-  const remind = useLogisticsAction<{ id: string }, CollectionRequest>({ path: (input) => `/collection-requests/${input.id}/reminder`, success: (item) => ({ title: "Reminder recorded", detail: `${item.number}: in this demo nothing is sent.` }) });
+  const remind = useLogisticsAction<{ id: string }, CollectionRequest>({ path: (input) => `/collection-requests/${input.id}/reminder`, success: (item) => ({ title: "Reminder recorded", detail: `${item.number}: nothing is sent from VESPER.` }) });
   const review = useLogisticsAction<{ deliveryId: string }, Shipment>({ path: (input) => `/shipments/${shipment.id}/deliveries/${input.deliveryId}/review`, success: () => ({ title: "Difference reviewed" }) });
   const cancel = useLogisticsAction<{ reason: string; version: number }, Shipment>({
     path: `/shipments/${shipment.id}/cancel`,
@@ -597,7 +597,7 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
           <>
             {problems.length > 0 ? <div className="note-bar" role="status"><Info /> <span>{problems[0]}{problems.length > 1 ? ` (${problems.length} things to finish)` : ""}</span></div> : null}
             <div className="task-footer">
-              <p>{ownFleet ? "This records the transport plan. The person responsible then confirms the schedule. Nothing is sent to anyone." : <>This sends a collection request. {chosen?.name ?? "The transporter"} must still confirm. Demo: no message is sent.</>}</p>
+              <p>{ownFleet ? "This records the transport plan. The person responsible then confirms the schedule. Nothing is sent to anyone." : <>This sends a collection request. {chosen?.name ?? "The transporter"} must still confirm on their reply page.</>}</p>
               <div className="button-row">
                 <button className="button button--quiet" disabled={save.isPending || !changed} onClick={() => save.mutate({ checks, transporterId, version: shipment.version })}>Save and finish later</button>
                 <button
@@ -618,9 +618,9 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
           <section className="task-section">
             <h2>Waiting for {transporter?.name}</h2>
             <div className="fact-row"><div className="fact"><span>Request</span><strong>{request.number}</strong></div><div className="fact"><span>Sent</span><strong>{formatDemoDateTime(request.sentAt)}</strong></div><div className="fact"><span>Reminders</span><strong>{request.reminders}</strong></div></div>
-            <div className="note-bar"><Info /> <span>A request is not a booking. The transporter must confirm a collection time. Demo: nothing was sent, so open the reply page to answer as the transporter.</span></div>
+            <div className="note-bar"><Info /> <span>A request is not a booking: the transporter must confirm a collection time. The transporter answers on their reply page.</span></div>
             <div className="button-row">
-              <Link className="button button--quiet" target="_blank" href={`/transport/respond/${request.token}`}><ExternalLink /> Open reply page (demo)</Link>
+              <Link className="button button--quiet" target="_blank" href={`/transport/respond/${request.token}`}><ExternalLink /> Open transporter reply page</Link>
               {canManage.allowed ? <button className="button button--quiet" disabled={remind.isPending} onClick={() => remind.mutate({ id: request.id })}>Send reminder</button> : null}
             </div>
           </section>

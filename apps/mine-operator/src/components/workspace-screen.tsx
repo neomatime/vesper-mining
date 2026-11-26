@@ -33,6 +33,7 @@ import { useCreateEquipment } from "./use-equipment-mutations";
 import { useServiceRequests } from "./use-service";
 import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
 import { Tick } from "./tick";
+import { DEMO_NOW } from "@/lib/demo-data";
 
 export type WorkspaceKey = "exceptions" | "equipment" | "resources" | "shifts";
 
@@ -104,7 +105,6 @@ function issueRegister(records: OperationalIssue[]): Register<OperationalIssue> 
     href: (issue) => `/exceptions/${issue.id}`,
     text: (issue) => [issue.title, issue.issueNumber, issue.owner, issue.workflowState, issue.priority].join(" "),
     rows: sorted,
-    action: { label: "Report issue", href: "/exceptions/new", plus: true },
     emptyTitle: "No issues yet",
     emptyBody: "Issues appear here as soon as they are reported.",
   };
@@ -167,13 +167,16 @@ function resourceRegister(records: ReadinessActivity[]): Register<ReadinessActiv
     .filter((value): value is string => value !== null)
     .sort();
   const date = (iso: string) => formatDemoDateTime(iso).split(" · ")[0];
+  // An order-by date that has already passed is flagged, not shown like any other date.
+  const today = DEMO_NOW.slice(0, 10);
+  const past = (iso: string) => iso.slice(0, 10) < today;
 
   return {
     icon: PackageCheck,
     tiles: [
       { label: "Need attention", value: attention.length, hint: "Not yet ready", attention: attention.length > 0 },
       { label: "Parts with unknown stock", value: unknownParts, hint: "Unknown is not zero", attention: unknownParts > 0 },
-      { label: "Earliest order-by", value: orderDates[0] ? date(orderDates[0]) : "None", hint: "Indicative, longest lead time plus buffer" },
+      { label: "Earliest order-by", value: orderDates[0] ? date(orderDates[0]) : "None", hint: orderDates[0] && past(orderDates[0]) ? "Already passed: order now" : "Indicative, longest lead time plus buffer", attention: Boolean(orderDates[0] && past(orderDates[0])) },
       { label: "Reviewed", value: records.filter((activity) => activity.reviews.length > 0).length, hint: "Human review recorded" },
     ],
     columns: [
@@ -181,7 +184,7 @@ function resourceRegister(records: ReadinessActivity[]): Register<ReadinessActiv
       { key: "needed", label: "Needed by", render: (activity) => date(activity.scheduledFor) },
       { key: "status", label: "Readiness", render: (activity) => <StatusBadge value={activity.status} label={formatStatus(activity.status)} /> },
       { key: "parts", label: "Parts to confirm", render: (activity) => { const n = activity.parts.filter((part) => partPosition(part) !== "covered").length; return n ? `${n} of ${activity.parts.length}` : <span className="muted">None</span>; } },
-      { key: "orderby", label: "Order-by", render: (activity) => { const value = indicativeOrderBy(activity.scheduledFor, activity.parts); return value ? date(value) : <span className="muted">Not needed</span>; } },
+      { key: "orderby", label: "Order-by", render: (activity) => { const value = indicativeOrderBy(activity.scheduledFor, activity.parts); return value ? (past(value) ? <span className="date-overdue">{date(value)}<small>Passed</small></span> : date(value)) : <span className="muted">Not needed</span>; } },
       { key: "review", label: "Review", render: (activity) => (activity.reviews.length ? <StatusBadge value="reviewed" label="Reviewed" /> : <StatusBadge value="pending" label="Not reviewed" />) },
     ],
     filters: [
@@ -259,9 +262,9 @@ function ShiftViewSwitch({ view }: { view: "list" | "calendar" }) {
 /** The two views of the asset register. Each tab is a page of its own, so the browser's back button works. */
 function AssetTabs({ active }: { active: AssetKind }) {
   return (
-    <nav className="segmented segmented--links asset-tabs" aria-label="Asset type">
-      <Link href="/equipment" className={active === "equipment" ? "active" : ""} aria-current={active === "equipment" ? "page" : undefined}>Equipment</Link>
-      <Link href="/equipment?tab=infrastructure" className={active === "infrastructure" ? "active" : ""} aria-current={active === "infrastructure" ? "page" : undefined}>Infrastructure</Link>
+    <nav className="tabs module-tabs asset-tabs" aria-label="Asset type">
+      <Link href="/equipment" className={`tab ${active === "equipment" ? "tab--active active" : ""}`} aria-current={active === "equipment" ? "page" : undefined}>Equipment</Link>
+      <Link href="/equipment?tab=infrastructure" className={`tab ${active === "infrastructure" ? "tab--active active" : ""}`} aria-current={active === "infrastructure" ? "page" : undefined}>Infrastructure</Link>
     </nav>
   );
 }
@@ -304,11 +307,15 @@ function RepairRequestsBand({ now }: { now: string }) {
     <section className="card repair-band" aria-label="Repair Requests">
       <span className="repair-band__icon" aria-hidden="true"><Wrench /></span>
       <div className="repair-band__title"><strong>Repair Requests</strong><small>Repairs and service work with external providers.</small></div>
-      <dl className="repair-band__stats">
-        <div><dd>{open}</dd><dt>Open</dt></div>
-        <div><dd>{progress}</dd><dt>In progress</dt></div>
-        <div><dd>{done}</dd><dt>Completed (this month)</dt></div>
-      </dl>
+      {open + progress + done === 0 ? (
+        <p className="repair-band__empty">No repair requests open or in progress.</p>
+      ) : (
+        <dl className="repair-band__stats">
+          <div><dd>{open}</dd><dt>Open</dt></div>
+          <div><dd>{progress}</dd><dt>In progress</dt></div>
+          <div><dd>{done}</dd><dt>Completed (this month)</dt></div>
+        </dl>
+      )}
       <Link className="repair-band__link" href="/equipment/repairs">View all <ArrowRight /></Link>
     </section>
   );
@@ -536,7 +543,7 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
             </table>
           </div>
         )}
-        <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}{register.footnote ?? "Reported and verified information stay separate."}</p>
+        {filtering || register.footnote ? <p className="card__footnote">{filtering ? `Showing ${visible.length} of ${register.rows.length}. ` : ""}{register.footnote ?? ""}</p> : null}
       </section>
     </div>
   );

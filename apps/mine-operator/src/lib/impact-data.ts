@@ -23,10 +23,10 @@ export const goldEquipment: Equipment = {
   code: "CR-01",
   name: "Gold Plant Crusher CR-01",
   category: "crusher",
-  makeModel: "Gold demonstration crusher",
+  makeModel: "Gold plant primary crusher",
   serialNumber: "CR01-20817",
   areaId: null,
-  notes: "Part of the Gold demonstration. All figures are fictional.",
+  notes: "Feeds the Gold plant.",
   location: null,
   responsible: null,
   condition: "unknown",
@@ -67,7 +67,7 @@ export const goldIssue: OperationalIssue = {
   owner: "Lebo Maseko",
   reportedAt: at("24", "06:05"),
   updatedAt: at("24", "08:30"),
-  source: { label: "Field report RIV-2025-042 (Gold demonstration)", observedAt: at("24", "06:05"), quality: "reported" },
+  source: { label: "Field report RIV-2025-042", observedAt: at("24", "06:05"), quality: "reported" },
   actions: [
     { id: "act-g1", title: "Isolate and lock out CR-01", owner: "Lebo Maseko", team: "Maintenance", state: "complete", dueAt: at("24", "06:30"), completedAt: at("24", "06:25"), removedAt: null },
     { id: "act-g2", title: "Replace the drive coupling", owner: "Lebo Maseko", team: "Maintenance", state: "in_progress", dueAt: at("24", "10:00"), completedAt: null, removedAt: null },
@@ -104,7 +104,7 @@ export const goldReadiness: ReadinessActivity = {
 
 export const seedImpactScenario: ImpactScenario = {
   id: "gold-demo",
-  label: "Gold demonstration",
+  label: "Gold delivery",
   equipmentId: GOLD_EQUIPMENT_ID,
   issueId: GOLD_ISSUE_ID,
   linkedIssueIds: [GOLD_ISSUE_ID],

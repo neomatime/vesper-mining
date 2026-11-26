@@ -49,8 +49,8 @@ export function demoEntitlementRecord(tier: Tier): ClientEntitlementRecord {
     featureOverrides: [],
     approval: { approvedBy: "HIMARK Commercial (mock)", role: "Commercial lead", approvedAt: "2024-12-15T09:00:00+02:00" },
     auditHistory: [
-      { at: "2024-12-10T09:00:00+02:00", actor: "HIMARK Commercial (mock)", action: "created", detail: "Mock record for the demonstration." },
-      { at: "2024-12-15T09:00:00+02:00", actor: "HIMARK Commercial (mock)", action: "approved", detail: "Mock approval for the demonstration." },
+      { at: "2024-12-10T09:00:00+02:00", actor: "HIMARK Commercial", action: "created", detail: "Subscription recorded." },
+      { at: "2024-12-15T09:00:00+02:00", actor: "HIMARK Commercial", action: "approved", detail: "Subscription approved." },
     ],
   };
 }

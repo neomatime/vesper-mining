@@ -36,9 +36,8 @@ export function deriveAreaStatus(input: {
   return "unknown";
 }
 
+/** A stored status as words in sentence case, the way every status in VESPER is written: "in_progress" becomes "In progress". */
 export function formatStatus(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  const words = value.split("_").join(" ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }

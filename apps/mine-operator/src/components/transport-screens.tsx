@@ -82,7 +82,7 @@ export function ProviderTabs({ active }: { active: "providers" | "quotes" | "agr
 
 /** Says plainly that the figures are a simulated period, so nobody reads the demonstration dates as today's. */
 export function DemoPeriodNote() {
-  return <div className="note-bar"><Info /> <span><strong>Demo period: April 2026.</strong> Providers, quotes and agreements are simulated records for this demonstration. Nothing is sent to a provider, and prices exclude VAT unless a record says otherwise.</span></div>;
+  return <div className="note-bar"><Info /> <span><strong>Period: April 2026.</strong> VESPER records providers, quotes and agreements; it sends nothing to a provider itself. Prices exclude VAT unless a record says otherwise.</span></div>;
 }
 
 function LockedTerms() {
@@ -348,7 +348,7 @@ function QuotesView({ data, requests }: { data: Transport; requests: QuoteReques
     action: data.can.record ? { label: "New quote request", href: `${base}/quotes/new`, plus: true } : undefined,
     emptyTitle: "No quote requests yet",
     emptyBody: "Ask approved providers to quote for one shipment or for an ongoing agreement.",
-    footnote: "Demo: requests are not sent from VESPER. Send the request yourself, then record that it was sent and enter each reply.",
+    footnote: "VESPER does not send requests. Send the request yourself, then record that it was sent and enter each reply.",
   };
   return <RegisterView initialFilter={null} header={{ eyebrow: "Shipments · Logistics", title: "Transport quotes", description: "Ask providers for prices, record their replies and decide." }} register={register} tabs={<ProviderTabs active="quotes" />} />;
 }
@@ -389,7 +389,7 @@ function QuoteRequestView({ data, request }: { data: Transport; request: QuoteRe
   const { push: toast } = useToast();
   const [recording, setRecording] = useState<Quote | null>(null);
   const [deciding, setDeciding] = useState<{ quote: Quote; decision: "accept" | "not_selected" } | null>(null);
-  const sent = useTransportAction<Record<string, never>, QuoteRequest>({ path: `/quote-requests/${request?.id}/sent`, success: () => ({ title: "Recorded as sent", detail: "Demo: nothing was sent from VESPER. Enter each reply as it arrives." }) });
+  const sent = useTransportAction<Record<string, never>, QuoteRequest>({ path: `/quote-requests/${request?.id}/sent`, success: () => ({ title: "Recorded as sent", detail: "Nothing was sent from VESPER. Enter each reply as it arrives." }) });
   if (!request) return <ErrorState message="This quote request could not be found." />;
   const shipment = logistics.data?.shipments.find((item) => item.id === request.shipmentId) ?? null;
   const text = requestText(data, request, shipment?.number ?? null);

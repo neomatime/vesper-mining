@@ -13,7 +13,7 @@ import type { Actor, Check } from "./issue-rules";
 // ---- The Gold demonstration's fixed assumptions (all fictional) -----------------------------------------------------------
 
 export const GOLD = {
-  label: "Gold demonstration",
+  label: "Gold delivery",
   /** Gold the customer has been promised for this delivery, in grams. This commitment never changes with a forecast. */
   requiredGrams: 1000,
   /** What was expected before the breakdown. */

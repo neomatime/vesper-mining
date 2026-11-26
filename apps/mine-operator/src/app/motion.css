@@ -137,7 +137,9 @@ a.card:hover, a.metric-card:hover { transform: translateY(-2px); }
 .upload-progress__track--indeterminate .upload-progress__bar { width: 40%; transform: none; animation: indeterminate 1.1s var(--ease-move) infinite; }
 
 /* ---- Data: values, bars and charts ------------------------------------------------------------------------------------- */
-/* A figure that changes settles in; unchanged figures never move. */
+/* A figure that changes settles in; unchanged figures never move. The figure's wrapper takes the figure's own type, never the
+   small label style that applies to other spans in a tile. */
+.kpi strong > span, .kpi strong > .value-tick, .trade-kpi strong > span { color: inherit; font: inherit; letter-spacing: inherit; text-transform: none; }
 .value-tick { display: inline-block; animation: value-in var(--motion-base) var(--ease-standard); }
 .trade-progress__bar { width: 100% !important; transform: scaleX(var(--share, 0)); transform-origin: left; transition: transform var(--motion-slow) var(--ease-standard); animation: grow-x var(--motion-chart) var(--ease-standard); }
 .trade-donut__segment { transition: stroke-dasharray var(--motion-slow) var(--ease-standard), stroke-dashoffset var(--motion-slow) var(--ease-standard); }

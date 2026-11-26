@@ -35,7 +35,7 @@ export function ReportsIndexScreen() {
 
   return (
     <div className="workspace-page">
-      <PageHeader eyebrow="Reports" title="Operational intelligence" description="Evidence-linked measures with clear units, definitions and information quality." icon={BarChart3} />
+      <PageHeader eyebrow="Intelligence" title="Reports" description="Evidence-linked measures with clear units, definitions and information quality." icon={BarChart3} />
       <section className="kpi-row" aria-label="Reporting summary">
         <article className="kpi"><span>Reporting level</span><strong>{plan.reporting}</strong><small>{plan.label}</small></article>
         <article className="kpi"><span>Reports available</span><strong>{unlocked} of {reports.length}</strong><small>{unlocked === reports.length ? "Every report is included" : "Higher reporting levels are not included"}</small></article>

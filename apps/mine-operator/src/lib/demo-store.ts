@@ -2976,7 +2976,7 @@ export const demoDomain = {
       notify(shipment.fleet.coordinator, "Confirm the fleet schedule", `${shipment.number}: ${shipment.fleet.loads.length} load${shipment.fleet.loads.length === 1 ? "" : "s"} planned. Confirm the schedule when the vehicles and drivers are ready.`, `/shipments/${shipment.id}`, "logistics");
       return { shipment, request };
     }
-    recordShipment(shipment, actor, { type: "request_sent", summary: `Collection request ${request.number} recorded for ${transporter?.name ?? "the transporter"} (demo: nothing was sent)` });
+    recordShipment(shipment, actor, { type: "request_sent", summary: `Collection request ${request.number} recorded for ${transporter?.name ?? "the transporter"} (sent outside VESPER)` });
     notify(actor.name, "Collection request recorded", `${shipment.number}: waiting for ${transporter?.name ?? "the transporter"} to reply. In this demo no message is sent.`, "/shipments/logistics", "logistics");
     return { shipment, request };
   },
@@ -3110,7 +3110,7 @@ export const demoDomain = {
     if (request.state !== "sent") fail(409, "READ_ONLY", "A reminder only makes sense while the transporter has not replied.");
     const shipment = findShipment(request.shipmentId);
     request.reminders += 1;
-    recordShipment(shipment, actor, { type: "reminder_sent", summary: `Reminder recorded for ${request.number} (demo: nothing was sent)` });
+    recordShipment(shipment, actor, { type: "reminder_sent", summary: `Reminder recorded for ${request.number} (sent outside VESPER)` });
     return request;
   },
 
@@ -3392,8 +3392,8 @@ export const demoDomain = {
     request.status = "sent";
     request.sentRecordedAt = at;
     request.sentBy = actor.name;
-    request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Request recorded as sent (demo: nothing was sent)", note: null }];
-    notify(null, "Quote request recorded as sent (demo)", `${request.number}: record each reply when it arrives. No message was sent.`, `/shipments/providers/quotes/${request.id}`, "logistics");
+    request.history = [...request.history, { id: nextId("transportHistory", "tph"), at, actor: actor.name, summary: "Request recorded as sent (sent outside VESPER)", note: null }];
+    notify(null, "Quote request recorded as sent", `${request.number}: record each reply when it arrives. No message was sent.`, `/shipments/providers/quotes/${request.id}`, "logistics");
     return request;
   },
 
@@ -3755,7 +3755,7 @@ export const demoDomain = {
     scenario.updatedAt = tick();
     scenario.updatedBy = actor.name;
     logImpact("estimate", reason, actor, before);
-    notify(scenario.responsible, "Repair estimate updated (demo)", `${scenario.label}: ${reason} No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
+    notify(scenario.responsible, "Repair estimate updated", `${scenario.label}: ${reason} No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
     return buildImpact(actor);
   },
 
@@ -3793,7 +3793,7 @@ export const demoDomain = {
       record(issue, actor, { type: "state_changed", summary: "Repair recorded as complete; waiting for independent verification", previousState, nextState: "resolution_reported", note: note || null });
     }
     logImpact("repair_complete", note || `Repair complete after ${hours} hours.`, actor, before);
-    notify(scenario.responsible, "Repair recorded complete (demo)", `${scenario.label}: actual outage ${hours} hours. The remaining shortfall is unchanged until a recovery is recorded. No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
+    notify(scenario.responsible, "Repair recorded complete", `${scenario.label}: actual outage ${hours} hours. The remaining shortfall is unchanged until a recovery is recorded. No message was sent to anyone.`, `/exceptions/${scenario.issueId}`, "impact");
     return buildImpact(actor);
   },
 

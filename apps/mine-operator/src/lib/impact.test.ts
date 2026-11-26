@@ -82,7 +82,7 @@ describe("the shared calculation", () => {
 describe("the connected records", () => {
   it("starts with one coherent, clearly labelled timeline and a fixed commitment", () => {
     const view = demoDomain.impact(manager);
-    expect(view.scenario).toMatchObject({ label: "Gold demonstration", commitmentGrams: 1000, outageHours: 4, usableStockTonnes: 250, catchUpTonnes: 50 });
+    expect(view.scenario).toMatchObject({ label: "Gold delivery", commitmentGrams: 1000, outageHours: 4, usableStockTonnes: 250, catchUpTonnes: 50 });
     expect(view.plannedValue).toBe(plannedSalesValue);
     expect(plannedSalesValue).toBe(1_000_000);
     expect(view.result).toMatchObject({ goldAffectedGrams: 180, forecastGrams: 820, valueDelayed: 180000 });

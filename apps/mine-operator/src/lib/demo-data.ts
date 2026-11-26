@@ -594,9 +594,9 @@ export const notifications = [
 
 export const workspaceContent = {
   exceptions: {
-    eyebrow: "Work & Exceptions",
-    title: "Operational constraints",
-    description: "Triage issues, preserve evidence, coordinate accountable actions and keep dependencies visible.",
+    eyebrow: "Operations",
+    title: "Work & Exceptions",
+    description: "Operational constraints: triage issues, preserve evidence, coordinate accountable actions and keep dependencies visible.",
   },
   equipment: {
     eyebrow: "Equipment & Maintenance",
@@ -604,9 +604,9 @@ export const workspaceContent = {
     description: "Keep the register, availability and maintenance of every asset on site.",
   },
   resources: {
-    eyebrow: "Resource Readiness",
-    title: "Upcoming work prerequisites",
-    description: "Understand parts, stock certainty, inbound supply and the next authorised review action.",
+    eyebrow: "Operations",
+    title: "Resource Readiness",
+    description: "Prerequisites for upcoming work: parts, stock certainty, inbound supply and the next authorised review action.",
   },
   shifts: {
     eyebrow: "Shift Control & Handover",
@@ -614,13 +614,13 @@ export const workspaceContent = {
     description: "Plan who is on shift, what they are working on, and hand over cleanly to the next shift.",
   },
   reports: {
-    eyebrow: "Reports",
-    title: "Operational intelligence",
+    eyebrow: "Intelligence",
+    title: "Reports",
     description: "Explore evidence-linked operational measures with clear units, definitions and information quality.",
   },
   admin: {
-    eyebrow: "Administration",
-    title: "Organisation",
+    eyebrow: "Settings",
+    title: "Administration",
     description: "Your plan, people and sites.",
   },
 } as const;

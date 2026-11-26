@@ -121,7 +121,7 @@ export function SignInScreen() {
 
       <section className="login__card">
         <p className="login__environment">
-          <span>{environmentDetails[environment].title} · {environmentDetails[environment].badge}</span>
+          <span>{environmentDetails[environment].title}</span>
           <Link href="/">← Change environment</Link>
         </p>
         <form className="login__form" onSubmit={submit} noValidate>
@@ -185,7 +185,6 @@ export function SignInScreen() {
             </>
           ) : null}
         </form>
-        <small className="login__note">All sites, people and records in this build are fictional.</small>
       </section>
     </main>
   );

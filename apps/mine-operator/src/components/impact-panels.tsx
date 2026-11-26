@@ -21,7 +21,7 @@ import { StatusBadge } from "./status-badge";
 import { useImpact, useImpactAction, type ImpactView } from "./use-impact";
 import { Busy } from "./busy";
 
-export const GOLD_LABEL = "Gold demonstration · simulated data";
+export const GOLD_LABEL = "Gold delivery · forecast";
 
 const when = (iso: string | null) => (iso ? formatDemoDateTime(iso) : "Not set");
 const numberOrNull = (text: string) => (text.trim() === "" ? null : Number(text));
@@ -83,7 +83,7 @@ export function WaitSection({ issueId }: { issueId: string }) {
 
       <div className="note-bar"><ShieldCheck /> <span><strong>Safety and environment:</strong> {scenario.safetyNote}</span></div>
       <p className="field-hint">
-        This is a forecast from simulated inputs. It does not change verified stock, the customer commitment ({formatGrams(scenario.commitmentGrams)}) or any readiness check, and it does not approve a partial shipment.
+        This is a forecast from scenario inputs. It does not change verified stock, the customer commitment ({formatGrams(scenario.commitmentGrams)}) or any readiness check, and it does not approve a partial shipment.
         {others > 0 ? ` ${others} other ${others === 1 ? "issue also affects" : "issues also affect"} this delivery. The same output is counted once.` : ""}
       </p>
 
@@ -94,7 +94,7 @@ export function WaitSection({ issueId }: { issueId: string }) {
       </div>
 
       {view.can.update ? (
-        <div className="task-section" aria-label="Demonstration controls">
+        <div className="task-section" aria-label="Scenario controls">
           <h2 style={{ fontSize: 17 }}>Try it: scenario controls</h2>
           <div className="segmented" role="group" aria-label="Outage scenario">
             {outageScenarios.map((hours) => (
@@ -104,9 +104,9 @@ export function WaitSection({ issueId }: { issueId: string }) {
           <div className="button-row" style={{ justifyContent: "flex-start" }}>
             <button className="button button--quiet button--small" onClick={() => setDialog("estimate")}>Adjust stock or catch-up</button>
             {!done ? <button className="button button--quiet button--small" onClick={() => setDialog("repair")}>Record repair complete</button> : null}
-            <button className="button button--quiet button--small" onClick={() => setDialog("reset")}><RotateCcw size={14} /> Reset demonstration</button>
+            <button className="button button--quiet button--small" onClick={() => setDialog("reset")}><RotateCcw size={14} /> Reset scenario</button>
           </div>
-          <small className="field-hint">Switching scenario changes the demonstration inputs only. It is not a recorded outage, and verified inventory is not touched.</small>
+          <small className="field-hint">Switching scenario changes the forecast inputs only. It is not a recorded outage, and verified inventory is not touched.</small>
         </div>
       ) : (
         <div className="note-bar"><Lock /> <span>Only the Maintenance Planner, a Shift Supervisor or the Mine Manager can change the estimate.</span></div>
@@ -243,8 +243,8 @@ function RecoveryDialog({ view, onClose }: { view: ImpactView; onClose: () => vo
 }
 
 function ResetDialog({ onClose }: { onClose: () => void }) {
-  const save = useImpactAction<Record<string, never>>("/impact/reset", () => ({ title: "Demonstration reset", detail: "The crusher is stopped again, with the four hour estimate." }), onClose);
-  return <ConfirmDialog title="Reset the Gold demonstration?" body="The crusher goes back to stopped, the estimate goes back to four hours and the history is cleared. Other records are not touched." confirmLabel="Reset demonstration" pending={save.isPending} onConfirm={() => save.mutate({})} onClose={onClose} />;
+  const save = useImpactAction<Record<string, never>>("/impact/reset", () => ({ title: "Scenario reset", detail: "The crusher is stopped again, with the four hour estimate." }), onClose);
+  return <ConfirmDialog title="Reset the Gold delivery scenario?" body="The crusher goes back to stopped, the estimate goes back to four hours and the history is cleared. Other records are not touched." confirmLabel="Reset scenario" pending={save.isPending} onConfirm={() => save.mutate({})} onClose={onClose} />;
 }
 
 // ---- Short cards for the other pages ---------------------------------------------------------------------------------------
@@ -262,7 +262,7 @@ export function ImpactCard({ focus, id }: { focus: Focus; id?: string }) {
   const href = `/exceptions/${scenario.issueId}`;
 
   return (
-    <article className="card detail-card impact impact--short" aria-label="Gold demonstration: effect">
+    <article className="card detail-card impact impact--short" aria-label="Gold delivery: effect">
       <header className="card__header"><div><span className="eyebrow"><Pickaxe size={14} aria-hidden="true" /> {GOLD_LABEL}</span><h2>{focus === "shift" ? "Effect on the production target" : focus === "readiness" ? "Repair resources" : focus === "equipment" ? "What this breakdown affects" : "Original commitment and forecast"}</h2></div></header>
       {focus === "shift" ? (
         <>

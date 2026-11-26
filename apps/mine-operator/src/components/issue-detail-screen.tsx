@@ -20,7 +20,6 @@ import {
   Plus,
   RotateCcw,
   ShieldCheck,
-  Trash2,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -60,6 +59,7 @@ import { WaitSection } from "./impact-panels";
 import { StatusBadge } from "./status-badge";
 import { useIssueMutations } from "./use-issue-mutations";
 import { Busy } from "./busy";
+import { ActionMenu } from "./trade/trade-ui";
 
 type DialogState =
   | { kind: "edit" }
@@ -220,12 +220,10 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
                             <button className="button button--quiet button--small" disabled={mutations.updateAction.isPending} onClick={() => mutations.updateAction.mutate({ actionId: action.id, state: "in_progress" })}><RotateCcw /> Reopen</button>
                           ) : null}
                           {canManageActions ? (
-                            <>
-                              <button className="icon-button icon-button--light" aria-label={`Edit action: ${action.title}`} onClick={() => setDialog({ kind: "action", action })}><Pencil /></button>
-                              {action.state !== "complete" ? (
-                                <button className="icon-button icon-button--light" aria-label={`Remove action: ${action.title}`} disabled={mutations.removeAction.isPending} onClick={() => mutations.removeAction.mutate({ actionId: action.id, title: action.title })}><Trash2 /></button>
-                              ) : null}
-                            </>
+                            <ActionMenu label={`More actions for ${action.title}`} actions={[
+                              { label: "Edit action", onClick: () => setDialog({ kind: "action", action }) },
+                              { label: "Remove action", danger: true, hidden: action.state === "complete" || mutations.removeAction.isPending, onClick: () => mutations.removeAction.mutate({ actionId: action.id, title: action.title }) },
+                            ]} />
                           ) : null}
                         </div>
                       ) : null}
@@ -311,7 +309,7 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
             <p>{nextStepHint[issue.workflowState]}</p>
             {options.length > 0 ? (
               <div className="step-buttons">
-                {options.map((option) => (
+                {options.map((option, index) => (
                   <div key={option.to} className="step-buttons__item">
                     <button
                       className={`button button--wide ${option.tone === "primary" ? "button--primary" : option.tone === "danger" ? "button--danger-quiet" : "button--quiet"}`}
@@ -320,7 +318,8 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
                     >
                       {option.label}
                     </button>
-                    {!option.allowed && option.reason ? <small className="step-buttons__reason">{option.reason}</small> : null}
+                    {/* The same reason under two disabled buttons is said once. */}
+                    {!option.allowed && option.reason && !(index > 0 && !options[index - 1].allowed && options[index - 1].reason === option.reason) ? <small className="step-buttons__reason">{option.reason}</small> : null}
                   </div>
                 ))}
               </div>

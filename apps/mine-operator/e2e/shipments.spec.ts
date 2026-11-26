@@ -154,7 +154,7 @@ test.describe("shipments and logistics", () => {
     // The shipment is not booked until the transporter replies, on its own page with no sign-in.
     const reply = await context.newPage();
     await page.goto("/shipments/ship-48");
-    const href = await page.getByRole("link", { name: /Open reply page/ }).getAttribute("href");
+    const href = await page.getByRole("link", { name: /reply page/ }).getAttribute("href");
     await reply.goto(href!);
     await expect(reply.getByRole("heading", { name: /needs a collection/ })).toBeVisible();
     await reply.getByLabel("Collection date").fill("2025-04-28");
@@ -169,7 +169,7 @@ test.describe("shipments and logistics", () => {
     await openAs(page, "/shipments/ship-48", "Naledi Khoza");
     await page.getByRole("button", { name: /Mark ready & notify transporter/ }).click();
     await expect(page.getByRole("heading", { name: /Waiting for ABC Logistics/ })).toBeVisible();
-    const href = await page.getByRole("link", { name: /Open reply page/ }).getAttribute("href");
+    const href = await page.getByRole("link", { name: /reply page/ }).getAttribute("href");
     const reply = await context.newPage();
     await reply.goto(href!);
     await reply.getByRole("button", { name: "Decline", exact: true }).click();
@@ -180,7 +180,7 @@ test.describe("shipments and logistics", () => {
     await expect(page.getByText(/ABC Logistics declined\./).first()).toBeVisible();
     await page.getByRole("button", { name: /Mark ready & notify transporter/ }).click();
     await expect(page.getByRole("heading", { name: /Waiting for ABC Logistics/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Open reply page/ })).not.toHaveAttribute("href", href!);
+    await expect(page.getByRole("link", { name: /reply page/ })).not.toHaveAttribute("href", href!);
   });
 
   test("dispatch and delivery stay traceable: a partial load, a short delivery with a reason, and a difference to review", async ({ page }) => {

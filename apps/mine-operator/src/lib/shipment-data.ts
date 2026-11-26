@@ -48,7 +48,7 @@ export const seedShipments: Shipment[] = [
     preferredDate: "2025-04-24", transporterId: "tr-001", note: "", state: "waiting", checks: noChecks, requestId: "req-97", dispatches: [], deliveries: [],
     events: [
       event(2, "created", "Shipment created and 400 t reserved", "John Dlamini", at("23", "15:00")),
-      event(3, "request_sent", "Collection request LR-0097 recorded for ABC Logistics (demo: nothing was sent)", "John Dlamini", at("23", "16:00")),
+      event(3, "request_sent", "Collection request LR-0097 recorded for ABC Logistics (sent outside VESPER)", "John Dlamini", at("23", "16:00")),
     ],
     preparedBy: "John Dlamini", cancelledReason: null, version: 2, createdAt: at("23", "15:00"),
   },
@@ -57,7 +57,7 @@ export const seedShipments: Shipment[] = [
     preferredDate: "2025-04-25", transporterId: "tr-001", note: "", state: "confirmed", checks: noChecks, requestId: "req-96", dispatches: [], deliveries: [],
     events: [
       event(4, "created", "Shipment created and 500 t reserved", "John Dlamini", at("23", "10:00")),
-      event(5, "request_sent", "Collection request LR-0096 recorded for ABC Logistics (demo: nothing was sent)", "John Dlamini", at("23", "10:30")),
+      event(5, "request_sent", "Collection request LR-0096 recorded for ABC Logistics (sent outside VESPER)", "John Dlamini", at("23", "10:30")),
       event(6, "confirmed", "ABC Logistics confirmed collection on 25 Apr at 08:00", "ABC Logistics", at("23", "15:10")),
     ],
     preparedBy: "John Dlamini", cancelledReason: null, version: 3, createdAt: at("23", "10:00"),

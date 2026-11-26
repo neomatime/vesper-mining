@@ -17,7 +17,7 @@ test.describe("what happens if we wait", () => {
   test("leads with the consequence, then the facts, then the actions, on the equipment issue", async ({ page }) => {
     await openAs(page, issue, "John Dlamini");
     const wait = section(page);
-    await expect(wait).toContainText("Gold demonstration · simulated data");
+    await expect(wait).toContainText("Gold delivery · forecast");
     await expect(wait.getByRole("status")).toContainText("Up to 180 g of the 1,000 g gold delivery to Highveld Refiners");
     await expect(wait.getByRole("status")).toContainText("Estimated sales value potentially delayed: R 180,000");
     for (const text of ["Delivery deadline", "25 Apr · 08:00", "Stock keeps processing running for", "3 hours", "Expected repair completion", "24 Apr · 10:00", "Original target", "1,000 g", "Current forecast", "820 g", "Possible shortfall", "180 g", "Responsible", "Lebo Maseko", "Next action", "Replace the drive coupling", "Spare part", "Drive coupling DC-CR01", "Estimate last updated", "Safety and environment"]) {
@@ -61,19 +61,19 @@ test.describe("one change shows everywhere", () => {
     await expect(attention).toContainText("R 540,000");
 
     await page.goto("/equipment/eq-cr01");
-    await expect(page.getByRole("article", { name: /Gold demonstration: effect/ })).toContainText("Up to 540 g");
+    await expect(page.getByRole("article", { name: /Gold delivery: effect/ })).toContainText("Up to 540 g");
 
     await page.goto("/shifts/shift-a-20250424");
-    const shift = page.getByRole("article", { name: /Gold demonstration: effect/ });
+    const shift = page.getByRole("article", { name: /Gold delivery: effect/ });
     await expect(shift).toContainText("Effect on the production target");
     await expect(shift).toContainText("460 g");
     await expect(shift).toContainText("540 g");
 
     await page.goto("/shifts/production");
-    await expect(page.getByRole("article", { name: /Gold demonstration: effect/ })).toContainText("460 g");
+    await expect(page.getByRole("article", { name: /Gold delivery: effect/ })).toContainText("460 g");
 
     await page.goto("/resources/readiness-cr01-coupling");
-    const readiness = page.getByRole("article", { name: /Gold demonstration: effect/ });
+    const readiness = page.getByRole("article", { name: /Gold delivery: effect/ });
     await expect(readiness).toContainText("Repair resources");
     await expect(readiness).toContainText("Drive coupling DC-CR01 · 1 needed");
     await expect(readiness).toContainText("Not confirmed at the mine");
@@ -162,9 +162,9 @@ test.describe("recording the repair", () => {
   test("can be reset to the start", async ({ page }) => {
     await openAs(page, issue, "John Dlamini");
     await choose(page, 6);
-    await section(page).getByRole("button", { name: /Reset demonstration/ }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Reset demonstration" }).click();
-    await expect(page.getByText("Demonstration reset", { exact: true })).toBeVisible();
+    await section(page).getByRole("button", { name: /Reset scenario/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Reset scenario" }).click();
+    await expect(page.getByText("Scenario reset", { exact: true })).toBeVisible();
     await expect(section(page).locator(".fact", { hasText: "Current forecast" })).toContainText("820 g");
   });
 });
