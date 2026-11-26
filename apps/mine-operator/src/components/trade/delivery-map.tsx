@@ -3,14 +3,15 @@
 /**
  * The delivery map itself (Leaflet, browser only): the mine, delivery points, haul routes, each vehicle with its delivery reference,
  * colour-coded by status, with the part of the route already driven drawn solid and the part ahead dashed. Zoom, recentre and full
- * screen are on the map. By default the base map is drawn by VESPER (towns, provinces, routes) and loads nothing from outside;
+ * screen are on the map. By default the base map is drawn by VESPER (coast, borders, terrain, roads, towns) and loads nothing from outside;
  * setting NEXT_PUBLIC_MAP_TILE_URL (and NEXT_PUBLIC_MAP_TILE_ATTRIBUTION) uses an approved tile provider instead.
  */
 import L from "leaflet";
 import { Maximize2, Minimize2, Minus, Plus, LocateFixed } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
-import { places, regions, routes } from "@/lib/tracking/network";
+import { CircleMarker, MapContainer, Marker, Pane, Polygon, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { areaLabels, borders, eswatini, kruger, lesotho, nationalRoads, ocean, townLabels } from "@/lib/tracking/basemap";
+import { places, routes } from "@/lib/tracking/network";
 import type { LatLng } from "@/lib/tracking/telematics";
 import { deliveryTrackingStatus, type Journey } from "@/lib/tracking/tracking";
 
@@ -32,7 +33,14 @@ const palette = () => ({
   unavailable: token("--dm-unavailable", "#8b958f"),
   arrived: token("--dm-on-track", "#17895c"),
   road: token("--dm-road", "#ffffff"),
+  roadCasing: token("--dm-road-casing", "#cdd7cf"),
+  roadMinor: token("--dm-road-minor", "#f9fbf8"),
+  water: token("--dm-water", "#cfe1e8"),
+  park: token("--dm-park", "#dcebd9"),
+  border: token("--dm-border", "#9fb0a6"),
+  land: token("--dm-land", "#eef2ec"),
   label: token("--dm-label", "#5c6b62"),
+  labelMinor: token("--dm-label-minor", "#75847b"),
   ink: token("--text-primary", "#141d19"),
   surface: token("--surface-base", "#ffffff"),
 });
@@ -49,7 +57,43 @@ function vehicleIcon(journey: Journey, selected: boolean, dimmed: boolean, label
 }
 
 const mineIcon = L.divIcon({ className: "dm-marker-wrap", iconSize: [0, 0], html: `<span class="dm-mine"><span class="dm-mine__dot">${pickaxe}</span><span class="dm-mine__label">${escape(places.riverside.name)}</span></span>` });
-const regionIcon = (name: string) => L.divIcon({ className: "dm-marker-wrap", iconSize: [0, 0], html: `<span class="dm-region">${escape(name)}</span>` });
+const areaIcon = (name: string, kind: string) => L.divIcon({ className: "dm-marker-wrap", iconSize: [0, 0], html: `<span class="dm-region dm-region--${kind}">${escape(name)}</span>` });
+
+/** Names smaller towns only once the map is zoomed in far enough to fit them. */
+const showDetail = (map: L.Map) => map.getContainer().classList.toggle("is-detailed", map.getZoom() >= 7.5);
+function DetailLevel() {
+  const map = useMapEvents({ zoomend: (event) => showDetail(event.target as L.Map) });
+  useEffect(() => { showDetail(map); }, [map]);
+  return null;
+}
+
+/** VESPER's own base map: sea, neighbouring countries, Kruger, national roads, haul roads and town names. */
+function BaseMap() {
+  const c = palette();
+  const fill = (color: string, opacity = 1) => ({ stroke: false, fillColor: color, fillOpacity: opacity, interactive: false });
+  return (
+    <>
+    <Pane name="dm-labels" style={{ zIndex: 450, pointerEvents: "none" }}>
+      {areaLabels.map((area) => <Marker key={area.name} position={area.position} icon={areaIcon(area.name, area.kind)} interactive={false} keyboard={false} />)}
+    </Pane>
+    <Pane name="dm-base" style={{ zIndex: 350 }}>
+      <Polygon positions={kruger} pathOptions={{ ...fill(c.park, 0.9), stroke: true, color: c.on_track, weight: 1, opacity: 0.25 }} interactive={false} />
+      {[eswatini, lesotho].map((country, index) => <Polygon key={`country-${index}`} positions={country} pathOptions={{ ...fill(c.land), stroke: true, color: c.border, weight: 1.2, dashArray: "5 5" }} interactive={false} />)}
+      {borders.map((line, index) => <Polyline key={`border-${index}`} positions={line} pathOptions={{ color: c.border, weight: 1.2, dashArray: "5 5" }} interactive={false} />)}
+      <Polygon positions={ocean} pathOptions={{ ...fill(c.water), stroke: true, color: c.border, weight: 0.8, opacity: 0.5 }} interactive={false} />
+      {nationalRoads.map((road) => <Polyline key={`casing-${road.name}`} positions={road.points} pathOptions={{ color: c.roadCasing, weight: 4.5, opacity: 0.9, lineJoin: "round" }} interactive={false} />)}
+      {Object.values(routes).map((route) => <Polyline key={`casing-${route.id}`} positions={route.points} pathOptions={{ color: c.roadCasing, weight: 7, lineJoin: "round" }} interactive={false} />)}
+      {nationalRoads.map((road) => <Polyline key={road.name} positions={road.points} pathOptions={{ color: c.roadMinor, weight: 2.5, lineJoin: "round" }} interactive={false} />)}
+      {Object.values(routes).map((route) => <Polyline key={route.id} positions={route.points} pathOptions={{ color: c.road, weight: 4.5, lineJoin: "round" }} interactive={false} />)}
+      {townLabels.map((town) => (
+        <CircleMarker key={town.name} center={town.position} radius={town.rank === "major" ? 3 : 2.2} pathOptions={{ color: c.land, weight: 1.5, fillColor: town.rank === "major" ? c.label : c.labelMinor, fillOpacity: 1, className: `dm-town-dot--${town.rank}` }} interactive={false}>
+          <Tooltip permanent pane="dm-labels" direction="right" offset={[5, 0]} className={`dm-town-label dm-town-label--${town.rank}`}>{town.name}</Tooltip>
+        </CircleMarker>
+      ))}
+    </Pane>
+    </>
+  );
+}
 
 export type MapSelection = { deliveryIds: string[]; vehicleId: string | null };
 
@@ -111,13 +155,8 @@ export function DeliveryMap({ journeys, selection, onSelectVehicle, expanded, on
   return (
     <MapContainer bounds={bounds} boundsOptions={{ padding: [40, 40] }} zoomControl={false} attributionControl={Boolean(TILE_URL)} className="dm-map" minZoom={5} maxZoom={13} zoomSnap={0.25}>
       {TILE_URL ? <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} /> : null}
-      {!TILE_URL ? regions.map((region) => <Marker key={region.name} position={region.position} icon={regionIcon(region.name)} interactive={false} keyboard={false} />) : null}
-      {!TILE_URL ? Object.values(routes).map((route) => <Polyline key={route.id} positions={route.points} pathOptions={{ color: colours.road, weight: 4, opacity: 0.9 }} interactive={false} />) : null}
-      {!TILE_URL ? Object.values(places).filter((place) => place.kind === "town").map((place) => (
-        <CircleMarker key={place.id} center={place.position} radius={2.5} pathOptions={{ color: colours.label, fillColor: colours.label, fillOpacity: 0.7, weight: 1 }} interactive={false}>
-          <Tooltip permanent direction="right" offset={[4, 0]} className="dm-town-label">{place.name}</Tooltip>
-        </CircleMarker>
-      )) : null}
+      {!TILE_URL ? <BaseMap /> : null}
+      <DetailLevel />
 
       {[...byDelivery].map(([deliveryId, group]) => {
         const status = deliveryTrackingStatus(group);
