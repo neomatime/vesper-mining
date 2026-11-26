@@ -14,6 +14,7 @@ import { ArrowLeft, Check, FileText, Info, Lock, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useTransportBase } from "./use-transport-base";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { formatTonnes, shortDate } from "@/lib/shipment-rules";
 import {
@@ -82,6 +83,7 @@ export function AgreementsScreen() {
 }
 
 function AgreementsView({ data, agreements }: { data: Transport; agreements: Agreement[] }) {
+  const base = useTransportBase();
   const logistics = useLogistics();
   const shipments = logistics.data?.shipments ?? [];
   const status = (item: Agreement) => agreementStatus(item, data.today);
@@ -107,10 +109,10 @@ function AgreementsView({ data, agreements }: { data: Transport; agreements: Agr
       { key: "draft", label: "Draft", test: (item) => status(item) === "draft" },
       { key: "ended", label: "Expired or ended", test: (item) => ["expired", "ended"].includes(status(item)) },
     ],
-    href: (item) => `/shipments/providers/agreements/${item.id}`,
+    href: (item) => `${base}/agreements/${item.id}`,
     text: (item) => [item.number, item.reference, item.material, item.to, providerName(data, item.providerId)].join(" "),
     rows: agreements,
-    action: data.can.record ? { label: "New agreement", href: "/shipments/providers/agreements/new", plus: true } : undefined,
+    action: data.can.record ? { label: "New agreement", href: `${base}/agreements/new`, plus: true } : undefined,
     emptyTitle: "No agreements yet",
     emptyBody: "Record an agreement from its document, or from an accepted proposal.",
     footnote: `Demo period: ${periodName(data.period)}. Allowances are measured by confirmed delivered tonnes plus planned tonnes. An agreement does not confirm a booking.`,
@@ -125,6 +127,7 @@ export function AgreementScreen({ id }: { id: string }) {
 }
 
 function AgreementView({ data, agreement }: { data: Transport; agreement: Agreement | undefined }) {
+  const base = useTransportBase();
   const logistics = useLogistics();
   const [ending, setEnding] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -144,7 +147,7 @@ function AgreementView({ data, agreement }: { data: Transport; agreement: Agreem
 
   return (
     <div className="task-page">
-      <Link href="/shipments/providers/agreements" className="back-link"><ArrowLeft /> Back to Transport agreements</Link>
+      <Link href={`${base}/agreements`} className="back-link"><ArrowLeft /> Back to Transport agreements</Link>
       <PageHeader eyebrow="Transport agreements" title={`${agreement.number} · ${providerName(data, agreement.providerId)}`} description={`${agreement.material}, ${agreement.from} to ${agreement.to}. ${agreement.service}.`} icon={Truck}
         action={<StatusBadge value={agreementTone[status]} label={agreementStatusWords[status]} />} />
       <DemoPeriodNote />
@@ -177,7 +180,7 @@ function AgreementView({ data, agreement }: { data: Transport; agreement: Agreem
         {agreement.confirmedBy ? <p className="muted">Reviewed and confirmed by {agreement.confirmedBy}, {formatDemoDateTime(agreement.confirmedAt!)}.</p> : null}
         {agreement.endedAt ? <div className="note-bar"><Info /> <span><strong>Ended.</strong> {agreement.endReason}</span></div> : null}
         <div className="button-row button-row--end">
-          {canEdit ? <Link className="button button--quiet" href={`/shipments/providers/agreements/${agreement.id}/edit`}>Edit terms</Link> : null}
+          {canEdit ? <Link className="button button--quiet" href={`${base}/agreements/${agreement.id}/edit`}>Edit terms</Link> : null}
           {status === "draft" && data.can.confirm ? <button className="button button--primary" onClick={() => setConfirming(true)}><Check /> Review and confirm</button> : null}
           {status !== "ended" && status !== "draft" && data.can.confirm ? <button className="button button--quiet" onClick={() => setEnding(true)}>End agreement</button> : null}
         </div>
@@ -305,6 +308,7 @@ export function AgreementFormScreen({ id }: { id?: string }) {
 }
 
 function AgreementFormView({ data, existing, missing }: { data: Transport; existing: Agreement | undefined; missing: boolean }) {
+  const base = useTransportBase();
   const router = useRouter();
   const params = useSearchParams();
   const quoteId = params.get("quote");
@@ -328,7 +332,7 @@ function AgreementFormView({ data, existing, missing }: { data: Transport; exist
   const save = useTransportAction<Record<string, unknown>, Agreement>({
     path: existing ? `/agreements/${existing.id}` : "/agreements", method: existing ? "PATCH" : "POST",
     success: (item) => ({ title: existing ? "Agreement updated" : "Agreement recorded as a draft", detail: existing ? "The change is in its history." : `${item.number} is a draft until an authorised person reviews and confirms its terms.` }),
-    onDone: (item) => router.push(`/shipments/providers/agreements/${item.id}`),
+    onDone: (item) => router.push(`${base}/agreements/${item.id}`),
   });
   if (missing) return <ErrorState message="This agreement could not be found." />;
   const approved = data.providers.filter((item) => item.approval === "approved" || item.id === form.providerId);
@@ -347,7 +351,7 @@ function AgreementFormView({ data, existing, missing }: { data: Transport; exist
 
   return (
     <div className="task-page">
-      <Link href={existing ? `/shipments/providers/agreements/${existing.id}` : "/shipments/providers/agreements"} className="back-link"><ArrowLeft /> Back</Link>
+      <Link href={existing ? `${base}/agreements/${existing.id}` : `${base}/agreements`} className="back-link"><ArrowLeft /> Back</Link>
       <PageHeader eyebrow="Transport agreements" title={existing ? `Edit ${existing.number}` : "New agreement"} description={existing ? "Changes to confirmed terms are kept in the history." : found ? "Prefilled from the accepted proposal. Check every term against the signed document before it is confirmed." : "Record an existing agreement from its document. It stays a draft until its terms are reviewed and confirmed."} icon={Truck} />
       <section className="card task-card" aria-label="Agreement">
         <h2>Agreement</h2>
@@ -415,6 +419,7 @@ function AgreementFormView({ data, existing, missing }: { data: Transport; exist
  * Replacing the source needs an explicit step and a reason, and the earlier source stays in the history.
  */
 export function TransportPricingSection({ shipment }: { shipment: Shipment }) {
+  const base = useTransportBase();
   const query = useTransport();
   const logistics = useLogistics();
   const [choosing, setChoosing] = useState(false);
@@ -442,10 +447,10 @@ export function TransportPricingSection({ shipment }: { shipment: Shipment }) {
           <p className="muted">Freight cost is kept apart from the sales value. A price or an allowance does not book a truck: collection must still be confirmed by the provider.</p>
         </>
       ) : <p className="muted">Transport cost not yet assessed. No quote has been accepted and no agreement is used.</p>}
-      {request ? <p className="muted">Quote request <Link className="row-link-text" href={`/shipments/providers/quotes/${request.id}`}>{request.number}</Link> is {request.status === "draft" ? "a draft" : "waiting for replies"}.</p> : null}
+      {request ? <p className="muted">Quote request <Link className="row-link-text" href={`${base}/quotes/${request.id}`}>{request.number}</Link> is {request.status === "draft" ? "a draft" : "waiting for replies"}.</p> : null}
       {open && data.can.shipments ? (
         <div className="button-row button-row--end">
-          {data.can.record && !request ? <Link className="button button--quiet" href={`/shipments/providers/quotes/new?shipment=${shipment.id}`}>Request a quote</Link> : null}
+          {data.can.record && !request ? <Link className="button button--quiet" href={`${base}/quotes/new?shipment=${shipment.id}`}>Request a quote</Link> : null}
           <button className="button button--quiet" onClick={() => setChoosing(true)}>Use transport agreement</button>
         </div>
       ) : null}

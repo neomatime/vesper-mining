@@ -14,6 +14,7 @@ import { ArrowLeft, Check, Copy, Download, FileText, Info, Lock, Send, Truck, X 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useTransportBase } from "./use-transport-base";
 import { downloadText } from "@/lib/csv";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { formatTonnes, shortDate } from "@/lib/shipment-rules";
@@ -60,10 +61,11 @@ export const providerName = (data: Transport, id: string) => data.providers.find
 
 /** The three tabs of the Service providers pages, with a way back to Logistics. */
 export function ProviderTabs({ active }: { active: "providers" | "quotes" | "agreements" }) {
+  const base = useTransportBase();
   const tabs = [
-    { key: "providers", label: "Providers", href: "/shipments/providers" },
-    { key: "quotes", label: "Transport quotes", href: "/shipments/providers/quotes" },
-    { key: "agreements", label: "Transport agreements", href: "/shipments/providers/agreements" },
+    { key: "providers", label: "Providers", href: `${base}` },
+    { key: "quotes", label: "Transport quotes", href: `${base}/quotes` },
+    { key: "agreements", label: "Transport agreements", href: `${base}/agreements` },
   ] as const;
   return (
     <>
@@ -159,6 +161,7 @@ export function ProvidersScreen() {
 }
 
 function ProvidersView({ data }: { data: Transport }) {
+  const base = useTransportBase();
   const [adding, setAdding] = useState(false);
   const counts = (approval: Approval) => data.providers.filter((item) => item.approval === approval).length;
   const quotesOf = (id: string) => data.terms?.requests.filter((request) => request.providerIds.includes(id)).length ?? null;
@@ -184,7 +187,7 @@ function ProvidersView({ data }: { data: Transport }) {
       { key: "needs_review", label: "Needs review", test: (item) => item.approval === "needs_review" },
       { key: "inactive", label: "Inactive", test: (item) => item.approval === "inactive" },
     ],
-    href: (item) => `/shipments/providers/${item.id}`,
+    href: (item) => `${base}/${item.id}`,
     text: (item) => [item.name, item.mode, item.contactPerson, item.areasServed.join(" "), approvalLabels[item.approval]].join(" "),
     rows: data.providers,
     action: data.can.manage ? { label: "Add provider", onClick: () => setAdding(true), plus: true } : undefined,
@@ -201,14 +204,15 @@ function ProvidersView({ data }: { data: Transport }) {
   );
 }
 
-function AddProviderDialog({ onClose }: { onClose: () => void }) {
+export function AddProviderDialog({ onClose }: { onClose: () => void }) {
+  const base = useTransportBase();
   const router = useRouter();
   const [form, setForm] = useState<ProviderForm>(blankProvider);
   const submission = useSubmissionId();
   const add = useTransportAction<Record<string, unknown>, Transporter>({
     path: "/transport-providers",
     success: (item) => ({ title: "Provider added", detail: `${item.name} needs the Mine Manager's approval before it can be asked for a quote or used for a shipment.` }),
-    onDone: (item) => { onClose(); router.push(`/shipments/providers/${item.id}`); },
+    onDone: (item) => { onClose(); router.push(`${base}/${item.id}`); },
   });
   return (
     <Dialog title="Add provider" description="New providers start as Needs review." size="wide" onClose={onClose} locked={add.isPending}
@@ -223,6 +227,7 @@ export function ProviderScreen({ id }: { id: string }) {
 }
 
 function ProviderView({ data, provider }: { data: Transport; provider: Transporter | undefined }) {
+  const base = useTransportBase();
   const [editing, setEditing] = useState(false);
   const [approving, setApproving] = useState<Approval | null>(null);
   if (!provider) return <ErrorState message="This provider could not be found." />;
@@ -231,7 +236,7 @@ function ProviderView({ data, provider }: { data: Transport; provider: Transport
 
   return (
     <div className="task-page">
-      <Link href="/shipments/providers" className="back-link"><ArrowLeft /> Back to Service providers</Link>
+      <Link href={`${base}`} className="back-link"><ArrowLeft /> Back to Service providers</Link>
       <PageHeader eyebrow="Service providers" title={provider.name} description={`${provider.mode}. ${provider.areasServed.length > 0 ? `Serves ${provider.areasServed.join(", ")}.` : "No areas recorded yet."}`} icon={Truck}
         action={data.can.manage ? <button className="button button--quiet" onClick={() => setEditing(true)}>Edit details</button> : undefined} />
       <section className="card task-card" aria-label="Provider">
@@ -256,11 +261,11 @@ function ProviderView({ data, provider }: { data: Transport; provider: Transport
         <h2>Quotes and agreements</h2>
         {!data.terms ? <LockedTerms /> : requests.length === 0 && agreements.length === 0 ? <p className="muted">No quote requests or agreements yet.</p> : (
           <ul className="timeline-list">
-            {requests.map((item) => <li key={item.id}><Link className="row-link-text" href={`/shipments/providers/quotes/${item.id}`}>{item.number}</Link><small>{item.kind === "shipment" ? "Shipment quote" : "Transport agreement quote"} · {item.material} · {requestStatusText(item)}</small></li>)}
-            {agreements.map((item) => <li key={item.id}><Link className="row-link-text" href={`/shipments/providers/agreements/${item.id}`}>{item.number}</Link><small>{item.material} · {item.from} to {item.to} · {agreementStatusWords[agreementStatus(item, TRANSPORT_DEMO_DATE)]}</small></li>)}
+            {requests.map((item) => <li key={item.id}><Link className="row-link-text" href={`${base}/quotes/${item.id}`}>{item.number}</Link><small>{item.kind === "shipment" ? "Shipment quote" : "Transport agreement quote"} · {item.material} · {requestStatusText(item)}</small></li>)}
+            {agreements.map((item) => <li key={item.id}><Link className="row-link-text" href={`${base}/agreements/${item.id}`}>{item.number}</Link><small>{item.material} · {item.from} to {item.to} · {agreementStatusWords[agreementStatus(item, TRANSPORT_DEMO_DATE)]}</small></li>)}
           </ul>
         )}
-        {data.can.record && provider.approval === "approved" ? <div className="button-row button-row--end"><Link className="button button--quiet" href={`/shipments/providers/quotes/new?provider=${provider.id}`}>Request a quote</Link></div> : null}
+        {data.can.record && provider.approval === "approved" ? <div className="button-row button-row--end"><Link className="button button--quiet" href={`${base}/quotes/new?provider=${provider.id}`}>Request a quote</Link></div> : null}
       </section>
 
       <section className="card task-card" aria-label="History"><h2>History</h2><History lines={provider.history} /></section>
@@ -312,6 +317,7 @@ export function QuotesScreen() {
 }
 
 function QuotesView({ data, requests }: { data: Transport; requests: QuoteRequest[] }) {
+  const base = useTransportBase();
   const logistics = useLogistics();
   const numberOf = (request: QuoteRequest) => logistics.data?.shipments.find((item) => item.id === request.shipmentId)?.number ?? "Shipment";
   const register: Register<QuoteRequest> = {
@@ -335,10 +341,10 @@ function QuotesView({ data, requests }: { data: Transport; requests: QuoteReques
       { key: "agreement", label: "Transport agreement", test: (item) => item.kind === "agreement" },
       { key: "review", label: "To review", test: (item) => item.quotes.some((quote) => quote.status === "to_review") },
     ],
-    href: (item) => `/shipments/providers/quotes/${item.id}`,
+    href: (item) => `${base}/quotes/${item.id}`,
     text: (item) => [item.number, item.material, item.to, item.providerIds.map((id) => providerName(data, id)).join(" ")].join(" "),
     rows: requests,
-    action: data.can.record ? { label: "New quote request", href: "/shipments/providers/quotes/new", plus: true } : undefined,
+    action: data.can.record ? { label: "New quote request", href: `${base}/quotes/new`, plus: true } : undefined,
     emptyTitle: "No quote requests yet",
     emptyBody: "Ask approved providers to quote for one shipment or for an ongoing agreement.",
     footnote: "Demo: requests are not sent from VESPER. Send the request yourself, then record that it was sent and enter each reply.",
@@ -377,6 +383,7 @@ export function QuoteRequestScreen({ id }: { id: string }) {
 }
 
 function QuoteRequestView({ data, request }: { data: Transport; request: QuoteRequest | undefined }) {
+  const base = useTransportBase();
   const logistics = useLogistics();
   const { push: toast } = useToast();
   const [recording, setRecording] = useState<Quote | null>(null);
@@ -390,7 +397,7 @@ function QuoteRequestView({ data, request }: { data: Transport; request: QuoteRe
 
   return (
     <div className="task-page">
-      <Link href="/shipments/providers/quotes" className="back-link"><ArrowLeft /> Back to Transport quotes</Link>
+      <Link href={`${base}/quotes`} className="back-link"><ArrowLeft /> Back to Transport quotes</Link>
       <PageHeader eyebrow="Transport quotes" title={request.number} description={request.kind === "shipment" ? `Quotes for ${shipment?.number ?? "one shipment"}: ${request.material}, ${request.quantityTonnes !== null ? formatTonnes(request.quantityTonnes) : ""}.` : `Quotes for an ongoing transport agreement: ${request.material}.`} icon={Truck} />
       <DemoPeriodNote />
 
@@ -445,7 +452,7 @@ function QuoteRequestView({ data, request }: { data: Transport; request: QuoteRe
                       <span className="row-actions">
                         {data.can.record && request.status !== "draft" && status !== "accepted" && status !== "not_selected" ? <button className="link-button" onClick={() => setRecording(quote)}>{quote.status === "waiting" || quote.status === "unavailable" ? "Record quote" : "Edit quote"}</button> : null}
                         {canDecide && quote.status === "to_review" ? <> · <button className="link-button" onClick={() => setDeciding({ quote, decision: "accept" })}>Record acceptance</button> · <button className="link-button" onClick={() => setDeciding({ quote, decision: "not_selected" })}>Mark not selected</button></> : null}
-                        {quote.status === "accepted" && request.kind === "agreement" && data.can.record ? <Link className="row-link-text" href={`/shipments/providers/agreements/new?quote=${quote.id}`}>Create agreement</Link> : null}
+                        {quote.status === "accepted" && request.kind === "agreement" && data.can.record ? <Link className="row-link-text" href={`${base}/agreements/new?quote=${quote.id}`}>Create agreement</Link> : null}
                         {quote.decision ? <small className="muted"> {quote.status === "accepted" ? "Accepted" : "Not selected"} by {quote.decision.by}, {formatDemoDateTime(quote.decision.at)}: {quote.decision.reason}</small> : null}
                       </span>
                     </td>
@@ -544,6 +551,7 @@ export function NewQuoteRequestScreen() {
 }
 
 function NewQuoteRequestView({ data }: { data: Transport }) {
+  const base = useTransportBase();
   const router = useRouter();
   const params = useSearchParams();
   const logistics = useLogistics();
@@ -561,7 +569,7 @@ function NewQuoteRequestView({ data }: { data: Transport }) {
   const create = useTransportAction<Record<string, unknown>, QuoteRequest>({
     path: "/quote-requests",
     success: (item) => ({ title: "Draft saved", detail: `${item.number} is a draft. Send it to the providers, then record that it was sent.` }),
-    onDone: (item) => router.push(`/shipments/providers/quotes/${item.id}`),
+    onDone: (item) => router.push(`${base}/quotes/${item.id}`),
   });
   if (!data.terms || !data.can.record) return <div className="task-page"><ProviderTabs active="quotes" /><LockedTerms /></div>;
   const toggle = (id: string) => setChosen(chosen.includes(id) ? chosen.filter((item) => item !== id) : [...chosen, id]);
@@ -571,7 +579,7 @@ function NewQuoteRequestView({ data }: { data: Transport }) {
 
   return (
     <div className="task-page">
-      <Link href="/shipments/providers/quotes" className="back-link"><ArrowLeft /> Back to Transport quotes</Link>
+      <Link href={`${base}/quotes`} className="back-link"><ArrowLeft /> Back to Transport quotes</Link>
       <PageHeader eyebrow="Transport quotes" title="New quote request" description="Ask approved providers to quote. Saving creates a draft; nothing is sent from VESPER." icon={Truck} />
       <section className="card task-card" aria-label="Quote request">
         <nav className="tabs" aria-label="Request type">

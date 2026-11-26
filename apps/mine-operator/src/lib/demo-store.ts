@@ -3828,6 +3828,11 @@ export const demoDomain = {
   },
 
   // ---- Notifications ---------------------------------------------------------------------
+  /** Tells everyone who holds a role. Trade uses it to ask for an approval. */
+  notifyRole(role: string, title: string, detail: string, href: string, category = "trade") {
+    for (const member of state.members.filter((item) => item.role === role)) notify(member.name, title, detail, href, category);
+  },
+
   listNotifications: (actor: Actor) =>
     state.notifications.filter((item) => !item.dismissed && (item.recipient === null || item.recipient === actor.name)),
 

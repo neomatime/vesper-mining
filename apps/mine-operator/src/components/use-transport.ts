@@ -33,7 +33,7 @@ export function useTransportAction<TInput, TResult>(options: {
   return useMutation({
     mutationFn: (input: TInput) => demoSend<TResult>(typeof options.path === "function" ? options.path(input) : options.path, options.method ?? "POST", input),
     onSuccess: async (result, input) => {
-      await Promise.all(["transport", "logistics", "overview", "notifications", "report"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["transport", "logistics", "overview", "notifications", "report", "trade"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
       toast.push(options.success(result, input));
       options.onDone?.(result, input);
     },

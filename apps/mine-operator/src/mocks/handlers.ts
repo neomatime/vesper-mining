@@ -10,6 +10,7 @@ import { workspaceContent } from "@/lib/demo-data";
 import { DemoError, demoDomain } from "@/lib/demo-store";
 import type { Actor } from "@/lib/issue-rules";
 import { buildReport, reportCatalogue } from "@/lib/reports";
+import { assertTradeAccess, tradeDomain } from "@/lib/trade-store";
 
 const API = "/_demo/api/v1";
 
@@ -555,5 +556,69 @@ export const handlers = [
     return envelope({ ...content, records });
   }),
 
-  http.post(`${API}/scenario/reset`, () => envelope(demoDomain.reset())),
+  http.post(`${API}/scenario/reset`, () => {
+    tradeDomain.reset();
+    return envelope(demoDomain.reset());
+  }),
+
+  // ---- Trade -------------------------------------------------------------------------------------------------------------
+  // Every Trade route first checks that the person works in Trade. Changes save both stores, because approvals notify people.
+  http.get(`${API}/trade`, ({ request }) => tradeRun(request, (actor) => tradeDomain.view(actor))),
+  ...tradeWrites([
+    ["post", "/trade/clients", (actor, body) => tradeDomain.createClient(body, actor)],
+    ["patch", "/trade/clients/:id", (actor, body, id) => tradeDomain.updateClient(id, body, actor)],
+    ["post", "/trade/clients/:id/status", (actor, body, id) => tradeDomain.setClientStatus(id, body, actor)],
+    ["post", "/trade/clients/:id/contacts", (actor, body, id) => tradeDomain.addContact(id, body, actor)],
+    ["delete", "/trade/clients/:id/contacts/:contactId", (actor, _body, id, contactId) => tradeDomain.removeContact(id, contactId, actor)],
+    ["post", "/trade/enquiries", (actor, body) => tradeDomain.createEnquiry(body, actor)],
+    ["post", "/trade/enquiries/:id/stage", (actor, body, id) => tradeDomain.advanceEnquiry(id, body, actor)],
+    ["post", "/trade/agreements", (actor, body) => tradeDomain.createAgreement(body, actor)],
+    ["post", "/trade/agreements/:id/submit", (actor, body, id) => tradeDomain.submitAgreement(id, body, actor)],
+    ["post", "/trade/agreements/:id/amendments", (actor, body, id) => tradeDomain.amendAgreement(id, body, actor)],
+    ["post", "/trade/agreements/:id/status", (actor, body, id) => tradeDomain.setAgreementStatus(id, body, actor)],
+    ["post", "/trade/deliveries", (actor, body) => tradeDomain.createDelivery(body, actor)],
+    ["post", "/trade/deliveries/:id/reschedule", (actor, body, id) => tradeDomain.rescheduleDelivery(id, body, actor)],
+    ["post", "/trade/deliveries/:id/shipment", (actor, body, id) => tradeDomain.linkShipment(id, body, actor)],
+    ["post", "/trade/deliveries/:id/acceptance", (actor, body, id) => tradeDomain.recordAcceptance(id, body, actor)],
+    ["post", "/trade/deliveries/:id/discrepancy", (actor, body, id) => tradeDomain.raiseDiscrepancy(id, body, actor)],
+    ["post", "/trade/deliveries/:id/discrepancy/resolve", (actor, body, id) => tradeDomain.resolveDiscrepancy(id, body, actor)],
+    ["post", "/trade/deliveries/:id/cancel", (actor, body, id) => tradeDomain.cancelDelivery(id, body, actor)],
+    ["post", "/trade/settlements", (actor, body) => tradeDomain.createInvoice(body, actor)],
+    ["post", "/trade/settlements/:id/payments", (actor, body, id) => tradeDomain.recordPayment(id, body, actor)],
+    ["post", "/trade/settlements/:id/dispute", (actor, body, id) => tradeDomain.disputeSettlement(id, body, actor)],
+    ["post", "/trade/settlements/:id/resolve", (actor, body, id) => tradeDomain.resolveSettlement(id, body, actor)],
+    ["post", "/trade/approvals/:id/decision", (actor, body, id) => tradeDomain.decideApproval(id, body, actor)],
+    ["post", "/trade/documents", (actor, body) => tradeDomain.uploadDocument(body, actor)],
+    ["post", "/trade/documents/:id/status", (actor, body, id) => tradeDomain.setDocumentStatus(id, body, actor)],
+    ["delete", "/trade/documents/:id", (actor, _body, id) => tradeDomain.deleteDocument(id, actor)],
+    ["post", "/trade/links", (actor, body) => tradeDomain.createLink(body, actor)],
+    ["delete", "/trade/links/:id", (actor, _body, id) => tradeDomain.removeLink(id, actor)],
+    ["post", "/trade/reports", (actor, body) => tradeDomain.createReport(body, actor)],
+    ["post", "/trade/reports/:id/run", (actor, _body, id) => tradeDomain.runReport(id, actor)],
+    ["delete", "/trade/reports/:id", (actor, _body, id) => tradeDomain.deleteReport(id, actor)],
+  ]),
 ];
+
+/** Runs a Trade operation for the requesting person, after checking they work in Trade. */
+function tradeRun<T>(request: Request, operation: (actor: Actor) => T, status = 200) {
+  const actor = actorOf(request);
+  return run(() => {
+    assertTradeAccess(actor);
+    const result = operation(actor);
+    tradeDomain.save();
+    return result;
+  }, status);
+}
+
+type TradeWrite = [method: "post" | "patch" | "delete", path: string, operation: (actor: Actor, body: Record<string, unknown>, id: string, second: string) => unknown];
+
+function tradeWrites(routes: TradeWrite[]) {
+  return routes.map(([method, path, operation]) =>
+    http[method](`${API}${path}`, async ({ request, params }) => {
+      const body = method === "delete" ? {} : await bodyOf(request);
+      const id = typeof params.id === "string" ? params.id : "";
+      const second = typeof params.contactId === "string" ? params.contactId : "";
+      return tradeRun(request, (actor) => operation(actor, body, id, second), method === "post" && !id ? 201 : 200);
+    }),
+  );
+}
