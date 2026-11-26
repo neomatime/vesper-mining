@@ -137,7 +137,7 @@ export function ShipmentOverviewScreen() {
             <article className="kpi"><span>Value awaiting collection</span><strong>{formatMoney(summary.awaiting.amount)}</strong><small>{summary.awaiting.count} {summary.awaiting.count === 1 ? "shipment" : "shipments"} requested or confirmed, on time</small></article>
             <article className={`kpi ${summary.delayed.count > 0 ? "kpi--attention" : ""}`}><span>Value of delayed shipments</span><strong>{formatMoney(summary.delayed.amount)}</strong><small>{summary.delayed.count} {summary.delayed.count === 1 ? "shipment" : "shipments"} past their collection date or declined</small></article>
           </section>
-          <p className="notice-line">Estimated sales value in ZAR; each shipment counted once. {summary.notPriced > 0 ? `${summary.notPriced} ${summary.notPriced === 1 ? "shipment is" : "shipments are"} not priced and left out. ` : ""}Delayed value is at stake, not lost.</p>
+          <p className="notice-line">Estimated sales value in ZAR; each shipment counted once. {summary.notPriced > 0 ? `${summary.notPriced} ${summary.notPriced === 1 ? "shipment is" : "shipments are"} not priced and left out. ` : ""}Delayed value is at stake, not a loss.</p>
         </>
       ) : null}
       <section className="card register-card">
