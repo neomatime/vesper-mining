@@ -29,7 +29,7 @@ export function AutomationsPanel() {
           <div><span className="eyebrow">Operations</span><h2 id="automations-heading">Automations</h2></div>
           <button className="button button--primary" disabled={!anyOn || run.isPending} onClick={() => run.mutate({})}><Play /> <Busy pending={run.isPending} label="Running…">Run all rules now</Busy></button>
         </header>
-        <div className="note-bar"><Info /> <span>Rules tell people when something needs them. They never change a record, approve or send anything. In this demo they run when you press Run, and notifications stay inside VESPER.</span></div>
+        <div className="note-bar"><Info /> <span>Rules tell people when something needs them. They never change a record, approve or send anything. They run when you press Run, and notifications stay inside VESPER.</span></div>
         <ul className="automation-list" aria-label="Automations">
           {view.rules.map(({ definition, rule }) => (
             <li className={`automation ${rule.enabled ? "automation--on" : ""}`} key={definition.key}>

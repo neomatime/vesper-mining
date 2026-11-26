@@ -12,7 +12,7 @@ test.describe("workspaces and subscriptions", () => {
 
   test("shows live registers with their own summaries and filters", async ({ page }) => {
     await openApp(page, "/exceptions");
-    await expect(page.getByRole("heading", { name: "Operational constraints" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Work & Exceptions", level: 1 })).toBeVisible();
     await expect(page.getByText("Open issues")).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Waiting on" })).toBeVisible();
 
@@ -108,7 +108,7 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByRole("heading", { name: "Work", exact: true })).toBeVisible();
     await expect(page.getByText("Handover", { exact: true })).toHaveCount(0);
     await page.goto("/exceptions");
-    await expect(page.getByRole("heading", { name: "Operational constraints" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Work & Exceptions", level: 1 })).toBeVisible();
 
     // Operations, with the same screens, has the coordination capabilities.
     await setPlan(page, "Operations");

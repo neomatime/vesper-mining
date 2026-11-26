@@ -47,7 +47,7 @@ test.describe("administration", () => {
     await page.getByRole("button", { name: /Account menu/ }).click();
     await page.getByRole("link", { name: /Administration/ }).click();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByRole("heading", { name: "Organisation", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Administration", level: 1 })).toBeVisible();
   });
 
   test("adds an employee, who must choose their own password and lands on their start page", async ({ page }) => {

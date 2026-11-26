@@ -87,7 +87,7 @@ export function AdminScreen() {
   if (!canManage) {
     return (
       <div className="workspace-page">
-        <PageHeader eyebrow="Administration" title="Organisation" description="Employees, user rights, site and plan." icon={Settings2} />
+        <PageHeader eyebrow="Settings" title="Administration" description="Employees, user rights, site and plan." icon={Settings2} />
         <section className="card detail-card restricted">
           <Lock aria-hidden="true" />
           <h2>Administration is for the Mine Manager</h2>
@@ -100,7 +100,7 @@ export function AdminScreen() {
   if (isPending || !data) {
     return (
       <div className="workspace-page">
-        <PageHeader eyebrow="Administration" title="Organisation" description="Employees, user rights, site and plan." icon={Settings2} />
+        <PageHeader eyebrow="Settings" title="Administration" description="Employees, user rights, site and plan." icon={Settings2} />
         <LoadingState variant="panel" />
       </div>
     );
@@ -119,8 +119,8 @@ export function AdminScreen() {
   return (
     <div className="workspace-page">
       <PageHeader
-        eyebrow="Administration"
-        title="Organisation"
+        eyebrow="Settings"
+        title="Administration"
         description="Employees, user rights, site and plan."
         icon={Settings2}
         action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <button className="button button--primary" onClick={() => setProviderDialog({})}><Plus /> Add service provider</button> : undefined}

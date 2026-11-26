@@ -11,7 +11,7 @@ function fictional(p: { id: string; name: string; registration: string; contactN
   const approval = p.approval ?? "approved";
   return {
     id: p.id, name: p.name, registration: p.registration, contactName: p.contactName, email: p.email, phone: p.phone, categories: p.categories, approvedUntil: "", active: approval === "approved",
-    approval, specialisation: p.specialisation, serviceAreas: ["Riverside Mine"], responseHours: p.responseHours, documents: [], notes: "Fictional demonstration provider.",
+    approval, specialisation: p.specialisation, serviceAreas: ["Riverside Mine"], responseHours: p.responseHours, documents: [], notes: "",
     history: [{ id: `prh-${p.id.slice(-3)}`, at: created, actor: "Mine Manager", summary: approval === "approved" ? "Added and approved" : "Added; waiting for approval", note: null }], createdAt: created, version: 1,
   };
 }

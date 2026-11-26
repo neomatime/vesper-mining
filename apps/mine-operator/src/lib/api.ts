@@ -45,7 +45,7 @@ export async function demoFetch<T>(path: string, init?: RequestInit): Promise<T>
   // A web page where data should be means the in-browser demo service stopped answering (an idle tab, a new release).
   // Wake it and ask again once, so the person never sees a technical error.
   if (!isJson(response) && (await reactivateDemoWorker())) response = await send();
-  if (!isJson(response)) throw new ApiError("VESPER lost its connection to the demo service. Reload the page to continue.", 503, "service-unavailable");
+  if (!isJson(response)) throw new ApiError("VESPER lost its connection to the service. Reload the page to continue.", 503, "service-unavailable");
 
   const payload = (await response.json()) as ApiEnvelope<T | { message?: string; code?: string }>;
   if (!response.ok) {

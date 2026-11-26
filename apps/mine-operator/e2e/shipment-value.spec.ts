@@ -20,7 +20,7 @@ test.describe("value beside the operational status", () => {
     await openAs(page, "/shipments", "John Dlamini");
     await expect(page.locator(".kpi", { hasText: "Value awaiting collection" })).toContainText("R 925,000");
     await expect(page.locator(".kpi", { hasText: "Value of delayed shipments" })).toContainText("R 740,000");
-    await expect(page.getByText(/Each shipment is counted once/)).toBeVisible();
+    await expect(page.getByText(/each shipment counted once/)).toBeVisible();
     await expect(page.getByText(/not a loss/)).toBeVisible();
     // The value sits beside the status, blocker, responsible person and next action.
     const row = page.getByRole("row", { name: /SHP-0047/ });
@@ -81,7 +81,7 @@ test.describe("who sees money", () => {
 
   test("the transporter's page shows the request and no money", async ({ page, context }) => {
     await openAs(page, "/shipments/ship-47", "John Dlamini");
-    const href = await page.getByRole("link", { name: /Open reply page/ }).getAttribute("href");
+    const href = await page.getByRole("link", { name: /reply page/ }).getAttribute("href");
     const reply = await context.newPage();
     await reply.goto(href!);
     await expect(reply.getByRole("heading", { name: /needs a collection/ })).toBeVisible();

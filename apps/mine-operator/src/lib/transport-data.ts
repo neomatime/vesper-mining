@@ -82,7 +82,7 @@ export const seedRequests: QuoteRequest[] = [
     ],
     history: [
       line("qh-001", at("23", "15:30"), "Naledi Khoza", "Request saved as a draft"),
-      line("qh-002", at("23", "16:00"), "Naledi Khoza", "Request recorded as sent (demo: nothing was sent)"),
+      line("qh-002", at("23", "16:00"), "Naledi Khoza", "Request recorded as sent (sent outside VESPER)"),
       line("qh-003", at("24", "08:30"), "John Dlamini", "Accepted ABC Logistics; Highveld Transport not selected"),
     ],
   },

@@ -120,7 +120,7 @@ test.describe("assets", () => {
     await openAs(page, "/equipment");
     const band = page.getByRole("region", { name: "Repair Requests" });
     await expect(band).toContainText("Repairs and service work with external providers.");
-    await expect(band.locator("div", { hasText: /^0Open$/ })).toBeVisible();
+    await expect(band).toContainText("No repair requests open or in progress.");
     await band.getByRole("link", { name: "View all" }).click();
     await expect(page).toHaveURL(/\/equipment\/repairs$/);
     await expect(page.getByRole("heading", { name: "Repair Requests", level: 1 })).toBeVisible();

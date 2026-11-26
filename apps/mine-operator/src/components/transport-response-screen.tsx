@@ -74,7 +74,7 @@ export function TransportResponseScreen({ token }: { token: string }) {
         <div className="fact"><span>Going to</span><strong>{shipment.destination}</strong></div>
         <div className="fact"><span>Preferred date</span><strong>{shortDate(shipment.preferredDate)}</strong></div>
       </div>
-      <div className="note-bar"><span>Demo: nothing was sent by email or message. You are answering as {transporterName} to show how the reply reaches the mine.</span></div>
+      <div className="note-bar"><span>You are answering as {transporterName}. Your reply goes straight to the mine.</span></div>
 
       {!open ? (
         <div className={`note-bar ${request.state === "confirmed" ? "note-bar--good" : ""}`} role="status">

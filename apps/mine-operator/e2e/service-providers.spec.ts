@@ -57,7 +57,7 @@ test.describe("quotes", () => {
     await openAs(page, "/shipments/providers/quotes");
     await page.getByRole("row", { name: /QR-0048/ }).click();
     await expect(page.getByRole("heading", { name: "QR-0048" })).toBeVisible();
-    await expect(page.getByText("Demo period: April 2026")).toBeVisible();
+    await expect(page.getByText("Period: April 2026.")).toBeVisible();
     const abc = page.getByRole("row", { name: /^ABC Logistics/ });
     await expect(abc).toContainText("Accepted");
     await expect(abc).toContainText("R350 / t");

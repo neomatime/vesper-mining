@@ -98,12 +98,13 @@ test.describe("record management", () => {
 
   test("removes an action and brings it back with undo", async ({ page }) => {
     await openApp(page, "/exceptions/issue-riv-001");
-    await page.getByRole("button", { name: /Remove action: Mobilise repair team/ }).click();
+    await page.getByRole("button", { name: /More actions for Mobilise repair team/ }).click();
+    await page.getByRole("button", { name: "Remove action" }).click();
     await expect(page.getByText("Action removed", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Remove action: Mobilise repair team/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /More actions for Mobilise repair team/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByText("Action restored", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Remove action: Mobilise repair team/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /More actions for Mobilise repair team/ })).toBeVisible();
   });
 
   test("keeps records and the chosen persona after a refresh", async ({ page }) => {

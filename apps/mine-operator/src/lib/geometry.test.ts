@@ -19,7 +19,7 @@ const ROUND = [
 ];
 
 const app = join(__dirname, "..", "app");
-const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css"];
+const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css"];
 
 /** Every border-radius declaration with its selector, ignoring comments. */
 function radii() {

@@ -36,7 +36,7 @@ test.describe("environment selection", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/sign-in$/);
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    await expect(page.getByText("Production Environment · LIVE")).toBeVisible();
+    await expect(page.getByText("Production Environment", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "← Change environment" }).click();
     await expect(page.getByRole("heading", { name: "Select an Environment" })).toBeVisible();
   });
