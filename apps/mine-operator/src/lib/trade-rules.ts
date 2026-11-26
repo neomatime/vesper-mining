@@ -127,8 +127,81 @@ export type Delivery = {
   acceptance: { tonnes: number; at: string; by: string; note: string } | null;
   discrepancy: { tonnes: number; reason: string; at: string; by: string; resolution: string | null } | null;
   cancelled: { reason: string; at: string; by: string } | null;
+  /** Exact collection and delivery points, the route between them and the operational details. Older deliveries may have none. */
+  plan?: DeliveryPlan | null;
   version: number;
   history: TradeEvent[];
+};
+
+// ---- Delivery plan: exact locations, route and operational details ---------------------------------------------------------
+
+/** Latitude, longitude in decimal degrees (WGS 84), as maps and GPS units use. */
+export type LatLngPair = [number, number];
+
+export const locationSourceLabels = { google: "Google Maps", map_pin: "Pin on the map", coordinates: "Entered coordinates", saved: "Saved location", directory: "VESPER place list" } as const;
+export type LocationSource = keyof typeof locationSourceLabels;
+
+export type DeliveryLocation = {
+  name: string;
+  address: string;
+  position: LatLngPair;
+  source: LocationSource;
+  /** Google's place id, when the point came from a Google Maps search. */
+  placeId: string | null;
+  savedLocationId: string | null;
+};
+
+/** A collection or delivery point kept for reuse, so a regular customer site is not searched for every time. */
+export type SavedLocation = DeliveryLocation & { id: string; kind: "collection" | "delivery"; clientId: string | null; notes: string; createdBy: string; createdAt: string };
+
+export const routeSourceLabels = { google: "Google Maps driving route", network: "VESPER road network", estimated: "Straight-line estimate" } as const;
+export type DeliveryRoute = { points: LatLngPair[]; km: number; minutes: number; source: keyof typeof routeSourceLabels };
+
+export const offloadingLabels = { end_tipper: "End tipper", side_tipper: "Side tipper", walking_floor: "Walking floor", grab_crane: "Grab or crane", conveyor: "Conveyor or hopper" } as const;
+export const loadFormLabels = { bulk: "Bulk (loose)", bulk_bags: "Bulk bags", containers: "Containers" } as const;
+export const requiredDocumentLabels = { delivery_note: "Delivery note", weighbridge_ticket: "Weighbridge ticket", quality_certificate: "Quality certificate", sample_seal: "Sample and seal record", abnormal_load_permit: "Abnormal load permit", export_permit: "Export permit" } as const;
+export type RequiredDocument = keyof typeof requiredDocumentLabels;
+
+export type SiteDetails = { location: DeliveryLocation; contactName: string; contactPhone: string; contactEmail: string; windowFrom: string; windowTo: string; instructions: string };
+export type DeliveryVehicle = { registration: string; driverName: string; driverPhone: string; trackingUnit: string };
+
+export type DeliveryPlan = {
+  collection: SiteDetails;
+  receiving: SiteDetails & { offloading: keyof typeof offloadingLabels; weighbridgeOnSite: boolean; safetyRequirements: string };
+  route: DeliveryRoute;
+  load: { grade: string; form: keyof typeof loadFormLabels; loadCount: number; tonnesPerLoad: number; moisturePercent: number | null };
+  logistics: { transporterId: string | null; transporterName: string; vehicles: DeliveryVehicle[]; trackingRequired: boolean };
+  compliance: { documents: RequiredDocument[]; hazardous: boolean; specialInstructions: string };
+};
+
+/** A standard side-tipper payload on South African roads. */
+export const STANDARD_LOAD_TONNES = 34;
+/** The planned average speed for haul trucks, used for travel-time estimates and tracking. */
+export const PLANNED_KPH = 65;
+
+const toRadians = (deg: number) => (deg * Math.PI) / 180;
+/** Straight-line distance between two points in km (great circle). */
+export function straightKm(a: LatLngPair, b: LatLngPair) {
+  const dLat = toRadians(b[0] - a[0]);
+  const dLng = toRadians(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(a[0])) * Math.cos(toRadians(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Reads "-24.6601, 30.0612" (or with a space or semicolon) into a point; null when it is not a valid coordinate pair. */
+export function parseCoordinates(value: string): LatLngPair | null {
+  const parts = value.trim().replace(/[()]/g, "").split(/[\s,;]+/).filter(Boolean);
+  if (parts.length !== 2) return null;
+  const [lat, lng] = parts.map(Number);
+  return validPosition([lat, lng]) ? [lat, lng] : null;
+}
+export const validPosition = (value: unknown): value is LatLngPair => Array.isArray(value) && value.length === 2 && Number.isFinite(value[0]) && Number.isFinite(value[1]) && Math.abs(value[0]) <= 90 && Math.abs(value[1]) <= 180 && !(value[0] === 0 && value[1] === 0);
+export const formatCoordinates = (position: LatLngPair) => `${position[0].toFixed(5)}, ${position[1].toFixed(5)}`;
+export const formatKm = (km: number) => `${Math.round(km).toLocaleString("en-GB")} km`;
+export const formatDuration = (minutes: number) => {
+  const rounded = Math.max(1, Math.round(minutes));
+  const hours = Math.floor(rounded / 60);
+  return hours ? `${hours} h ${String(rounded % 60).padStart(2, "0")} min` : `${rounded} min`;
 };
 
 export const deliveryStageLabels = { planned: "Planned", in_transit: "In transit", received: "Awaiting acceptance", accepted: "Accepted", disputed: "Discrepancy", cancelled: "Cancelled" } as const;

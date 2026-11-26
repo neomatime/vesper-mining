@@ -133,6 +133,67 @@ describe("deliveries", () => {
   });
 });
 
+describe("delivery plans", () => {
+  const bay = { name: "Riverside Mine loading bay", address: "Riverside Mine", position: [-24.66, 30.06], source: "saved", placeId: null, savedLocationId: "loc-riverside-bay" };
+  const site = { name: "Horizon Metals gate 3", address: "Middelburg", position: [-25.7612, 29.4795], source: "map_pin", placeId: null, savedLocationId: null };
+  const plan = (overrides: Record<string, unknown> = {}) => ({
+    collection: { location: bay, contactName: "Naledi Khoza", contactPhone: "+27 13 230 4410", contactEmail: "", windowFrom: "05:00", windowTo: "15:00", instructions: "" },
+    receiving: { location: site, contactName: "Thabo Mokoena", contactPhone: "+27 82 555 1000", contactEmail: "thabo@example.com", windowFrom: "07:00", windowTo: "17:00", instructions: "", offloading: "side_tipper", weighbridgeOnSite: true, safetyRequirements: "" },
+    route: { points: [[-24.66, 30.06], [-25.2, 29.93], [-25.7612, 29.4795]], km: 152.4, minutes: 141, source: "estimated" },
+    load: { grade: "Lumpy", form: "bulk", loadCount: 15, tonnesPerLoad: 34, moisturePercent: null },
+    logistics: { transporterId: null, vehicles: [{ registration: "hxt 482 mp", driverName: "", driverPhone: "", trackingUnit: "" }], trackingRequired: true },
+    compliance: { documents: ["delivery_note", "weighbridge_ticket", "nonsense"], hazardous: false, specialInstructions: "" },
+    ...overrides,
+  });
+  const commitment = () => {
+    const agreement = view().agreements.find((item) => item.number === "AGR-0047")!;
+    return { agreementId: agreement.id, commitmentId: agreement.commitments.find((item) => item.dueDate === "2025-05-31")!.id };
+  };
+
+  it("keeps exact points, the route and details, and saves a new site for reuse when asked", () => {
+    const made = tradeDomain.createDelivery({ ...commitment(), tonnes: 500, scheduledDate: "2025-05-10", plan: plan(), saveDelivery: true }, stores);
+    expect(made.destination).toBe("Horizon Metals gate 3");
+    expect(made.plan!.receiving.location.position).toEqual([-25.7612, 29.4795]);
+    expect(made.plan!.route).toMatchObject({ km: 152.4, minutes: 141, source: "estimated" });
+    expect(made.plan!.logistics.vehicles[0].registration).toBe("HXT 482 MP");
+    expect(made.plan!.compliance.documents).toEqual(["delivery_note", "weighbridge_ticket"]);
+    const saved = view().locations.find((item) => item.name === "Horizon Metals gate 3")!;
+    expect(saved).toMatchObject({ kind: "delivery", createdBy: "Naledi Khoza" });
+    expect(made.plan!.receiving.location.savedLocationId).toBe(saved.id);
+  });
+
+  it("refuses a plan without exact points, with the same point twice, too few trucks or a bad window", () => {
+    const base = { ...commitment(), tonnes: 500, scheduledDate: "2025-05-10" };
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan({ receiving: { ...plan().receiving, location: { ...site, position: [0, 0] } } }) }, stores), 400, /Set the delivery point/);
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan({ receiving: { ...plan().receiving, location: { ...site, position: [-24.66, 30.0601] } } }) }, stores), 400, /same place/);
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan({ load: { ...plan().load, loadCount: 10 } }) }, stores), 400, /Add loads/);
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan({ collection: { ...plan().collection, windowFrom: "15:00", windowTo: "05:00" } }) }, stores), 400, /end after it starts/);
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan({ receiving: { ...plan().receiving, contactPhone: "call me" } }) }, stores), 400, /phone/);
+    rejects(() => tradeDomain.createDelivery({ ...base, plan: plan() }, supervisor), 403);
+  });
+
+  it("changes a plan until the load leaves the mine, then keeps it fixed", () => {
+    const made = tradeDomain.createDelivery({ ...commitment(), tonnes: 500, scheduledDate: "2025-05-10", plan: plan() }, stores);
+    const moved = tradeDomain.updateDeliveryPlan(made.id, { plan: plan({ receiving: { ...plan().receiving, location: { ...site, name: "Horizon Metals gate 5", position: [-25.75, 29.49] } } }), version: made.version }, stores);
+    expect(moved.destination).toBe("Horizon Metals gate 5");
+    expect(moved.history.at(-1)!.summary).toBe("Locations and route updated");
+    rejects(() => tradeDomain.updateDeliveryPlan(made.id, { plan: plan(), version: 1 }, stores), 409, /Someone else/);
+    const onRoad = view().deliveries.find((item) => item.id === "ag-41-q2-1")!;
+    expect(onRoad.plan!.route.source).toBe("network");
+    rejects(() => tradeDomain.updateDeliveryPlan(onRoad.id, { plan: plan(), version: onRoad.version }, stores), 409, /left the mine/);
+  });
+
+  it("starts with the loading bay and regular customer sites saved, and refuses saving one twice", () => {
+    const locations = view().locations;
+    expect(locations.find((item) => item.kind === "collection")!.name).toBe("Riverside Mine loading bay");
+    expect(locations.filter((item) => item.kind === "delivery").length).toBeGreaterThanOrEqual(5);
+    rejects(() => tradeDomain.saveLocation({ ...bay, kind: "collection" }, stores), 409, /already saved/);
+    const added = tradeDomain.saveLocation({ ...site, kind: "delivery" }, stores);
+    tradeDomain.removeLocation(added.id, stores);
+    expect(view().locations.some((item) => item.id === added.id)).toBe(false);
+  });
+});
+
 describe("settlements", () => {
   it("invoices accepted tonnes once, and records payments up to the balance", () => {
     const accepted = deliveryFor("ship-44");

@@ -5,17 +5,17 @@
  * the linked Mining Operations shipment (Trade never records a dispatch); the customer's acceptance, any discrepancy and the invoice are
  * Trade's. Proof of delivery is evidence only.
  */
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, CircleCheck, CircleDot, Circle, Download, FileText, Layers, Link2, PackageCheck, Target, TriangleAlert, Truck, Wallet, List, LocateFixed, Map as MapIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, CircleCheck, CircleDot, Circle, Download, FileText, Layers, Link2, PackageCheck, Target, TriangleAlert, Truck, Wallet, List, LocateFixed, Map as MapIcon, MapPinned } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addDays, deliveryStageLabels, formatTonnes } from "@/lib/trade-rules";
 import { Dialog } from "../dialog";
 import { Field } from "../form-field";
 import { EmptyState } from "../query-state";
 import { Select } from "../select";
-import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type DeliveryRow, type TradeView } from "../use-trade";
+import { DeliveryPlanCard } from "./delivery-plan-card";
 import { DeliveryStatus, DocumentStatus, SettlementStatus } from "./trade-status";
 import { UploadDialog } from "./trade-upload";
 import { ActionMenu, CellMain, Crumbs, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TabBar, TradeData, TradeHeader, ViewLink } from "./trade-ui";
@@ -39,7 +39,11 @@ function onTime(item: DeliveryRow) {
 function Deliveries({ data }: { data: TradeView }) {
   const params = useSearchParams();
   const router = useRouter();
-  const [planning, setPlanning] = useState<string | null>(params.get("plan"));
+  // Older links (?plan=agreement) open the planning page.
+  const legacyPlan = params.get("plan");
+  useEffect(() => {
+    if (legacyPlan !== null) router.replace(legacyPlan ? `/trade/deliveries/new?agreement=${legacyPlan}` : "/trade/deliveries/new");
+  }, [legacyPlan, router]);
   const [agreement, setAgreement] = useState(params.get("agreement") ?? "");
   const view: "list" | "map" = params.get("view") === "map" ? "map" : "list";
   const setView = (next: "list" | "map") => router.replace(next === "map" ? "/trade/deliveries?view=map" : "/trade/deliveries", { scroll: false });
@@ -48,8 +52,8 @@ function Deliveries({ data }: { data: TradeView }) {
 
   // Live tracking: deliveries on the road to a known delivery point, each with its vehicles. Read only while the map is open.
   const tracked: TrackedDelivery[] = useMemo(() => (view === "map"
-    ? rows.filter((item) => (item.stage === "in_transit" || item.stage === "received") && placeForDestination(item.destination) && loadsFor(item.id).length > 0)
-        .map((item) => ({ id: item.id, number: item.number, agreementNumber: item.agreementNumber, clientName: data.clients.find((c) => c.id === item.clientId)?.name ?? "", commodity: item.commodity, tonnes: item.tonnes, destination: item.destination }))
+    ? rows.filter((item) => (item.stage === "in_transit" || item.stage === "received") && (item.plan || placeForDestination(item.destination)) && loadsFor(item.id).length > 0)
+        .map((item) => ({ id: item.id, number: item.number, agreementNumber: item.agreementNumber, clientName: data.clients.find((c) => c.id === item.clientId)?.name ?? "", commodity: item.commodity, tonnes: item.tonnes, destination: item.destination, plan: item.plan ? { origin: item.plan.collection.location, destination: item.plan.receiving.location, route: item.plan.route.points } : null }))
     : []), [view, rows, data.clients]);
   const tracking = useLiveTracking(tracked);
   const [mapFilters, setMapFilters] = useState<MapFilters>(emptyFilters);
@@ -88,7 +92,7 @@ function Deliveries({ data }: { data: TradeView }) {
       <TradeHeader title="Deliveries" description="Delivery commitments against agreements: schedule, progress, customer acceptance and discrepancies." icon={Truck}
         actions={<>
           <button className="button button--quiet" onClick={() => exportCsv("deliveries.csv", ["Delivery", "Agreement", "Client", "Commodity", "Planned t", "Dispatched t", "Received t", "Accepted t", "Status", "Scheduled"], rows.map((item) => [item.number, item.agreementNumber, data.clients.find((c) => c.id === item.clientId)?.name ?? "", item.commodity, item.tonnes, item.quantities.dispatched, item.quantities.received, item.quantities.accepted, deliveryStageLabels[item.stage], item.scheduledDate]))}><Download /> Export</button>
-          {data.can.manageDeliveries ? <button className="button button--primary" onClick={() => setPlanning("")}><Truck /> New delivery</button> : null}
+          {data.can.manageDeliveries ? <Link className="button button--primary" href="/trade/deliveries/new"><Truck /> Plan delivery</Link> : null}
         </>} />
       <KpiTiles items={[
         { label: `Deliveries (${data.today.slice(0, 4)})`, value: year.length, hint: `${rows.filter((item) => item.stage === "planned").length} planned`, icon: Truck },
@@ -181,43 +185,7 @@ function Deliveries({ data }: { data: TradeView }) {
           </RailCard>
         </aside>
       </div>
-      {planning !== null ? <PlanDeliveryDialog data={data} agreementId={planning} onClose={() => setPlanning(null)} /> : null}
     </div>
-  );
-}
-
-function PlanDeliveryDialog({ data, agreementId, onClose }: { data: TradeView; agreementId: string; onClose: () => void }) {
-  const submission = useSubmissionId();
-  const active = data.agreements.filter((item) => item.status === "active");
-  const [form, setForm] = useState({ agreementId: active.some((item) => item.id === agreementId) ? agreementId : "", commitmentId: "", tonnes: "", scheduledDate: addDays(data.today, 3), shipmentId: "", destination: "" });
-  const [error, setError] = useState<string | null>(null);
-  const save = useTradeAction<Record<string, unknown>>({ path: "/trade/deliveries", success: () => ({ title: "Delivery planned", detail: "Mining Operations prepares and dispatches the load." }), onDone: onClose });
-  const agreement = active.find((item) => item.id === form.agreementId);
-  const open = agreement?.commitments.filter((item) => item.state !== "fulfilled") ?? [];
-  const commitment = open.find((item) => item.id === form.commitmentId);
-  const taken = new Set(data.deliveries.filter((item) => item.shipmentId && item.stage !== "cancelled").map((item) => item.shipmentId));
-  const shipments = data.mining.shipments.filter((item) => !taken.has(item.id) && item.state !== "cancelled");
-  const submit = () => {
-    if (!agreement) return setError("Choose an active agreement.");
-    if (!commitment) return setError("Choose the commitment this delivery fulfils.");
-    if (!(Number(form.tonnes) > 0)) return setError("Enter the planned tonnes.");
-    if (form.scheduledDate < data.today) return setError("Choose a date from today onwards.");
-    setError(null);
-    save.mutate({ ...form, tonnes: Number(form.tonnes), shipmentId: form.shipmentId || null, submissionId: submission.id });
-  };
-  return (
-    <Dialog title="Plan a delivery" description="Against one commitment of an active agreement." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">Plan delivery</Busy></button></>}>
-      {error ? <p className="field-error" role="alert">{error}</p> : null}
-      <div className="form-grid">
-        <Field label="Agreement"><Select value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value, commitmentId: "" })}><option value="">Choose an agreement</option>{active.map((item) => <option key={item.id} value={item.id}>{item.number} · {item.clientName}</option>)}</Select></Field>
-        <Field label="Commitment"><Select value={form.commitmentId} onChange={(event) => { const picked = open.find((item) => item.id === event.target.value); setForm({ ...form, commitmentId: event.target.value, tonnes: picked ? String(Math.max(0, picked.tonnes - picked.planned)) : form.tonnes, destination: picked?.deliveryPoint ?? "" }); }}><option value="">Choose a commitment</option>{open.map((item) => <option key={item.id} value={item.id}>{item.label} · {formatTonnes(item.tonnes - item.planned)} unplanned</option>)}</Select></Field>
-        <Field label="Planned quantity (t)" hint={commitment ? `${formatTonnes(commitment.planned)} of ${formatTonnes(commitment.tonnes)} already planned` : undefined}><input inputMode="decimal" value={form.tonnes} onChange={(event) => setForm({ ...form, tonnes: event.target.value })} /></Field>
-        <Field label="Scheduled date"><input type="date" min={data.today} value={form.scheduledDate} onChange={(event) => setForm({ ...form, scheduledDate: event.target.value })} /></Field>
-        <Field label="Destination"><input value={form.destination} onChange={(event) => setForm({ ...form, destination: event.target.value })} /></Field>
-        <Field label="Mining Operations shipment" hint="Optional. Link the shipment that will carry this load."><Select value={form.shipmentId} onChange={(event) => setForm({ ...form, shipmentId: event.target.value })}><option value="">Not linked yet</option>{shipments.map((item) => <option key={item.id} value={item.id}>{item.number} · {formatTonnes(item.tonnes)} · {item.state}</option>)}</Select></Field>
-      </div>
-    </Dialog>
   );
 }
 
@@ -245,6 +213,7 @@ function DeliveryDetail({ data, delivery }: { data: TradeView; delivery: Deliver
   const settlement = data.settlements.find((item) => item.deliveryIds.includes(delivery.id));
   const q = delivery.quantities;
   const closed = delivery.stage === "cancelled";
+  const canEditPlan = data.can.manageDeliveries && !closed && !delivery.acceptance && q.dispatched === 0;
   const milestones = [
     { label: "Planned", done: true, when: delivery.history[0]?.at ?? null },
     { label: "Dispatched", done: q.dispatched > 0, when: delivery.shipment?.dispatchedAt ?? delivery.operations?.dispatchedAt ?? null },
@@ -266,6 +235,7 @@ function DeliveryDetail({ data, delivery }: { data: TradeView; delivery: Deliver
           {previous ? <Link className="icon-button icon-button--light" href={`/trade/deliveries/${previous.id}`} aria-label={`Previous delivery ${previous.number}`}><ArrowLeft /></Link> : null}
           {next ? <Link className="icon-button icon-button--light" href={`/trade/deliveries/${next.id}`} aria-label={`Next delivery ${next.number}`}><ArrowRight /></Link> : null}
           {data.can.recordAcceptance && !closed && !delivery.acceptance && q.received > 0 ? <button className="button button--primary" onClick={() => setDialog("accept")}><PackageCheck /> Record acceptance</button> : null}
+          {canEditPlan ? <Link className="button button--quiet" href={`/trade/deliveries/${delivery.id}/edit`}><MapPinned /> {delivery.plan ? "Edit plan" : "Add locations"}</Link> : null}
           <ActionMenu label={`Actions for ${delivery.number}`} actions={[
             { label: "Upload evidence", onClick: () => setDialog("upload"), hidden: !data.can.uploadDocuments || closed },
             { label: "Reschedule", onClick: () => setDialog("reschedule"), hidden: !data.can.manageDeliveries || closed || Boolean(delivery.acceptance) },
@@ -297,6 +267,8 @@ function DeliveryDetail({ data, delivery }: { data: TradeView; delivery: Deliver
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "overview" ? (
+          <>
+          <DeliveryPlanCard delivery={delivery} canEdit={canEditPlan} />
           <div className="trade-detail-grid">
             <RailCard title="Delivery progress">
               <ol className="trade-milestones">
@@ -334,6 +306,7 @@ function DeliveryDetail({ data, delivery }: { data: TradeView; delivery: Deliver
               </dl>
             </RailCard>
           </div>
+          </>
         ) : null}
         {tab === "evidence" ? (
           <RailCard title="Delivery evidence" action={data.can.uploadDocuments && !closed ? { label: "Upload evidence", onClick: () => setDialog("upload") } : undefined}>

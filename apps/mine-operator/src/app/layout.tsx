@@ -17,6 +17,7 @@ import "./allocation.css";
 import "./modules.css";
 import "./trade.css";
 import "./delivery-map.css";
+import "./delivery-plan.css";
 import "./motion.css";
 import "./refinements.css";
 
