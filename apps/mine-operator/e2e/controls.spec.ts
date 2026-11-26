@@ -57,7 +57,7 @@ test.describe("dropdowns, dates and times", () => {
 
   test("picks a date from the calendar and accepts typed dates", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "Lebo Maseko");
-    const field = page.getByLabel("Preferred date");
+    const field = page.getByLabel("Required by");
     await field.locator("xpath=ancestor::span[contains(@class,'date-field')]").getByRole("button", { name: "Open calendar" }).click();
     await expect(page.getByRole("dialog", { name: "Choose a date" })).toBeVisible();
     await expect(page.getByText("April 2025")).toBeVisible();
@@ -76,7 +76,7 @@ test.describe("dropdowns, dates and times", () => {
 
   test("moves around the calendar with the keyboard", async ({ page }) => {
     await openAs(page, "/equipment/eq-crusher-c02/service/new", "Lebo Maseko");
-    const field = page.getByLabel("Preferred date");
+    const field = page.getByLabel("Required by");
     await field.fill("2025-05-06");
     await field.press("Alt+ArrowDown");
     await expect(page.getByRole("button", { name: "6 May 2025", exact: true })).toBeFocused();
