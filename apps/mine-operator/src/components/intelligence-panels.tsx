@@ -18,6 +18,7 @@ import { StatusBadge } from "./status-badge";
 import { useBriefing, useBriefingAction, type BriefingView } from "./use-briefing";
 import { useImpact } from "./use-impact";
 import { useLogistics } from "./use-logistics";
+import { Busy } from "./busy";
 
 const insightIcon = { production: ChartNoAxesColumn, shipment: Truck, equipment: Wrench, readiness: Box } as const;
 
@@ -178,7 +179,7 @@ function ReviewDialog({ view, onClose }: { view: BriefingView; onClose: () => vo
   const edits = view.lines.filter((line) => wording[line.id].trim() !== line.generated).length;
   return (
     <Dialog title="Review the shift briefing" description={`${view.shiftName}. Generated from records: correct anything that is wrong before you approve.`} size="wide" onClose={onClose} locked={busy}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={busy}>Cancel</button><button className="button button--quiet" disabled={busy || empty} onClick={() => save.mutate(payload())}>Save draft</button><button className="button button--primary" disabled={busy || empty} onClick={() => approve.mutate(payload())}>{approve.isPending ? "Approving…" : "Approve briefing"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={busy}>Cancel</button><button className="button button--quiet" disabled={busy || empty} onClick={() => save.mutate(payload())}>Save draft</button><button className="button button--primary" disabled={busy || empty} onClick={() => approve.mutate(payload())}><Busy pending={approve.isPending} label="Approving…">Approve briefing</Busy></button></>}>
       <div className="dialog__stack">
         {view.lines.map((line) => (
           <Field key={line.id} label={line.generated === wording[line.id] ? "Generated line" : "Corrected line"} hint={line.generated !== wording[line.id] ? `Generated: ${line.generated}` : undefined}>
@@ -197,7 +198,7 @@ function ReopenDialog({ onClose }: { onClose: () => void }) {
   const reopen = useBriefingAction<{ reason: string }>("/briefing/reopen", { title: "Reopened for review" }, onClose);
   return (
     <Dialog title="Reopen the briefing?" description="It goes back to a draft. The earlier approval stays in the history." onClose={onClose} locked={reopen.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={reopen.isPending}>Cancel</button><button className="button button--primary" disabled={reopen.isPending || reason.trim().length < 5} onClick={() => reopen.mutate({ reason })}>{reopen.isPending ? "Saving…" : "Reopen"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={reopen.isPending}>Cancel</button><button className="button button--primary" disabled={reopen.isPending || reason.trim().length < 5} onClick={() => reopen.mutate({ reason })}><Busy pending={reopen.isPending} label="Saving…">Reopen</Busy></button></>}>
       <Field label="Why? (required)"><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
     </Dialog>
   );

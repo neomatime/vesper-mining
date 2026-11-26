@@ -9,7 +9,7 @@ import type { OperationalIssue, ReadinessActivity } from "@vesper/api-contracts"
 import { CalendarDays, ChevronDown, CirclePlus, Ellipsis, FileText, ClipboardCheck, List, PackageCheck, Search, UsersRound, Wrench, ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useDeferredValue, useRef, useState } from "react";
 import { demoFetch } from "@/lib/api";
 import { formatStatus } from "@/lib/calculations";
 import { formatDemoDateTime } from "@/lib/demo-clock";
@@ -32,6 +32,7 @@ import { StatusBadge } from "./status-badge";
 import { useCreateEquipment } from "./use-equipment-mutations";
 import { useServiceRequests } from "./use-service";
 import { useCreateShift, type ShiftFormInput } from "./use-shift-mutations";
+import { Tick } from "./tick";
 
 export type WorkspaceKey = "exceptions" | "equipment" | "resources" | "shifts";
 
@@ -353,7 +354,7 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
   });
   const { data: shell } = useShellData();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   const header = query.data;
   const records = query.data.records as unknown[];
@@ -415,7 +416,7 @@ function Workspace({ workspace }: { workspace: WorkspaceKey }) {
             <ShiftControlTabs active="shifts" />
             <ShiftCalendar shifts={shifts} now={shell.now} onCreate={canManageShifts ? startCreating : null} />
           </div>
-        ) : <LoadingState />
+        ) : <LoadingState variant="panel" />
       ) : (
         <RegisterView key={requestedFilter} initialFilter={requestedFilter} header={header} tabs={<ShiftControlTabs active="shifts" />} viewSwitch={<ShiftViewSwitch view="list" />} register={shiftRegister(shifts, canManageShifts ? () => startCreating(null) : null)} />
       )}
@@ -441,7 +442,8 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
   const Icon = register.icon;
 
   const filter = register.filters.find((item) => item.key === activeFilter) ?? register.filters[0];
-  const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
+  const deferredSearch = useDeferredValue(search);
+  const terms = deferredSearch.toLowerCase().split(/\s+/).filter(Boolean);
   const visible = register.rows.filter((row) => (filter?.test(row) ?? true) && terms.every((term) => register.text(row).toLowerCase().includes(term)));
   const filtering = Boolean(search.trim()) || (filter ? filter.key !== "all" : false);
 
@@ -480,7 +482,7 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
         {register.tiles.map((tile) => (
           <article className={`kpi ${tile.attention ? "kpi--attention" : ""}`} key={tile.label}>
             <span>{tile.label}</span>
-            <strong>{tile.value}</strong>
+            <strong><Tick value={tile.value} /></strong>
             <small>{tile.hint}</small>
           </article>
         ))}
@@ -515,7 +517,7 @@ export function RegisterView<T extends { id: string }>({ header, register, initi
           <div className="table-wrap">
             <table className="data-table data-table--register">
               <thead><tr>{register.columns.map((column) => <th key={column.key} scope="col">{column.label}</th>)}</tr></thead>
-              <tbody>
+              <tbody key={filter?.key ?? "all"} className="rows-settle">
                 {visible.map((row) => (
                   <tr
                     key={row.id}

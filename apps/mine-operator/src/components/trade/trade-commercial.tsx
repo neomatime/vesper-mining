@@ -18,6 +18,7 @@ import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type AgreementRow, type EnquiryRow, type TradeView } from "../use-trade";
 import { AgreementStatus, agreementState, DeliveryStatus, DocumentStatus, EnquiryStage, Readiness, SettlementStatus } from "./trade-status";
 import { ActionMenu, CellMain, Crumbs, dateTimeLabel, dayLabel, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TradeData, TradeHeader, ViewLink } from "./trade-ui";
+import { Busy } from "../busy";
 
 // ---- Enquiries -------------------------------------------------------------------------------------------------------------
 
@@ -113,7 +114,7 @@ function EnquiryDialog({ data, clientId, onClose }: { data: TradeView; clientId:
   };
   return (
     <Dialog title="New enquiry" description="A buyer asking for material. Prices are added when you quote." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Log enquiry"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">Log enquiry</Busy></button></>}>
       <div className="form-grid">
         <Field label="Client" error={errors.clientId}><Select value={form.clientId} onChange={set("clientId")}><option value="">Choose a client</option>{data.clients.filter((item) => item.status !== "inactive").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
         <Field label="Commodity"><Select value={form.commodity} onChange={set("commodity")}>{COMMODITIES.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
@@ -268,7 +269,7 @@ function Agreements({ data }: { data: TradeView }) {
 // ---- Agreement detail ------------------------------------------------------------------------------------------------------
 
 export function AgreementScreen({ id }: { id: string }) {
-  return <TradeData label="Loading the agreement">{(data) => {
+  return <TradeData label="Loading the agreement" variant="detail">{(data) => {
     const agreement = data.agreements.find((item) => item.id === id);
     if (!agreement) return <div className="workspace-page"><Crumbs items={[{ label: "Agreements", href: "/trade/agreements" }, { label: "Not found" }]} /><EmptyState title="This agreement could not be found" description="The link may be wrong." /></div>;
     return <AgreementDetail data={data} agreement={agreement} />;
@@ -371,7 +372,7 @@ function SubmitDialog({ agreement, onClose }: { agreement: AgreementRow; onClose
   const save = useTradeAction<Record<string, unknown>>({ path: `/trade/agreements/${agreement.id}/submit`, success: () => ({ title: "Sent for approval", detail: "The Mine Manager has been notified." }), onDone: onClose });
   return (
     <Dialog title={`Send ${agreement.number} for approval?`} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={() => save.mutate({ version: agreement.version })}>{save.isPending ? "Sending…" : "Send for approval"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={() => save.mutate({ version: agreement.version })}><Busy pending={save.isPending} label="Sending…">Send for approval</Busy></button></>}>
       <p>{agreement.commitments.length} commitment{agreement.commitments.length === 1 ? "" : "s"} totalling {formatTonnes(agreement.committed)}. The agreement becomes active only when the Mine Manager approves it.</p>
     </Dialog>
   );
@@ -384,7 +385,7 @@ function AgreementStatusDialog({ agreement, status, onClose }: { agreement: Agre
   const verb = { suspended: "Suspend", active: "Reactivate", completed: "Mark completed", terminated: "Terminate" }[status] ?? "Update";
   return (
     <Dialog title={`${verb} ${agreement.number}?`} size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className={`button ${status === "terminated" ? "button--danger" : "button--primary"}`} disabled={save.isPending || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ status, note, version: agreement.version })}>{save.isPending ? "Saving…" : verb}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className={`button ${status === "terminated" ? "button--danger" : "button--primary"}`} disabled={save.isPending || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ status, note, version: agreement.version })}><Busy pending={save.isPending} label="Saving…">{verb}</Busy></button></>}>
       {status === "completed" ? <p>An agreement is complete only when the customer has accepted every commitment in full. Uploaded proof of delivery does not count as acceptance.</p> : null}
       <Field label={needsReason ? "Why? (required)" : "Note (optional)"}><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
@@ -399,7 +400,7 @@ function AmendDialog({ agreement, today, onClose }: { agreement: AgreementRow; t
   const valid = kind === "extend_end" ? form.endDate > agreement.endDate : form.label.trim().length >= 2 && Number(form.tonnes) > 0 && form.deliveryPoint.trim().length >= 3;
   return (
     <Dialog title={`Amend ${agreement.number}`} description="An amendment goes to the Mine Manager for approval before it changes the agreement." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || !valid} onClick={() => save.mutate({ kind, ...form, tonnes: Number(form.tonnes), version: agreement.version, submissionId: submission.id })}>{save.isPending ? "Sending…" : "Send for approval"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || !valid} onClick={() => save.mutate({ kind, ...form, tonnes: Number(form.tonnes), version: agreement.version, submissionId: submission.id })}><Busy pending={save.isPending} label="Sending…">Send for approval</Busy></button></>}>
       <fieldset className="segmented-fieldset">
         <legend>Change</legend>
         <label><input type="radio" name="kind" checked={kind === "add_commitment"} onChange={() => setKind("add_commitment")} /> Add a commitment</label>
@@ -510,7 +511,7 @@ function NewAgreement({ data }: { data: TradeView }) {
       </section>
       <div className="button-row button-row--end">
         <Link className="button button--quiet" href="/trade/agreements">Cancel</Link>
-        <button className="button button--primary" onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save draft"}</button>
+        <button className="button button--primary" onClick={submit} disabled={save.isPending}><Busy pending={save.isPending} label="Saving…">Save draft</Busy></button>
       </div>
     </div>
   );

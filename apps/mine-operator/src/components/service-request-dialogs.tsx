@@ -9,12 +9,13 @@ import { z } from "zod";
 import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { DateInput } from "./date-fields";
+import { Busy } from "./busy";
 
 function Footer({ pending, onClose, form, label }: { pending: boolean; onClose: () => void; form: string; label: string }) {
   return (
     <>
       <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button>
-      <button className="button button--primary" form={form} disabled={pending}>{pending ? "Saving…" : label}</button>
+      <button className="button button--primary" form={form} disabled={pending}><Busy pending={pending} label="Saving…">{label}</Busy></button>
     </>
   );
 }
@@ -86,7 +87,7 @@ export function CancelRequestDialog({ pending, onSave, onClose }: { pending: boo
       footer={
         <>
           <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Keep request</button>
-          <button className="button button--danger" form="cancel-form" disabled={pending || reason.trim().length < 4}>{pending ? "Saving…" : "Cancel request"}</button>
+          <button className="button button--danger" form="cancel-form" disabled={pending || reason.trim().length < 4}><Busy pending={pending} label="Saving…">Cancel request</Busy></button>
         </>
       }
     >

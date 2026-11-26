@@ -32,6 +32,7 @@ import { StatusBadge } from "./status-badge";
 import { useLogistics } from "./use-logistics";
 import { useShiftMutations } from "./use-shift-mutations";
 import { RegisterView, type Register } from "./workspace-screen";
+import { Busy } from "./busy";
 
 const issueTone = (issue: OperationalIssue) => (isFinished(issue.workflowState) || issue.workflowState === "verified" ? "closed" : issue.workflowState === "reported" ? "draft" : issue.workflowState === "awaiting_dependency" ? "awaiting_dependency" : "in_progress");
 
@@ -95,7 +96,7 @@ export function ShiftExceptionsScreen() {
 export function ShiftReportsScreen() {
   const query = useLogistics();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const records = [...query.data.production].sort((a, b) => a.number.localeCompare(b.number));
   const sum = (pick: (item: (typeof records)[number]) => number) => records.reduce((total, item) => total + pick(item), 0);
   const waiting = records.filter((item) => item.state === "needs_checking");
@@ -174,8 +175,8 @@ export function HandoverTabScreen({ id }: { id?: string }) {
     );
   }
   if (query.isPending || logistics.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
-  if (logistics.isError) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
+  if (logistics.isError && !logistics.data) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} retrying={logistics.isFetching} />;
   return <HandoverPage shift={query.data} production={logistics.data.production.filter((item) => item.shiftId === query.data.id)} />;
 }
 
@@ -287,10 +288,10 @@ function HandoverPage({ shift, production }: { shift: ShiftView; production: Pro
         <div className="task-footer">
           <p>{handover.state === "draft" ? `${shift.next?.supervisor ?? "The next supervisor"} will be asked to confirm receipt.` : handover.state === "published" ? `Sent by ${handover.publishedBy}${handover.publishedAt ? ` at ${formatDemoDateTime(handover.publishedAt)}` : ""}.` : ""}</p>
           <div className="button-row">
-            {canEditNotes ? <button className="button button--quiet" disabled={!dirty || mutations.saveNotes.isPending} onClick={() => mutations.saveNotes.mutate(notes)}>{mutations.saveNotes.isPending ? "Saving…" : dirty ? "Save draft" : "Saved"}</button> : null}
-            {canEditNotes ? <button className="button button--primary" disabled={!started || mutations.publish.isPending || notes.trim().length < 20} onClick={() => mutations.publish.mutate(dirty ? notes : null)}><Send /> {mutations.publish.isPending ? "Sending…" : "Send handover"}</button> : null}
+            {canEditNotes ? <button className="button button--quiet" disabled={!dirty || mutations.saveNotes.isPending} onClick={() => mutations.saveNotes.mutate(notes)}><Busy pending={mutations.saveNotes.isPending} label="Saving…">{dirty ? "Save draft" : "Saved"}</Busy></button> : null}
+            {canEditNotes ? <button className="button button--primary" disabled={!started || mutations.publish.isPending || notes.trim().length < 20} onClick={() => mutations.publish.mutate(dirty ? notes : null)}><Send /> <Busy pending={mutations.publish.isPending} label="Sending…">Send handover</Busy></button> : null}
             {handover.state === "published" && canHandOver ? <button className="button button--quiet" onClick={() => setWithdrawing(true)}><RotateCcw /> Withdraw handover</button> : null}
-            {handover.state === "published" ? <button className="button button--primary" disabled={!canReceive || mutations.acknowledge.isPending} onClick={() => mutations.acknowledge.mutate()}><Check /> {mutations.acknowledge.isPending ? "Recording…" : "Confirm receipt"}</button> : null}
+            {handover.state === "published" ? <button className="button button--primary" disabled={!canReceive || mutations.acknowledge.isPending} onClick={() => mutations.acknowledge.mutate()}><Check /> <Busy pending={mutations.acknowledge.isPending} label="Recording…">Confirm receipt</Busy></button> : null}
           </div>
         </div>
       </section>
@@ -315,8 +316,8 @@ export function CloseShiftScreen({ id }: { id: string }) {
   const logistics = useLogistics();
   const { data: shell } = useShellData();
   if (query.isPending || logistics.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
-  if (logistics.isError) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
+  if (logistics.isError && !logistics.data) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} retrying={logistics.isFetching} />;
   return <CloseForm shift={query.data} production={logistics.data.production.filter((item) => item.shiftId === id)} issues={shell?.issues ?? []} />;
 }
 

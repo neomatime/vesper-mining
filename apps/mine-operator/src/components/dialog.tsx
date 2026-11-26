@@ -5,8 +5,9 @@
  * Every form in a dialog uses this so they all behave the same.
  */
 import { X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Busy } from "./busy";
 
 const focusable =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -24,7 +25,14 @@ type DialogProps = {
 
 export function Dialog({ title, description, onClose, children, footer, size = "default", locked = false }: DialogProps) {
   const panel = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
   const titleId = useId();
+  // Dismissing (Escape, the backdrop or the close button) plays a short exit before the owner removes the dialog.
+  const dismiss = () => {
+    if (locked || closing) return;
+    setClosing(true);
+    window.setTimeout(onClose, 140);
+  };
   const descriptionId = useId();
 
   useEffect(() => {
@@ -42,7 +50,7 @@ export function Dialog({ title, description, onClose, children, footer, size = "
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Escape" && !locked) {
       event.stopPropagation();
-      onClose();
+      dismiss();
       return;
     }
     if (event.key !== "Tab" || !panel.current) return;
@@ -60,7 +68,7 @@ export function Dialog({ title, description, onClose, children, footer, size = "
   };
 
   return createPortal(
-    <div className="dialog-backdrop" role="presentation" onMouseDown={() => !locked && onClose()}>
+    <div className={`dialog-backdrop ${closing ? "is-closing" : ""}`} role="presentation" onMouseDown={() => !locked && dismiss()}>
       <div
         ref={panel}
         className={`dialog dialog--${size}`}
@@ -76,7 +84,7 @@ export function Dialog({ title, description, onClose, children, footer, size = "
             <h2 id={titleId}>{title}</h2>
             {description ? <p id={descriptionId}>{description}</p> : null}
           </div>
-          <button className="icon-button dialog__close" onClick={onClose} disabled={locked} aria-label="Close dialog"><X /></button>
+          <button className="icon-button dialog__close" onClick={dismiss} disabled={locked} aria-label="Close dialog"><X /></button>
         </header>
         <div className="dialog__body">{children}</div>
         {footer ? <footer className="dialog__footer">{footer}</footer> : null}
@@ -107,7 +115,7 @@ export function ConfirmDialog({ title, body, confirmLabel, tone = "primary", pen
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending}>Keep as is</button>
           <button className={`button ${tone === "danger" ? "button--danger" : "button--primary"}`} onClick={onConfirm} disabled={pending} data-autofocus>
-            {pending ? "Working…" : confirmLabel}
+            <Busy pending={pending} label="Working…">{confirmLabel}</Busy>
           </button>
         </>
       }

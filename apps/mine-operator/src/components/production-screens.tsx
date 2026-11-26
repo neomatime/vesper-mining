@@ -37,6 +37,7 @@ import { useShellData } from "./shell-data";
 import { StatusBadge } from "./status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type StockpileView } from "./use-logistics";
 import { RegisterView, type Register } from "./workspace-screen";
+import { Busy } from "./busy";
 
 const bases = ["estimate", "weighbridge", "survey", "other"] as const;
 
@@ -55,7 +56,7 @@ export function ProductionListScreen() {
   const { context } = useDemoContext();
   const actor = { name: context.persona, role: context.role };
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   const records = query.data.production;
   const canRecord = canActOnShipments("record_production", actor).allowed;
@@ -107,7 +108,7 @@ export function RecordProductionScreen({ editId }: { editId: string | null }) {
   const logistics = useLogistics();
   const { data: shell } = useShellData();
   if (logistics.isPending || !shell) return <LoadingState />;
-  if (logistics.isError) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} />;
+  if (logistics.isError && !logistics.data) return <ErrorState message={logistics.error.message} onRetry={() => logistics.refetch()} retrying={logistics.isFetching} />;
   const existing = editId ? logistics.data.production.find((item) => item.id === editId) : undefined;
   if (editId && !existing) return <ErrorState message="This production record could not be found." onRetry={() => logistics.refetch()} />;
   return <ProductionForm stockpiles={logistics.data.stockpiles} shifts={shell.shifts} areas={shell.areas.map((area) => area.name)} existing={existing} />;
@@ -216,7 +217,7 @@ function ProductionForm({ stockpiles, shifts, areas, existing }: { stockpiles: S
           <div className="button-row">
             {!existing ? <button type="button" className="button button--quiet" disabled={save.isPending} onClick={() => submit(true, true)}>Send and add another material</button> : null}
             <button type="button" className="button button--quiet" disabled={save.isPending} onClick={() => submit(false)}><Save /> Save draft</button>
-            <button className="button button--primary" disabled={save.isPending}><Send /> {save.isPending ? "Sending…" : "Send for checking"}</button>
+            <button className="button button--primary" disabled={save.isPending}><Send /> <Busy pending={save.isPending} label="Sending…">Send for checking</Busy></button>
           </div>
         </div>
       </form>
@@ -229,7 +230,7 @@ function ProductionForm({ stockpiles, shifts, areas, existing }: { stockpiles: S
 export function CheckProductionScreen({ id }: { id: string }) {
   const query = useLogistics();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const record = query.data.production.find((item) => item.id === id);
   if (!record) return <ErrorState message="This production record could not be found." onRetry={() => query.refetch()} />;
   return <CheckForm record={record} stockpiles={query.data.stockpiles} />;
@@ -345,7 +346,7 @@ function CheckForm({ record, stockpiles }: { record: ProductionRecord; stockpile
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
         <div className="task-footer">
           <div className="button-row">
-            <button className="button button--primary" disabled={check.isPending}><Check /> {check.isPending ? "Confirming…" : "Confirm receipt"}</button>
+            <button className="button button--primary" disabled={check.isPending}><Check /> <Busy pending={check.isPending} label="Confirming…">Confirm receipt</Busy></button>
             <button type="button" className="button button--quiet" disabled={check.isPending} onClick={() => setSendingBack(true)}>Send back for correction</button>
           </div>
         </div>
@@ -365,7 +366,7 @@ function SendBackDialog({ pending, onClose, onSend }: { pending: boolean; onClos
       size="narrow"
       onClose={onClose}
       locked={pending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button><button className="button button--primary" disabled={pending || short} onClick={() => onSend(reason.trim())}>{pending ? "Sending…" : "Send back"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button><button className="button button--primary" disabled={pending || short} onClick={() => onSend(reason.trim())}><Busy pending={pending} label="Sending…">Send back</Busy></button></>}
     >
       <Field label="What needs correcting?" hint="At least eight characters."><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
     </Dialog>

@@ -54,6 +54,7 @@ import { useToast } from "./toast-provider";
 import { useLogistics, useSubmissionId } from "./use-logistics";
 import { useTransport, useTransportAction, type Transport } from "./use-transport";
 import { RegisterView, type Register } from "./workspace-screen";
+import { Busy } from "./busy";
 
 // ---- Shared pieces ------------------------------------------------------------------------------------------------------
 
@@ -69,7 +70,7 @@ export function ProviderTabs({ active }: { active: "providers" | "quotes" | "agr
   ] as const;
   return (
     <>
-      <Link href="/shipments/logistics" className="back-link"><ArrowLeft /> Back to Logistics</Link>
+      <Link href="/shipments" className="back-link"><ArrowLeft /> Back to Shipments</Link>
       <nav className="tabs module-tabs" aria-label="Service provider sections">
         {tabs.map((tab) => (
           <Link key={tab.key} href={tab.href} className={`tab ${tab.key === active ? "tab--active" : ""}`} aria-current={tab.key === active ? "page" : undefined}>{tab.label}</Link>
@@ -127,7 +128,7 @@ function History({ lines }: { lines: { id: string; at: string; actor: string; su
 function WithTransport({ children }: { children: (data: Transport) => React.ReactNode }) {
   const query = useTransport();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <>{children(query.data)}</>;
 }
 
@@ -216,7 +217,7 @@ export function AddProviderDialog({ onClose }: { onClose: () => void }) {
   });
   return (
     <Dialog title="Add provider" description="New providers start as Needs review." size="wide" onClose={onClose} locked={add.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={add.isPending}>Cancel</button><button className="button button--primary" disabled={add.isPending || form.name.trim().length < 3} onClick={() => add.mutate({ ...form, submissionId: submission.id })}>{add.isPending ? "Adding…" : "Add provider"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={add.isPending}>Cancel</button><button className="button button--primary" disabled={add.isPending || form.name.trim().length < 3} onClick={() => add.mutate({ ...form, submissionId: submission.id })}><Busy pending={add.isPending} label="Adding…">Add provider</Busy></button></>}>
       <ProviderFields form={form} setForm={setForm} />
     </Dialog>
   );
@@ -281,7 +282,7 @@ function EditProviderDialog({ provider, onClose }: { provider: Transporter; onCl
   const save = useTransportAction<Record<string, unknown>, Transporter>({ path: `/transport-providers/${provider.id}`, method: "PATCH", success: () => ({ title: "Provider updated" }), onDone: onClose });
   return (
     <Dialog title="Edit provider" size="wide" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || form.name.trim().length < 3} onClick={() => save.mutate({ ...form })}>{save.isPending ? "Saving…" : "Save changes"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || form.name.trim().length < 3} onClick={() => save.mutate({ ...form })}><Busy pending={save.isPending} label="Saving…">Save changes</Busy></button></>}>
       <ProviderFields form={form} setForm={setForm} />
     </Dialog>
   );
@@ -297,7 +298,7 @@ function ApprovalDialog({ provider, approval, onClose }: { provider: Transporter
   const needsReason = approval === "inactive";
   return (
     <Dialog title={approval === "approved" ? `Approve ${provider.name}?` : `Make ${provider.name} inactive?`} description={approval === "approved" ? "The mine confirms it is happy to use this provider." : "Its quotes, agreements and history are kept."} onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ approval, note })}>{save.isPending ? "Saving…" : approval === "approved" ? "Approve" : "Make inactive"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || (needsReason && note.trim().length < 5)} onClick={() => save.mutate({ approval, note })}><Busy pending={save.isPending} label="Saving…">{approval === "approved" ? "Approve" : "Make inactive"}</Busy></button></>}>
       <Field label={needsReason ? "Why? (required)" : "Note (optional)"}><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
   );
@@ -422,7 +423,7 @@ function QuoteRequestView({ data, request }: { data: Transport; request: QuoteRe
             <div className="button-row button-row--end">
               <button className="button button--quiet" onClick={() => { void navigator.clipboard?.writeText(text).then(() => toast({ title: "Request text copied" }), () => toast({ tone: "error", title: "Could not copy", detail: "Select the text and copy it by hand." })); }}><Copy /> Copy text</button>
               <button className="button button--quiet" onClick={() => downloadText(`${request.number}-request.txt`, text)}><Download /> Download</button>
-              {data.can.record ? <button className="button button--primary" disabled={sent.isPending} onClick={() => sent.mutate({})}><Send /> {sent.isPending ? "Recording…" : "Record request sent"}</button> : null}
+              {data.can.record ? <button className="button button--primary" disabled={sent.isPending} onClick={() => sent.mutate({})}><Send /> <Busy pending={sent.isPending} label="Recording…">Record request sent</Busy></button> : null}
             </div>
           </div>
         ) : null}
@@ -491,7 +492,7 @@ function RecordQuoteDialog({ request, quote, data, onClose }: { request: QuoteRe
   const submit = () => save.mutate(unavailable ? { unavailable: true, reason: f.reason } : { ...f, attachments });
   return (
     <Dialog title={`Record quote from ${providerName(data, quote.providerId)}`} description={request.number} size="wide" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={submit}>{save.isPending ? "Saving…" : unavailable ? "Record as unavailable" : "Save quote"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={submit}><Busy pending={save.isPending} label="Saving…">{unavailable ? "Record as unavailable" : "Save quote"}</Busy></button></>}>
       <div className="dialog__stack">
         <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={unavailable} onChange={(event) => setUnavailable(event.target.checked)} /> This provider cannot quote</label>
         {unavailable ? <Field label="Reason"><textarea rows={3} value={f.reason} onChange={set("reason")} /></Field> : (
@@ -534,7 +535,7 @@ function DecisionDialog({ request, data, quote, decision, shipmentHasPrice, pric
   const name = providerName(data, quote.providerId);
   return (
     <Dialog title={decision === "accept" ? `Record acceptance of ${name}'s quote` : `Mark ${name}'s quote not selected`} description="Who, when and why are kept with the record." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5 || (replaces && !replace)} onClick={() => save.mutate({ decision, reason, replace: replaces ? replace : undefined })}>{save.isPending ? "Saving…" : decision === "accept" ? "Record acceptance" : "Mark not selected"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5 || (replaces && !replace)} onClick={() => save.mutate({ decision, reason, replace: replaces ? replace : undefined })}><Busy pending={save.isPending} label="Saving…">{decision === "accept" ? "Record acceptance" : "Mark not selected"}</Busy></button></>}>
       <div className="dialog__stack">
         {decision === "accept" ? <p className="muted">{request.kind === "shipment" ? "This becomes the shipment's one transport price. It does not book a truck: collection stays unconfirmed until the provider confirms a time." : "You can then create the agreement from this proposal. An authorised person reviews and activates it."}</p> : null}
         {replaces ? <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><input type="checkbox" checked={replace} onChange={(event) => setReplace(event.target.checked)} /> <span>This shipment already has a transport price ({priceLabel}). Replace it with this quote. The earlier source stays in the shipment&apos;s history.</span></label> : null}
@@ -627,7 +628,7 @@ function NewQuoteRequestView({ data }: { data: Transport }) {
         </div>
         <div className="task-footer">
           <p>Saves a draft. You then copy or download the text, send it yourself and record that it was sent.</p>
-          <div className="button-row"><button className="button button--primary" disabled={!ready || create.isPending} onClick={submit}>{create.isPending ? "Saving…" : "Save draft"}</button></div>
+          <div className="button-row"><button className="button button--primary" disabled={!ready || create.isPending} onClick={submit}><Busy pending={create.isPending} label="Saving…">Save draft</Busy></button></div>
         </div>
       </section>
     </div>

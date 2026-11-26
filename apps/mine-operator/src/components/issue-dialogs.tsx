@@ -18,6 +18,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { Select } from "./select";
 import { DateTimeInput } from "./date-fields";
+import { Busy } from "./busy";
 
 type Option = { id: string; name: string };
 
@@ -100,7 +101,7 @@ export function EditIssueDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="edit-issue-form" disabled={pending}>{pending ? "Saving…" : "Save changes"}</button>
+          <button className="button button--primary" form="edit-issue-form" disabled={pending}><Busy pending={pending} label="Saving…">Save changes</Busy></button>
         </>
       }
     >
@@ -183,7 +184,7 @@ export function ActionDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="action-form" disabled={pending}>{pending ? "Saving…" : action ? "Save action" : "Add action"}</button>
+          <button className="button button--primary" form="action-form" disabled={pending}><Busy pending={pending} label="Saving…">{action ? "Save action" : "Add action"}</Busy></button>
         </>
       }
     >
@@ -255,7 +256,7 @@ export function DependencyDialog({
       footer={
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
-          <button className="button button--primary" form="dependency-form" disabled={pending}>{pending ? "Saving…" : "Record dependency"}</button>
+          <button className="button button--primary" form="dependency-form" disabled={pending}><Busy pending={pending} label="Saving…">Record dependency</Busy></button>
         </>
       }
     >
@@ -337,7 +338,7 @@ export function ResolveDependencyDialog({
             disabled={pending}
             onClick={() => (invalid ? setTouched(true) : onSave(note.trim()))}
           >
-            {pending ? "Saving…" : bypass ? "Record bypass" : "Mark resolved"}
+            <Busy pending={pending} label="Saving…">{bypass ? "Record bypass" : "Mark resolved"}</Busy>
           </button>
         </>
       }
@@ -404,7 +405,7 @@ export function TransitionDialog({
         <>
           <button className="button button--quiet" onClick={onClose} disabled={pending} type="button">Cancel</button>
           <button className={`button ${option.tone === "danger" ? "button--danger" : "button--primary"}`} onClick={submit} disabled={pending} data-autofocus={needsInput ? undefined : true}>
-            {pending ? "Saving…" : option.label}
+            <Busy pending={pending} label="Saving…">{option.label}</Busy>
           </button>
         </>
       }

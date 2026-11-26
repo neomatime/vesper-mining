@@ -59,6 +59,7 @@ import { useShellData } from "./shell-data";
 import { WaitSection } from "./impact-panels";
 import { StatusBadge } from "./status-badge";
 import { useIssueMutations } from "./use-issue-mutations";
+import { Busy } from "./busy";
 
 type DialogState =
   | { kind: "edit" }
@@ -87,8 +88,8 @@ export function IssueDetailScreen({ id }: { id: string }) {
     queryFn: () => demoFetch<OperationalIssue>(`/issues/${id}`),
   });
 
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <IssueDetail issue={query.data} />;
 }
 
@@ -449,7 +450,7 @@ function NotesCard({
             <label htmlFor={`files-${issue.id}`} className="button button--quiet button--small"><Paperclip /> Attach evidence</label>
             <small className="field-hint">Evidence is recorded by file name and size.</small>
           </div>
-          <button className="button button--primary button--small" disabled={pending || tooShort}>{pending ? "Adding…" : "Add note"}</button>
+          <button className="button button--primary button--small" disabled={pending || tooShort}><Busy pending={pending} label="Adding…">Add note</Busy></button>
         </div>
       </form>
       {issue.comments.length === 0 ? (

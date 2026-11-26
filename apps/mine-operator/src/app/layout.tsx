@@ -16,6 +16,7 @@ import "./login.css";
 import "./allocation.css";
 import "./modules.css";
 import "./trade.css";
+import "./motion.css";
 
 export const metadata: Metadata = {
   title: {

@@ -18,7 +18,7 @@ test.describe("navigation", () => {
     for (const name of ["Shifts", "Production", "Handover", "Exceptions", "Reports"]) await expect(shiftTabs.getByRole("link", { name })).toBeVisible();
     await page.goto("/shipments");
     const tabs = page.getByRole("navigation", { name: "Shipments sections" });
-    for (const name of ["Overview", "Mineral Inventory", "Shipments", "Logistics", "History"]) await expect(tabs.getByRole("link", { name })).toBeVisible();
+    for (const name of ["Overview", "Mineral Inventory", "Shipments", "History"]) await expect(tabs.getByRole("link", { name })).toBeVisible();
   });
 
   test("the Handover tab is its own page: it keeps the tabs and shows the sender, the receiver, production, carried work and the note", async ({ page }) => {
@@ -148,10 +148,8 @@ test.describe("shipments and logistics", () => {
     await expect(page.getByText("Collection request recorded", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Waiting for ABC Logistics/ })).toBeVisible();
 
-    await page.goto("/shipments/logistics");
+    await page.goto("/shipments/list");
     await expect(page.getByRole("row", { name: /SHP-0048/ })).toHaveCount(1);
-    await expect(page.getByRole("row", { name: /SHP-0048/ })).toContainText("Waiting for reply");
-    await expect(page.getByText(/nothing is sent to a real transporter/i)).toBeVisible();
 
     // The shipment is not booked until the transporter replies, on its own page with no sign-in.
     const reply = await context.newPage();
@@ -165,8 +163,6 @@ test.describe("shipments and logistics", () => {
 
     await page.goto("/shipments/list");
     await expect(page.getByRole("row", { name: /SHP-0048/ })).toContainText("Collection confirmed");
-    await page.goto("/shipments/logistics");
-    await expect(page.getByRole("row", { name: /SHP-0048/ })).toContainText("Confirmed");
   });
 
   test("a declined request returns the shipment to preparation, and a second request can be sent", async ({ page, context }) => {
@@ -184,8 +180,7 @@ test.describe("shipments and logistics", () => {
     await expect(page.getByText(/ABC Logistics declined\./).first()).toBeVisible();
     await page.getByRole("button", { name: /Mark ready & notify transporter/ }).click();
     await expect(page.getByRole("heading", { name: /Waiting for ABC Logistics/ })).toBeVisible();
-    await page.goto("/shipments/logistics");
-    await expect(page.getByRole("row", { name: /SHP-0048/ })).toHaveCount(2);
+    await expect(page.getByRole("link", { name: /Open reply page/ })).not.toHaveAttribute("href", href!);
   });
 
   test("dispatch and delivery stay traceable: a partial load, a short delivery with a reason, and a difference to review", async ({ page }) => {

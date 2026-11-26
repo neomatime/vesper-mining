@@ -30,6 +30,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import { StatusBadge } from "./status-badge";
 import { useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
+import { Busy } from "./busy";
 
 /** Everything a screen needs to show values, worked out from one set of records so every page shows the same figure. */
 export function shipmentValuesOf(data: Logistics) {
@@ -133,7 +134,7 @@ function SetPriceDialog({ shipment, current, onClose }: { shipment: Shipment; cu
       size="narrow"
       onClose={onClose}
       locked={save.isPending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !ready} onClick={() => save.mutate({ submissionId: submission.id, reference: shipment.orderRef, pricePerTonne: value, source })}>{save.isPending ? "Saving…" : "Save price"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !ready} onClick={() => save.mutate({ submissionId: submission.id, reference: shipment.orderRef, pricePerTonne: value, source })}><Busy pending={save.isPending} label="Saving…">Save price</Busy></button></>}
     >
       <div className="dialog__stack">
         <Field label={`Price per tonne (${CURRENCY})`}><input type="number" inputMode="decimal" min="0" step="any" value={price} onChange={(event) => setPrice(event.target.value)} /></Field>

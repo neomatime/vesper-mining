@@ -19,6 +19,7 @@ import { Field } from "./form-field";
 import { LoadingState } from "./query-state";
 import { StatusBadge } from "./status-badge";
 import { useOrganisation, useOrganisationMutations } from "./use-organisation";
+import { Busy } from "./busy";
 
 const passwordSchema = z
   .object({ current: z.string().min(1, "Enter your current password."), next: z.string(), confirm: z.string() })
@@ -39,7 +40,7 @@ export function MyProfileScreen() {
   const form = useForm<z.infer<typeof passwordSchema>>({ resolver: zodResolver(passwordSchema), defaultValues: { current: "", next: "", confirm: "" } });
   const { errors } = form.formState;
 
-  if (isPending || !data) return <div className="workspace-page"><LoadingState /></div>;
+  if (isPending || !data) return <div className="workspace-page"><LoadingState variant="detail" /></div>;
   const member = data.members.find((item) => item.name === context.persona);
   if (!member) return <div className="workspace-page"><section className="card detail-card restricted"><h2>Your profile could not be found</h2></section></div>;
 
@@ -112,7 +113,7 @@ export function MyProfileScreen() {
               <Field label="Current password" error={errors.current?.message} wide><input type="password" autoComplete="current-password" aria-invalid={Boolean(errors.current)} {...form.register("current")} /></Field>
               <Field label="New password" error={errors.next?.message} hint="At least 10 characters, with upper and lower case letters and a number." wide><input type="password" autoComplete="new-password" aria-invalid={Boolean(errors.next)} {...form.register("next")} /></Field>
               <Field label="Confirm new password" error={errors.confirm?.message} wide><input type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirm)} {...form.register("confirm")} /></Field>
-              <div className="form-field--wide"><button className="button button--primary" disabled={actions.changeOwnPassword.isPending}><KeyRound /> {actions.changeOwnPassword.isPending ? "Saving…" : "Change password"}</button></div>
+              <div className="form-field--wide"><button className="button button--primary" disabled={actions.changeOwnPassword.isPending}><KeyRound /> <Busy pending={actions.changeOwnPassword.isPending} label="Saving…">Change password</Busy></button></div>
             </form>
           </section>
         </aside>

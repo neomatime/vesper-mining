@@ -24,6 +24,7 @@ import { StatusBadge } from "./status-badge";
 import { useCreateServiceRequest, useProviders, useRequestMutations, useServiceRequest } from "./use-service";
 import { Select } from "./select";
 import { DateInput } from "./date-fields";
+import { Busy } from "./busy";
 
 function useEquipment(id: string) {
   return useQuery({ queryKey: ["equipment", id], queryFn: () => demoFetch<EquipmentView>(`/equipment/${id}`) });
@@ -54,7 +55,7 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
   const [providerId, setProviderId] = useState("");
 
   if (equipment.isPending || providers.isPending) return <LoadingState />;
-  if (equipment.isError) return <ErrorState message={equipment.error.message} onRetry={() => equipment.refetch()} />;
+  if (equipment.isError && !equipment.data) return <ErrorState message={equipment.error.message} onRetry={() => equipment.refetch()} retrying={equipment.isFetching} />;
   const item = equipment.data;
 
   if (!canRequestService(actor).allowed) {
@@ -195,7 +196,7 @@ export function NewServiceRequestScreen({ equipmentId, planId }: { equipmentId: 
 
         <footer className="repair-footer">
           <Link className="button button--quiet" href={`/equipment/${item.id}`}>Cancel</Link>
-          <button className="button button--primary" disabled={create.isPending || eligible.length === 0}><Send /> {create.isPending ? "Sending…" : "Send Repair Request"}</button>
+          <button className="button button--primary" disabled={create.isPending || eligible.length === 0}><Send /> <Busy pending={create.isPending} label="Sending…">Send Repair Request</Busy></button>
         </footer>
       </form>
     </div>
@@ -235,9 +236,9 @@ type DialogState =
 export function ServiceRequestScreen({ equipmentId, requestId }: { equipmentId: string; requestId: string }) {
   const equipment = useEquipment(equipmentId);
   const request = useServiceRequest(requestId);
-  if (equipment.isPending || request.isPending) return <LoadingState />;
-  if (equipment.isError) return <ErrorState message={equipment.error.message} onRetry={() => equipment.refetch()} />;
-  if (request.isError) return <ErrorState message={request.error.message} onRetry={() => request.refetch()} />;
+  if (equipment.isPending || request.isPending) return <LoadingState variant="detail" />;
+  if (equipment.isError && !equipment.data) return <ErrorState message={equipment.error.message} onRetry={() => equipment.refetch()} retrying={equipment.isFetching} />;
+  if (request.isError && !request.data) return <ErrorState message={request.error.message} onRetry={() => request.refetch()} retrying={request.isFetching} />;
   return <RequestDetail equipment={equipment.data} request={request.data} />;
 }
 

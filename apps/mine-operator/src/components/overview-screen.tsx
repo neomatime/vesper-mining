@@ -38,6 +38,7 @@ import { consequenceText } from "./impact-panels";
 import { RoleHomeScreen } from "./role-home-screen";
 import { IntelligenceSlot } from "./intelligence-panels";
 import { useImpact } from "./use-impact";
+import { useReducedMotion } from "./use-reduced-motion";
 
 type OverviewResponse = {
   context: { persona: string; role: string; siteName: string };
@@ -61,6 +62,7 @@ const chartData = [
 ];
 
 export function OverviewScreen() {
+  const reducedMotion = useReducedMotion();
   // The person is whoever is signed in, not whoever the demo records were first written for.
   const { context: signedIn } = useDemoContext();
   const query = useQuery({
@@ -69,8 +71,8 @@ export function OverviewScreen() {
   });
   const impact = useImpact();
 
-  if (query.isPending) return <LoadingState label="Loading the command centre" />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState label="Loading the command centre" variant="dashboard" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   const { context, priorityIssue, issues, areas, equipment, readiness: allReadiness, shifts, now } = query.data;
   // Resource Readiness and detailed handovers are Operations capabilities. Without them their records and tiles are left out.
@@ -227,8 +229,8 @@ export function OverviewScreen() {
                 <XAxis dataKey="day" tickLine={false} axisLine={false} />
                 <YAxis hide domain={[0, 180]} />
                 <Tooltip />
-                <Bar dataKey="plan" fill="var(--chart-plan)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="actual" fill="var(--chart-actual)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="plan" fill="var(--chart-plan)" radius={[3, 3, 0, 0]} isAnimationActive={!reducedMotion} animationBegin={0} animationDuration={450} animationEasing="ease-out" />
+                <Bar dataKey="actual" fill="var(--chart-actual)" radius={[3, 3, 0, 0]} isAnimationActive={!reducedMotion} animationBegin={0} animationDuration={450} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>
           </div>

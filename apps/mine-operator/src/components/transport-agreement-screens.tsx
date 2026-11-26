@@ -54,6 +54,7 @@ import { useLogistics, useSubmissionId } from "./use-logistics";
 import { DemoPeriodNote, ProviderTabs, providerName } from "./transport-screens";
 import { useTransport, useTransportAction, type Transport } from "./use-transport";
 import { RegisterView, type Register } from "./workspace-screen";
+import { Busy } from "./busy";
 
 const number = (value: number) => new Intl.NumberFormat("en-GB").format(value);
 
@@ -72,7 +73,7 @@ export function priceOf(agreement: Agreement): string {
 function WithTransport({ children }: { children: (data: Transport) => React.ReactNode }) {
   const query = useTransport();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <>{children(query.data)}</>;
 }
 
@@ -263,7 +264,7 @@ function ConfirmDialog({ agreement, onClose }: { agreement: Agreement; onClose: 
   const save = useTransportAction<{ note: string }, Agreement>({ path: `/agreements/${agreement.id}/confirm`, success: () => ({ title: "Agreement confirmed", detail: "It can now be used for shipments that match its material, route and dates." }), onDone: onClose });
   return (
     <Dialog title={`Confirm ${agreement.number}?`} description="You are saying the terms match the document." onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={() => save.mutate({ note })}>{save.isPending ? "Saving…" : "Confirm agreement"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending} onClick={() => save.mutate({ note })}><Busy pending={save.isPending} label="Saving…">Confirm agreement</Busy></button></>}>
       <Field label="Note (optional)"><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
     </Dialog>
   );
@@ -274,7 +275,7 @@ function EndDialog({ agreement, onClose }: { agreement: Agreement; onClose: () =
   const save = useTransportAction<{ reason: string }, Agreement>({ path: `/agreements/${agreement.id}/end`, success: () => ({ title: "Agreement ended", detail: "It is kept with its history. Shipments already using it keep their pricing record." }), onDone: onClose });
   return (
     <Dialog title={`End ${agreement.number}?`} onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5} onClick={() => save.mutate({ reason })}>{save.isPending ? "Saving…" : "End agreement"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || reason.trim().length < 5} onClick={() => save.mutate({ reason })}><Busy pending={save.isPending} label="Saving…">End agreement</Busy></button></>}>
       <Field label="Why is it ending? (required)"><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
     </Dialog>
   );
@@ -405,7 +406,7 @@ function AgreementFormView({ data, existing, missing }: { data: Transport; exist
         {confirmedEdit ? <Field label="Why are you changing confirmed terms? (required)"><textarea rows={2} value={reason} onChange={(event) => setReason(event.target.value)} /></Field> : null}
         <div className="task-footer">
           <p>{existing ? "Saves the change and records it in the history." : "Saves a draft. An authorised person then reviews the terms and confirms."}</p>
-          <div className="button-row"><button className="button button--primary" disabled={!valid || save.isPending} onClick={submit}>{save.isPending ? "Saving…" : existing ? "Save changes" : "Save draft"}</button></div>
+          <div className="button-row"><button className="button button--primary" disabled={!valid || save.isPending} onClick={submit}><Busy pending={save.isPending} label="Saving…">{existing ? "Save changes" : "Save draft"}</Busy></button></div>
         </div>
       </section>
     </div>
@@ -471,7 +472,7 @@ function ChooseAgreementDialog({ data, shipment, shipments, onClose }: { data: T
   const usage = chosen ? allowanceFor(chosen, data.period, shipments, terms.earlier) : null;
   return (
     <Dialog title="Use transport agreement" description={`${shipment.number} · ${shipment.mineral} · ${formatTonnes(shipment.tonnes)} to ${shipment.destination}`} size="wide" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !chosen || (replaces && (!replace || reason.trim().length < 5))} onClick={() => save.mutate({ agreementId: picked, replace: replaces ? replace : undefined, reason })}>{save.isPending ? "Saving…" : "Use this agreement"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose} disabled={save.isPending}>Cancel</button><button className="button button--primary" disabled={save.isPending || !chosen || (replaces && (!replace || reason.trim().length < 5))} onClick={() => save.mutate({ agreementId: picked, replace: replaces ? replace : undefined, reason })}><Busy pending={save.isPending} label="Saving…">Use this agreement</Busy></button></>}>
       <div className="dialog__stack">
         {eligible.length === 0 ? <div className="note-bar"><Info /> <span>No agreement covers this shipment: the material, route, dates, provider approval and agreement status all have to match.</span></div> : (
           <ul className="check-list">

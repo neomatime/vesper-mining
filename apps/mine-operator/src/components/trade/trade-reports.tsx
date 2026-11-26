@@ -18,6 +18,7 @@ import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type TradeView } from "../use-trade";
 import { agreementState, readinessLabels } from "./trade-status";
 import { ActionMenu, CellMain, Crumbs, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, RailCard, RailList, Register, TradeData, TradeHeader } from "./trade-ui";
+import { Busy } from "../busy";
 
 // ---- Building a report from the records -----------------------------------------------------------------------------------
 
@@ -198,7 +199,7 @@ function CreateReportDialog({ onClose }: { onClose: () => void }) {
   const save = useTradeAction<Record<string, unknown>, SavedReport>({ path: "/trade/reports", success: () => ({ title: "Report created" }), onDone: (result) => router.push(`/trade/reports/${result.id}`) });
   return (
     <Dialog title="Create report" size="narrow" onClose={onClose} locked={save.isPending}
-      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || form.name.trim().length < 3} onClick={() => save.mutate({ ...form, submissionId: submission.id })}>{save.isPending ? "Saving…" : "Create report"}</button></>}>
+      footer={<><button className="button button--quiet" onClick={onClose}>Cancel</button><button className="button button--primary" disabled={save.isPending || form.name.trim().length < 3} onClick={() => save.mutate({ ...form, submissionId: submission.id })}><Busy pending={save.isPending} label="Saving…">Create report</Busy></button></>}>
       <Field label="Name"><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} data-autofocus placeholder="Bayside Metals monthly review" /></Field>
       <Field label="Report type"><Select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value as ReportKind })}>{(Object.keys(reportKindLabels) as ReportKind[]).map((key) => <option key={key} value={key}>{reportKindLabels[key]}</option>)}</Select></Field>
       <Field label="Review" hint="How often the team reviews it."><Select value={form.frequency} onChange={(event) => setForm({ ...form, frequency: event.target.value })}>{Object.entries(frequencyLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></Field>
@@ -209,7 +210,7 @@ function CreateReportDialog({ onClose }: { onClose: () => void }) {
 // ---- One report ------------------------------------------------------------------------------------------------------------
 
 export function TradeReportScreen({ id }: { id: string }) {
-  return <TradeData label="Building the report">{(data) => {
+  return <TradeData label="Building the report" variant="detail">{(data) => {
     const report = data.reports.find((item) => item.id === id);
     if (!report) return <div className="workspace-page"><Crumbs items={[{ label: "Reports", href: "/trade/reports" }, { label: "Not found" }]} /><EmptyState title="This report could not be found" description="It may have been deleted." /></div>;
     return <ReportView data={data} report={report} />;

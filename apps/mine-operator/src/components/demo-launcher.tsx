@@ -11,6 +11,7 @@ import { useDemoContext } from "@/stores/demo-context";
 import { useAccount } from "@/stores/session";
 import { useToast } from "./toast-provider";
 import { Select } from "./select";
+import { Busy } from "./busy";
 
 /** Controls for HIMARK when presenting. Not linked from the product. */
 export function DemoLauncher() {
@@ -44,7 +45,7 @@ export function DemoLauncher() {
 
         <div className="console__actions">
           <button className="button button--quiet" onClick={() => reset.mutate()} disabled={reset.isPending}>
-            {reset.isPending ? "Resetting…" : "Reset all records"}
+            <Busy pending={reset.isPending} label="Resetting…">Reset all records</Busy>
           </button>
           <Link className="button button--primary" href={account ? "/overview" : "/sign-in"}>{account ? "Open VESPER" : "Go to sign in"}</Link>
         </div>

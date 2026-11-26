@@ -7,10 +7,12 @@ import { expect, test } from "@playwright/test";
 import { actAs, openAs, pick } from "./support";
 
 test.describe("service providers", () => {
-  test("opens from Logistics and shows the providers with the mine's approval", async ({ page }) => {
-    await openAs(page, "/shipments/logistics");
-    await page.getByRole("link", { name: "Manage providers", exact: true }).first().click();
-    await expect(page).toHaveURL(/\/shipments\/providers$/);
+  test("shows the providers with the mine's approval, and Shipments no longer has a Logistics tab", async ({ page }) => {
+    await openAs(page, "/shipments");
+    await expect(page.getByRole("navigation", { name: "Shipments sections" }).getByRole("link", { name: "Logistics" })).toHaveCount(0);
+    await page.goto("/shipments/logistics");
+    await expect(page).toHaveURL(/\/shipments\/list$/);
+    await page.goto("/shipments/providers");
     await expect(page.getByRole("heading", { name: "Service providers" })).toBeVisible();
     const tabs = page.getByRole("navigation", { name: "Service provider sections" });
     for (const name of ["Providers", "Transport quotes", "Transport agreements"]) await expect(tabs.getByRole("link", { name })).toBeVisible();

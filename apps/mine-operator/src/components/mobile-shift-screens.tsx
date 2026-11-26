@@ -30,7 +30,7 @@ export function MyShiftScreen() {
   const { context } = useDemoContext();
   const { data } = useShellData();
   const notifications = useNotifications();
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState variant="panel" />;
 
   const shift = currentShiftFor(data.shifts, context.persona);
   const first = context.persona.split(" ")[0];
@@ -132,7 +132,7 @@ function ShiftTasks({ shift, name }: { shift: ShiftView; name: string }) {
 export function MyWorkScreen() {
   const { context } = useDemoContext();
   const { data } = useShellData();
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState variant="panel" />;
 
   const shift = currentShiftFor(data.shifts, context.persona);
   const mine = data.issues

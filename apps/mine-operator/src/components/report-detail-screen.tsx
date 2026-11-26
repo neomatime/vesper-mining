@@ -17,6 +17,7 @@ import { EntitlementGate } from "./entitlement-gate";
 import { ErrorState, LoadingState } from "./query-state";
 import { PageHeader } from "./page-header";
 import { StatusBadge } from "./status-badge";
+import { useReducedMotion } from "./use-reduced-motion";
 
 function cellText(key: string, value: string | number | null) {
   if (value === null) return "Unknown";
@@ -25,13 +26,14 @@ function cellText(key: string, value: string | number | null) {
 }
 
 export function ReportDetailScreen({ reportKey }: { reportKey: string }) {
+  const reducedMotion = useReducedMotion();
   const { context } = useDemoContext();
   const query = useQuery({
     queryKey: ["report", reportKey],
     queryFn: () => demoFetch<ReportView>(`/reports/${reportKey}`),
   });
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const report = query.data;
 
   if (!canSeeReport(context.tier, report.level)) {
@@ -61,7 +63,7 @@ export function ReportDetailScreen({ reportKey }: { reportKey: string }) {
                 <Tooltip cursor={{ fill: "rgba(22,134,91,0.06)" }} />
                 {chart.series.length > 1 ? <Legend /> : null}
                 {chart.series.map((series) => (
-                  <Bar key={series.key} name={series.label} dataKey={series.key} fill={series.color} stackId={chart.stacked ? "stack" : undefined} radius={chart.stacked ? 0 : [5, 5, 0, 0]} isAnimationActive={false} />
+                  <Bar key={series.key} name={series.label} dataKey={series.key} fill={series.color} stackId={chart.stacked ? "stack" : undefined} radius={chart.stacked ? 0 : [5, 5, 0, 0]} isAnimationActive={!reducedMotion} animationBegin={0} animationDuration={450} animationEasing="ease-out" />
                 ))}
               </BarChart>
             </ResponsiveContainer>

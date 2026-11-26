@@ -32,7 +32,7 @@ export function useToast() {
 
 const icons = { success: CheckCircle2, error: AlertTriangle, info: Info } as const;
 
-function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+function ToastItem({ toast, leaving, onDismiss }: { toast: Toast; leaving: boolean; onDismiss: () => void }) {
   const [paused, setPaused] = useState(false);
   const Icon = icons[toast.tone];
   const duration = toast.tone === "error" ? 9000 : toast.action ? 8000 : 5000;
@@ -45,7 +45,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
-      className={`toast toast--${toast.tone}`}
+      className={`toast toast--${toast.tone} ${leaving ? "is-leaving" : ""}`}
       role={toast.tone === "error" ? "alert" : "status"}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -75,10 +75,16 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [leaving, setLeaving] = useState<number[]>([]);
   const counter = useRef(0);
 
+  // A dismissed message slides away briefly before it is removed (instant under reduced motion, where the animation is skipped).
   const dismiss = useCallback((id: number) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
+    setLeaving((current) => (current.includes(id) ? current : [...current, id]));
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+      setLeaving((current) => current.filter((item) => item !== id));
+    }, 150);
   }, []);
 
   const push = useCallback((toast: ToastInput) => {
@@ -95,7 +101,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div className="toast-region" aria-label="Messages">
         {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
+          <ToastItem key={toast.id} toast={toast} leaving={leaving.includes(toast.id)} onDismiss={() => dismiss(toast.id)} />
         ))}
       </div>
     </ToastContext.Provider>

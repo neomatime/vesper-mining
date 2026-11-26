@@ -25,7 +25,7 @@ export function LogisticsScreen() {
   const transport = useTransport();
   const logistics = useLogistics();
   if (transport.isPending || logistics.isPending) return <LoadingState label="Loading logistics" />;
-  if (transport.isError || !transport.data || logistics.isError || !logistics.data) return <ErrorState message="Logistics could not be loaded." onRetry={() => { void transport.refetch(); void logistics.refetch(); }} />;
+  if (!transport.data || !logistics.data) return <ErrorState message="Logistics could not be loaded." onRetry={() => { void transport.refetch(); void logistics.refetch(); }} retrying={transport.isFetching || logistics.isFetching} />;
   return <Logistics transport={transport.data} shipments={logistics.data.shipments} />;
 }
 

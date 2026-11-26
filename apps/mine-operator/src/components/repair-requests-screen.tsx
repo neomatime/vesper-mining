@@ -21,7 +21,7 @@ export function RepairRequestsScreen() {
   const requests = useServiceRequests();
   const { data: shell } = useShellData();
   if (requests.isPending) return <LoadingState />;
-  if (requests.isError) return <ErrorState message={requests.error.message} onRetry={() => requests.refetch()} />;
+  if (requests.isError && !requests.data) return <ErrorState message={requests.error.message} onRetry={() => requests.refetch()} retrying={requests.isFetching} />;
   const assetOf = (request: ServiceRequest) => shell?.equipment.find((item) => item.id === request.equipmentId);
   const providerOf = (request: ServiceRequest) => {
     const chosen = request.invites.find((invite) => invite.id === request.awardedInviteId);

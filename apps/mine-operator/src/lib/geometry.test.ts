@@ -15,11 +15,11 @@ import { describe, expect, it } from "vitest";
 const ROUND = [
   ".status-badge__dot", ".notification-dot", ".context-pills__freshness", ".demo-pill > span", ".demo-launcher__label span",
   ".priority::before", ".cal__dot", ".lifecycle__dot", ".progress-orbit", ".spinner", ".brand-loader__halo", 
-  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar",
+  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner",
 ];
 
 const app = join(__dirname, "..", "app");
-const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css"];
+const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css"];
 
 /** Every border-radius declaration with its selector, ignoring comments. */
 function radii() {

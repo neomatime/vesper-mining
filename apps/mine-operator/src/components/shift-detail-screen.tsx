@@ -42,14 +42,15 @@ import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
 import { useShiftMutations } from "./use-shift-mutations";
 import { ImpactCard } from "./impact-panels";
 import { useFeature } from "./use-entitlements";
+import { Busy } from "./busy";
 
 export function ShiftDetailScreen({ id }: { id: string }) {
   const query = useQuery({
     queryKey: ["shift", id],
     queryFn: () => demoFetch<ShiftView>(`/shifts/${id}`),
   });
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <ShiftDetail shift={query.data} />;
 }
 
@@ -93,7 +94,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
         action={
           <div className="header-actions">
             <StatusBadge value={stateTone[shift.state]} label={shiftStateLabels[shift.state]} />
-            {shift.state === "scheduled" && canRun ? <button className="button button--primary" disabled={mutations.start.isPending} onClick={() => mutations.start.mutate()}><Play /> {mutations.start.isPending ? "Starting…" : "Start shift"}</button> : null}
+            {shift.state === "scheduled" && canRun ? <button className="button button--primary" disabled={mutations.start.isPending} onClick={() => mutations.start.mutate()}><Play /> <Busy pending={mutations.start.isPending} label="Starting…">Start shift</Busy></button> : null}
             {shift.state === "in_progress" && canRun ? <Link className="button button--primary" href={`/shifts/${shift.id}/close`}><Square /> Close shift</Link> : null}
             {live && canManage ? <button className="button button--quiet" onClick={() => setDialog({ kind: "edit" })}><Pencil /> Edit</button> : null}
             <MoreMenu>

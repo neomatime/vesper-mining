@@ -12,12 +12,13 @@ import { ErrorState, LoadingState } from "./query-state";
 import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useAutomationMutations, useAutomations, type AutomationsView } from "./use-automations";
+import { Busy } from "./busy";
 
 export function AutomationsPanel() {
   const query = useAutomations();
   const { update, run } = useAutomationMutations();
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="panel" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const view: AutomationsView = query.data;
   const anyOn = view.rules.some((item) => item.rule.enabled);
 
@@ -26,7 +27,7 @@ export function AutomationsPanel() {
       <section className="card register-card" aria-labelledby="automations-heading">
         <header className="card__header">
           <div><span className="eyebrow">Operations</span><h2 id="automations-heading">Automations</h2></div>
-          <button className="button button--primary" disabled={!anyOn || run.isPending} onClick={() => run.mutate({})}><Play /> {run.isPending ? "Running…" : "Run all rules now"}</button>
+          <button className="button button--primary" disabled={!anyOn || run.isPending} onClick={() => run.mutate({})}><Play /> <Busy pending={run.isPending} label="Running…">Run all rules now</Busy></button>
         </header>
         <div className="note-bar"><Info /> <span>Rules tell people when something needs them. They never change a record, approve or send anything. In this demo they run when you press Run, and notifications stay inside VESPER.</span></div>
         <ul className="automation-list" aria-label="Automations">

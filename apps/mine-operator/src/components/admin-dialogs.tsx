@@ -15,6 +15,7 @@ import { Dialog } from "./dialog";
 import { Field } from "./form-field";
 import type { MemberInput } from "./use-organisation";
 import { Select } from "./select";
+import { Busy } from "./busy";
 
 type Footer = { pending: boolean; onClose: () => void; form: string; label: string };
 
@@ -22,7 +23,7 @@ function DialogFooter({ pending, onClose, form, label }: Footer) {
   return (
     <>
       <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button>
-      <button className="button button--primary" form={form} disabled={pending}>{pending ? "Saving…" : label}</button>
+      <button className="button button--primary" form={form} disabled={pending}><Busy pending={pending} label="Saving…">{label}</Busy></button>
     </>
   );
 }
@@ -206,7 +207,7 @@ export function ChangeRoleDialog({ member, pending, onSave, onClose }: { member:
       footer={
         <>
           <button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Cancel</button>
-          <button className="button button--primary" disabled={pending || role === member.role} onClick={() => onSave(role)}>{pending ? "Saving…" : "Change role"}</button>
+          <button className="button button--primary" disabled={pending || role === member.role} onClick={() => onSave(role)}><Busy pending={pending} label="Saving…">Change role</Busy></button>
         </>
       }
     >

@@ -48,11 +48,11 @@ import { Select } from "./select";
 import { StatusBadge } from "./status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
 import { OWN_FLEET_ID, OWN_FLEET_NAME, fleetProblems } from "@/lib/fleet-rules";
-import { approvalLabels, approvalTone } from "@/lib/transport-rules";
 import { FleetSection, TransportModeChoice, TransportModeSwitch } from "./fleet-panels";
 import { TransportPricingSection } from "./transport-agreement-screens";
 import { ValueCell, ValueSection, shipmentValuesOf } from "./value-panels";
 import { RegisterView, type Register } from "./workspace-screen";
+import { Busy } from "./busy";
 
 const useActor = () => {
   const { context } = useDemoContext();
@@ -85,8 +85,8 @@ function useScreenData() {
 export function ShipmentOverviewScreen() {
   const query = useScreenData();
   const actor = useActor();
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="dashboard" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const data = query.data;
   const open = data.shipments.filter(isOpen);
   const count = (state: Shipment["state"]) => data.shipments.filter((item) => item.state === state).length;
@@ -204,7 +204,7 @@ function movementLink(move: StockMovement, data: Logistics): string | null {
 export function InventoryScreen() {
   const query = useScreenData();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const data = query.data;
   const total = (pick: (item: Logistics["stockpiles"][number]) => number) => data.stockpiles.reduce((sum, item) => sum + pick(item), 0);
   const needsProcessing = data.stockpiles.filter((item) => item.condition === "needs_processing").reduce((sum, item) => sum + item.onHand, 0);
@@ -272,7 +272,7 @@ export function ShipmentListScreen() {
   const query = useScreenData();
   const actor = useActor();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const data = query.data;
   const values = shipmentValuesOf(data);
   const active = data.shipments.filter(isOpen);
@@ -311,81 +311,10 @@ export function ShipmentListScreen() {
 
 // ---- Logistics --------------------------------------------------------------------------------------------------------
 
-export function LogisticsScreen() {
-  const query = useScreenData();
-  const actor = useActor();
-  const remind = useLogisticsAction<{ id: string }, CollectionRequest>({ path: (input) => `/collection-requests/${input.id}/reminder`, success: (request) => ({ title: "Reminder recorded", detail: `${request.number}: in this demo nothing is sent. Open the reply page to answer as the transporter.` }) });
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
-  const data = query.data;
-  const canManage = canActOnShipments("manage_shipments", actor).allowed;
-
-  const register: Register<CollectionRequest> = {
-    icon: Truck,
-    tiles: [],
-    columns: [
-      { key: "request", label: "Request", render: (item) => item.number },
-      { key: "shipment", label: "Shipment", render: (item) => { const s = data.shipments.find((x) => x.id === item.shipmentId); return s ? `${s.number} · ${formatTonnes(s.tonnes)}` : "—"; } },
-      { key: "transporter", label: "Transporter", render: (item) => transporterOf(data, item.transporterId)?.name ?? "—" },
-      { key: "collection", label: "Collection", render: (item) => (item.collectionAt ? formatDemoDateTime(item.collectionAt) : (() => { const s = data.shipments.find((x) => x.id === item.shipmentId); return s ? shortDate(s.preferredDate) : "—"; })()) },
-      { key: "response", label: "Response", render: (item) => <StatusBadge value={item.state === "sent" ? "needs_confirmation" : item.state === "confirmed" ? "confirmed" : item.state === "declined" ? "at_risk" : "cancelled"} label={item.state === "sent" ? "Waiting for reply" : item.state === "confirmed" ? "Confirmed" : item.state === "declined" ? "Declined" : "Cancelled"} /> },
-      {
-        key: "next",
-        label: "Next step",
-        render: (item) =>
-          item.state === "sent" && item.transporterId === OWN_FLEET_ID ? <Link className="row-link-text" href={`/shipments/${item.shipmentId}`}>Confirm schedule</Link> : item.state === "sent" ? (
-            <span className="row-actions">
-              {canManage ? <button className="link-button" disabled={remind.isPending} onClick={() => remind.mutate({ id: item.id })}>Send reminder</button> : null}
-              {canManage ? " · " : null}<Link className="row-link-text" href={`/transport/respond/${item.token}`} target="_blank">Open reply page (demo)</Link>
-            </span>
-          ) : <Link className="row-link-text" href={`/shipments/${item.shipmentId}`}>{item.state === "confirmed" ? "View confirmation" : "View shipment"}</Link>,
-      },
-    ],
-    filters: [
-      { key: "all", label: "All", test: () => true },
-      { key: "waiting", label: "Waiting for reply", test: (item) => item.state === "sent" },
-      { key: "confirmed", label: "Confirmed", test: (item) => item.state === "confirmed" },
-    ],
-    href: (item) => `/shipments/${item.shipmentId}`,
-    text: (item) => [item.number, transporterOf(data, item.transporterId)?.name, data.shipments.find((x) => x.id === item.shipmentId)?.number].join(" "),
-    rows: data.requests,
-    action: { label: "Manage providers", href: "/shipments/providers", quiet: true, icon: Truck },
-    emptyTitle: "No collection requests yet",
-    emptyBody: "Requests appear here when a shipment is marked ready.",
-    footnote: "Demo: requests are recorded here and nothing is sent to a real transporter. A request is not a booking until the transporter confirms.",
-  };
-
-  return (
-    <>
-      <RegisterView
-        initialFilter={null}
-        header={{ eyebrow: "Shipments", title: "Logistics", description: "Follow collection requests and transporter replies." }}
-        register={register}
-        tabs={<ShipmentTabs active="logistics" />}
-      />
-      <section className="card register-card" style={{ maxWidth: 1500, margin: "14px auto 0" }}>
-        <div className="card__header"><div><h2>Providers</h2></div><Link className="row-link-text" href="/shipments/providers">Manage providers, quotes and agreements</Link></div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th scope="col">Provider</th><th scope="col">Type</th><th scope="col">Mine approval</th></tr></thead>
-            <tbody>
-              {data.transporters.map((item) => (
-                <tr key={item.id}><td data-label="Provider"><Link className="row-link-text" href={`/shipments/providers/${item.id}`}><strong>{item.name}</strong></Link></td><td data-label="Type">{item.mode}</td><td data-label="Mine approval"><StatusBadge value={approvalTone[item.approval]} label={approvalLabels[item.approval]} /></td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </>
-  );
-}
-
-// ---- History ----------------------------------------------------------------------------------------------------------
-
 export function HistoryScreen() {
   const query = useScreenData();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const data = query.data;
   const values = shipmentValuesOf(data);
   const finished = data.shipments.filter((item) => !isOpen(item));
@@ -454,7 +383,7 @@ export function HistoryScreen() {
 export function CreateShipmentScreen() {
   const query = useScreenData();
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   return <CreateForm data={query.data} />;
 }
 
@@ -560,7 +489,7 @@ function CreateForm({ data }: { data: Logistics }) {
           <p>Creates {nextNumber} and reserves {entered ? formatTonnes(tonnes) : "the amount"}. Complete the readiness checks next.</p>
           <div className="button-row">
             <Link className="button button--quiet" href="/shipments/list">Cancel</Link>
-            <button className="button button--primary" disabled={create.isPending || !stockpile}>{create.isPending ? "Creating…" : "Create shipment"}</button>
+            <button className="button button--primary" disabled={create.isPending || !stockpile}><Busy pending={create.isPending} label="Creating…">Create shipment</Busy></button>
           </div>
         </div>
       </form>
@@ -572,8 +501,8 @@ function CreateForm({ data }: { data: Logistics }) {
 
 export function ShipmentScreen({ id }: { id: string }) {
   const query = useScreenData();
-  if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isPending) return <LoadingState variant="detail" />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
   const shipment = query.data.shipments.find((item) => item.id === id);
   if (!shipment) return <ErrorState message="This shipment could not be found." onRetry={() => query.refetch()} />;
   return <ShipmentView data={query.data} shipment={shipment} />;
@@ -676,7 +605,7 @@ function ShipmentView({ data, shipment }: { data: Logistics; shipment: Shipment 
                   disabled={ready.isPending || save.isPending}
                   onClick={() => (problems.length > 0 ? save.mutate({ checks, transporterId, version: shipment.version }) : (changed ? save.mutateAsync({ checks, transporterId, version: shipment.version }).then(() => ready.mutate({ version: shipment.version + 1 })) : ready.mutate({ version: shipment.version })))}
                 >
-                  <Send /> {ready.isPending ? "Recording…" : ownFleet ? "Mark ready" : "Mark ready & notify transporter"}
+                  <Send /> <Busy pending={ready.isPending} label="Recording…">{ownFleet ? "Mark ready" : "Mark ready & notify transporter"}</Busy>
                 </button>
               </div>
             </div>
@@ -764,7 +693,7 @@ function DispatchForm({ shipment, remaining }: { shipment: Shipment; remaining: 
     <form className="task-grid task-grid--two" onSubmit={(event) => { event.preventDefault(); dispatch.mutate({ submissionId: submission.id, tonnes: value, reference, version: shipment.version }); }}>
       <Field label="Amount leaving the mine (t)" hint="Enter part of the shipment if it goes in more than one load."><input type="number" inputMode="decimal" min="0" step="any" value={tonnes} onChange={(event) => setTonnes(event.target.value)} /></Field>
       <Field label="Load reference (optional)"><input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Truck or weighbridge slip" /></Field>
-      <div><button className="button button--primary" disabled={dispatch.isPending || !(value > 0)}><Truck /> {dispatch.isPending ? "Recording…" : "Record dispatch"}</button></div>
+      <div><button className="button button--primary" disabled={dispatch.isPending || !(value > 0)}><Truck /> <Busy pending={dispatch.isPending} label="Recording…">Record dispatch</Busy></button></div>
     </form>
   );
 }
@@ -786,7 +715,7 @@ function DeliveryForm({ shipment, inTransit }: { shipment: Shipment; inTransit: 
       <Field label="Delivery evidence" hint="For example the signed delivery note."><input value={evidence} onChange={(event) => setEvidence(event.target.value)} placeholder="DN-0048.pdf" /></Field>
       {difference !== 0 ? <Field label="Reason for the difference"><input value={reason} onChange={(event) => setReason(event.target.value)} /></Field> : <div />}
       {difference !== 0 ? <div className="note-bar note-bar--warn" style={{ gridColumn: "1 / -1" }}><AlertTriangle /> <span>{formatTonnes(Math.abs(difference))} {difference < 0 ? "less" : "more"} arrived than was dispatched. It stays on screen until someone reviews it.</span></div> : null}
-      <div><button className="button button--primary" disabled={deliver.isPending || evidence.trim().length < 3}><Check /> {deliver.isPending ? "Recording…" : "Record delivery"}</button></div>
+      <div><button className="button button--primary" disabled={deliver.isPending || evidence.trim().length < 3}><Check /> <Busy pending={deliver.isPending} label="Recording…">Record delivery</Busy></button></div>
     </form>
   );
 }
@@ -800,7 +729,7 @@ function CancelDialog({ shipment, pending, onClose, onCancel }: { shipment: Ship
       size="narrow"
       onClose={onClose}
       locked={pending}
-      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Keep shipment</button><button className="button button--primary" disabled={pending || reason.trim().length < 8} onClick={() => onCancel(reason.trim())}>{pending ? "Cancelling…" : "Cancel shipment"}</button></>}
+      footer={<><button className="button button--quiet" type="button" onClick={onClose} disabled={pending}>Keep shipment</button><button className="button button--primary" disabled={pending || reason.trim().length < 8} onClick={() => onCancel(reason.trim())}><Busy pending={pending} label="Cancelling…">Cancel shipment</Busy></button></>}
     >
       <Field label="Why is it being cancelled?" hint="At least eight characters."><textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
     </Dialog>

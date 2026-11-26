@@ -21,7 +21,7 @@ export function ShiftAllocationScreen({ id }: { id: string }) {
   const { data: shell } = useShellData();
   const query = useQuery({ queryKey: ["shift", id], queryFn: () => demoFetch<ShiftView>(`/shifts/${id}`) });
   if (query.isPending || !shell) return <LoadingState />;
-  if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} retrying={query.isFetching} />;
 
   const shift = query.data;
   const equipment = shell.equipment;
