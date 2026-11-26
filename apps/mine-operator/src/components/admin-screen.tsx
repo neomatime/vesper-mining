@@ -6,6 +6,7 @@
  */
 import { Check, Lock, Minus, Pencil, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { formatDemoDateTime } from "@/lib/demo-clock";
 import { entitlementRows, entitlementsFor } from "@/lib/entitlements";
@@ -17,6 +18,7 @@ import { canApproveProviders, approvalLabel, isApproved } from "@/lib/service-ru
 import { useDemoContext } from "@/stores/demo-context";
 import { CompanyDialog, MemberDialog, SiteDialog, TemporaryPasswordDialog } from "./admin-dialogs";
 import { ConfirmDialog } from "./dialog";
+import { AutomationsPanel } from "./automations-panel";
 import { PageHeader } from "./page-header";
 import { ProviderDialog } from "./provider-dialogs";
 import { useShellData } from "./shell-data";
@@ -34,14 +36,16 @@ const integrations = [
   { name: "Procurement and payments", detail: "Nothing can be ordered, approved or paid from VESPER." },
 ];
 
+/** The sections, grouped: people and access, the organisation itself, operations set-up, then plan and connections. */
 const tabs = [
-  { key: "people", label: "Employees" },
-  { key: "rights", label: "User rights" },
-  { key: "providers", label: "Service providers" },
-  { key: "site", label: "Site" },
-  { key: "company", label: "Company" },
-  { key: "plan", label: "Plan and usage" },
-  { key: "connections", label: "Connections" },
+  { key: "people", label: "Employees", group: 0 },
+  { key: "rights", label: "User rights", group: 0 },
+  { key: "site", label: "Site", group: 1 },
+  { key: "company", label: "Company", group: 1 },
+  { key: "providers", label: "Service providers", group: 2 },
+  { key: "automations", label: "Automations", group: 2 },
+  { key: "plan", label: "Plan and usage", group: 3 },
+  { key: "connections", label: "Connections", group: 3 },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -59,7 +63,12 @@ export function AdminScreen() {
   const { context } = useDemoContext();
   const { data, isPending } = useOrganisation();
   const actions = useOrganisationMutations();
-  const [tab, setTab] = useState<TabKey>("people");
+  // The section is in the address, so a refresh, the back button and a shared link all land on the same tab.
+  const router = useRouter();
+  const params = useSearchParams();
+  const requested = params.get("tab");
+  const tab: TabKey = tabs.some((item) => item.key === requested) ? (requested as TabKey) : "people";
+  const setTab = (key: TabKey) => router.replace(key === "people" ? "/admin" : `/admin?tab=${key}`, { scroll: false });
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
   const [editingSite, setEditingSite] = useState(false);
@@ -117,15 +126,17 @@ export function AdminScreen() {
         action={tab === "people" ? <button className="button button--primary" onClick={() => setAdding(true)}><Plus /> Add employee</button> : tab === "providers" ? <button className="button button--primary" onClick={() => setProviderDialog({})}><Plus /> Add service provider</button> : undefined}
       />
 
-      <section className="kpi-row kpi-row--lead-wide" aria-label="Summary">
-        <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
-        <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
-        <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
-      </section>
+      {tab === "people" || tab === "plan" ? (
+        <section className="kpi-row kpi-row--lead-wide" aria-label="Summary">
+          <article className="kpi"><span>Plan</span><strong>{plan.label}</strong><small>{plan.reporting} reporting</small></article>
+          <article className="kpi"><span>Site</span><strong>{site.name}</strong><small>{plan.sites} on your plan</small></article>
+          <article className="kpi"><span>Employees</span><strong>{active}</strong><small>{waiting ? `${waiting} awaiting first sign-in` : "With access to VESPER"}</small></article>
+        </section>
+      ) : null}
 
       <div className="tabs" role="tablist" aria-label="Administration sections">
-        {tabs.map((item) => (
-          <button key={item.key} role="tab" id={`tab-${item.key}`} aria-selected={tab === item.key} aria-controls={`panel-${item.key}`} tabIndex={tab === item.key ? 0 : -1} className={tab === item.key ? "tab tab--active" : "tab"} onClick={() => setTab(item.key)}>
+        {tabs.map((item, index) => (
+          <button key={item.key} role="tab" id={`tab-${item.key}`} aria-selected={tab === item.key} aria-controls={`panel-${item.key}`} tabIndex={tab === item.key ? 0 : -1} className={`${tab === item.key ? "tab tab--active" : "tab"} ${index > 0 && tabs[index - 1].group !== item.group ? "tab--group-start" : ""}`} onClick={() => setTab(item.key)}>
             {item.label}
           </button>
         ))}
@@ -253,6 +264,8 @@ export function AdminScreen() {
           </section>
         </div>
       ) : null}
+
+      {tab === "automations" ? <AutomationsPanel /> : null}
 
       {tab === "site" ? (
         <div role="tabpanel" id="panel-site" aria-labelledby="tab-site" className="admin-panel">
