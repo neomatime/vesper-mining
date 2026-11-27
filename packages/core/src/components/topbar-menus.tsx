@@ -3,7 +3,7 @@
 /**
  * The three menus in the top bar: site, notifications and profile.
  */
-import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Monitor, Pickaxe, Settings2, Smartphone, Network } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Pickaxe, Settings2, Smartphone, Network } from "lucide-react";
 // Links follow the app showing the menu (Mining Operations or VESPER Mobile); see app-context.tsx.
 import { AppLink as Link, useApp, useAppLink } from "./app-context";
 import { usePathname, useRouter } from "next/navigation";
@@ -113,12 +113,12 @@ export function NotificationMenu() {
   );
 }
 
-/** The account menu. In VESPER Mobile it offers the web app instead of the workspaces; in Mining Operations it offers Mobile. */
+/** The account menu. In Mining Operations it offers the workspaces and VESPER Mobile; VESPER Mobile keeps to the field app. */
 export function ProfileMenu() {
   const { open, setOpen, close, ref } = useMenu();
   const inField = useApp() === "mobile";
   const appLink = useAppLink();
-  const otherApp = appLink(inField ? "/overview" : "/my-shift");
+  const mobileApp = appLink("/my-shift");
   const router = useRouter();
   const { context } = useDemoContext();
   const signOut = useSession((state) => state.signOut);
@@ -191,16 +191,11 @@ export function ProfileMenu() {
             </div>
           ) : null}
 
+          {/* VESPER Mobile keeps to field work, so this section (other apps, administration) is web-only. */}
+          {!inField ? (
           <div className="menu-section">
-            {inField ? (
-              otherApp ? (
-                <Link className="menu-item" href="/overview" onClick={close}>
-                  <span className="menu-item__icon"><Monitor size={16} /></span>
-                  <span className="menu-item__copy"><strong>Open VESPER on the web</strong><small>Mining Operations and Trade</small></span>
-                </Link>
-              ) : null
-            ) : mobileIncluded ? (
-              otherApp ? (
+            {mobileIncluded ? (
+              mobileApp ? (
                 <Link className="menu-item" href="/my-shift" onClick={close}>
                   <span className="menu-item__icon"><Smartphone size={16} /></span>
                   <span className="menu-item__copy"><strong>Open VESPER Mobile</strong><small>The field app for phones</small></span>
@@ -212,13 +207,14 @@ export function ProfileMenu() {
                 <span className="menu-item__copy"><strong>VESPER Mobile</strong><small>Not included in {tierLabel(context.tier)}</small></span>
               </div>
             )}
-            {canAdminister && !inField ? (
+            {canAdminister ? (
               <Link className="menu-item" href="/admin" onClick={close}>
                 <span className="menu-item__icon"><Settings2 size={16} /></span>
                 <span className="menu-item__copy"><strong>Administration</strong><small>People, rights, site and plan</small></span>
               </Link>
             ) : null}
           </div>
+          ) : null}
 
           <div className="menu-section">
             <ThemeSwitch />

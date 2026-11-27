@@ -14,6 +14,9 @@ test("signs in to My Shift, whatever the role, with the four field tabs", async 
   const tabs = page.getByRole("navigation", { name: "Field navigation" });
   for (const name of ["My Shift", "My Work", "Report", "Notifications"]) await expect(tabs.getByRole("link", { name })).toBeVisible();
   await page.getByRole("button", { name: /Account menu for Thabo Molefe/ }).click();
+  // The field app keeps to field work: no links out to the web app or to administration.
+  await expect(page.getByRole("group", { name: "Account menu" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /on the web|Administration/ })).toHaveCount(0);
   await page.getByRole("button", { name: /Sign out/ }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
 
