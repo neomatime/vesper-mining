@@ -122,7 +122,7 @@ describe("the generated dark stylesheet", () => {
 
 describe("the committed dark stylesheet", () => {
   it("is up to date with globals.css and theme.css (run: node scripts/generate-dark-theme.mjs)", () => {
-    const read = (name: string) => readFileSync(join(__dirname, "..", "app", name), "utf8").replace(/\r\n/g, "\n");
+    const read = (name: string) => readFileSync(join(__dirname, "..", "..", "..", "..", "packages", "core", "src", "styles", name), "utf8").replace(/\r\n/g, "\n");
     expect(read("dark.generated.css")).toBe(generateDarkTheme([read("globals.css"), read("theme.css")]));
   });
 });

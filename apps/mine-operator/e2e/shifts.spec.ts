@@ -133,17 +133,6 @@ test.describe("shift management", () => {
     await expect(page.getByRole("button", { name: "Start shift" })).toHaveCount(0);
   });
 
-  test("shows a field employee their own shift and tasks on the phone layout", async ({ page }) => {
-    await openAs(page, "/mobile/my-shift", "Thabo Molefe");
-    await expect(page.getByText(/Shift A · 06:00–14:00/)).toBeVisible();
-    await expect(page.getByText(/Operator · EX-204/)).toBeVisible();
-    await expect(page.getByText(/remaining/)).toBeVisible();
-    await page.goto("/mobile/my-work");
-    await expect(page.getByText("North Pit pre-start observation")).toBeVisible();
-    await page.getByRole("button", { name: /Reopen: North Pit pre-start observation/ }).click();
-    await expect(page.getByRole("button", { name: /Mark done: North Pit pre-start observation/ })).toBeVisible();
-  });
-
   test("shows the current shift on the command centre and in search", async ({ page }) => {
     await openAs(page, "/overview", "John Dlamini");
     await expect(page.getByText(/Shift A · 06:00–14:00/)).toBeVisible();

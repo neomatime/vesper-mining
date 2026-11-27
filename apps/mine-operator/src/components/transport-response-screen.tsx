@@ -8,11 +8,11 @@
 import { Lock, Truck } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { formatTonnes, shortDate } from "@/lib/shipment-rules";
-import type { demoDomain } from "@/lib/demo-store";
-import { Field } from "./form-field";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { formatTonnes, shortDate } from "@core/lib/shipment-rules";
+import type { demoDomain } from "@core/lib/demo-store";
+import { Field } from "@core/components/form-field";
 
 type View = ReturnType<typeof demoDomain.transportView>;
 

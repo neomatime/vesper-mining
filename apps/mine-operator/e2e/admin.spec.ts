@@ -3,7 +3,7 @@
  * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { FIXTURE_PASSWORD } from "../src/lib/accounts";
+import { FIXTURE_PASSWORD } from "../../../packages/core/src/lib/accounts";
 import { openAs, pick } from "./support";
 
 test.describe("administration", () => {

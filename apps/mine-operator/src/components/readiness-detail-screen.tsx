@@ -9,19 +9,19 @@ import type { ReadinessActivity, ReadinessDecision } from "@vesper/api-contracts
 import { ArrowLeft, CalendarClock, CheckCircle2, PackageCheck, Pencil, Truck, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { formatStatus, potentiallyAllocable } from "@/lib/calculations";
-import { indicativeOrderBy, partPosition } from "@/lib/readiness-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { formatStatus, potentiallyAllocable } from "@core/lib/calculations";
+import { indicativeOrderBy, partPosition } from "@core/lib/readiness-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
 import { ImpactCard } from "./impact-panels";
-import { StatusBadge } from "./status-badge";
-import { useToast } from "./toast-provider";
-import { Busy } from "./busy";
+import { StatusBadge } from "@core/components/status-badge";
+import { useToast } from "@core/components/toast-provider";
+import { Busy } from "@core/components/busy";
 
 type Part = ReadinessActivity["parts"][number];
 

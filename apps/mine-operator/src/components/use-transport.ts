@@ -6,10 +6,10 @@
  * data (a shipment's pricing source lives there), the Overview and notifications.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { demoFetch, demoSend } from "@/lib/api";
-import type { demoDomain } from "@/lib/demo-store";
-import { useDemoContext } from "@/stores/demo-context";
-import { useToast } from "./toast-provider";
+import { demoFetch, demoSend } from "@core/lib/api";
+import type { demoDomain } from "@core/lib/demo-store";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useToast } from "@core/components/toast-provider";
 import { failureTitle } from "./use-logistics";
 
 export type Transport = ReturnType<typeof demoDomain.transport>;

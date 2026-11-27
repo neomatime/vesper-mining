@@ -3,7 +3,7 @@
 /**
  * How each Trade status is shown: words plus the shared badge family, so the same state always looks the same on every screen.
  */
-import { agreementStatusLabels, clientStatusLabels, deliveryStageLabels, documentStatusLabels, enquiryStageLabels, settlementStatusLabels } from "@/lib/trade-rules";
+import { agreementStatusLabels, clientStatusLabels, deliveryStageLabels, documentStatusLabels, enquiryStageLabels, settlementStatusLabels } from "@core/lib/trade-rules";
 import type { AgreementRow, ApprovalRow, ClientRow, DeliveryRow, DocumentRow, EnquiryRow, LinkRow, SettlementRow } from "../use-trade";
 import { Status } from "./trade-ui";
 

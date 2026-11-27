@@ -8,7 +8,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const app = join(__dirname, "..", "app");
-const read = (name: string) => readFileSync(join(app, name), "utf8");
+/** Design-system sheets live in the shared foundation (packages/core/src/styles); this app's own sheets in src/app. */
+const styles = join(__dirname, "..", "..", "..", "..", "packages", "core", "src", "styles");
+const sheetPath = (name: string) => (existsSync(join(app, name)) ? join(app, name) : join(styles, name));
+const read = (name: string) => readFileSync(sheetPath(name), "utf8");
 const stylesheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css"];
 
 describe("the type system's rules, checked in the stylesheets", () => {

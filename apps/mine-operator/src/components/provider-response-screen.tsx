@@ -3,12 +3,12 @@
 import { CheckCircle2, Lock } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { ApiError } from "@/lib/api";
-import { formatMoney, urgencyLabels } from "@/lib/service-rules";
-import { Field } from "./form-field";
+import { ApiError } from "@core/lib/api";
+import { formatMoney, urgencyLabels } from "@core/lib/service-rules";
+import { Field } from "@core/components/form-field";
 import { useProviderReply, useProviderRequest } from "./use-service";
 import { DateInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 type Values = { amount: string; reference: string; availableFrom: string; validUntil: string; notes: string; reason: string };
 

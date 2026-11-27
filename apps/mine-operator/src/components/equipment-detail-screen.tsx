@@ -19,27 +19,27 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { demoFetch } from "@/lib/api";
-import { formatStatus } from "@/lib/calculations";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { downtimePeriods, downtimeWithin, formatDuration } from "@/lib/downtime";
+import { demoFetch } from "@core/lib/api";
+import { formatStatus } from "@core/lib/calculations";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { downtimePeriods, downtimeWithin, formatDuration } from "@core/lib/downtime";
 import type { OperationalIssue } from "@vesper/api-contracts";
-import type { ShiftView } from "@/lib/shift-rules";
-import { assetGroupLabels, canActOnEquipment, categoryLabels, conditionLabels, conditionTone, downtimeReasonLabels, planTone, type EquipmentView } from "@/lib/equipment-rules";
-import { stateLabels as issueStateLabels } from "@/lib/issue-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { ConfirmDialog } from "./dialog";
+import type { ShiftView } from "@core/lib/shift-rules";
+import { assetGroupLabels, canActOnEquipment, categoryLabels, conditionLabels, conditionTone, downtimeReasonLabels, planTone, type EquipmentView } from "@core/lib/equipment-rules";
+import { stateLabels as issueStateLabels } from "@core/lib/issue-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { ConfirmDialog } from "@core/components/dialog";
 import { MoreMenu } from "./more-menu";
 import { EquipmentFormDialog, PlanDialog, ReadingDialog, RetireDialog, ServiceDialog, StateDialog } from "./equipment-dialogs";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { useShellData } from "./shell-data";
-import { StatusBadge } from "./status-badge";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { useShellData } from "@core/components/shell-data";
+import { StatusBadge } from "@core/components/status-badge";
 import { useEquipmentMutations } from "./use-equipment-mutations";
 import { useFeature } from "./use-entitlements";
 import { ImpactCard } from "./impact-panels";
 import { useServiceRequests } from "./use-service";
-import { canRequestService, isOpenRequest, requestStatusLabels } from "@/lib/service-rules";
+import { canRequestService, isOpenRequest, requestStatusLabels } from "@core/lib/service-rules";
 
 type DialogState =
   | { kind: "edit" }

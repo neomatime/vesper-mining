@@ -7,13 +7,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, ClipboardList, Copy, Printer } from "lucide-react";
 import Link from "next/link";
-import { demoFetch } from "@/lib/api";
-import { allocationSheet, allocationToText } from "@/lib/shift-allocation";
-import type { ShiftView } from "@/lib/shift-rules";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { useShellData } from "./shell-data";
-import { useToast } from "./toast-provider";
+import { demoFetch } from "@core/lib/api";
+import { allocationSheet, allocationToText } from "@core/lib/shift-allocation";
+import type { ShiftView } from "@core/lib/shift-rules";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { useShellData } from "@core/components/shell-data";
+import { useToast } from "@core/components/toast-provider";
 
 /** A shift's work allocation as a sheet to print, pin up, or paste into a message. It is always the same as the shift on screen. */
 export function ShiftAllocationScreen({ id }: { id: string }) {

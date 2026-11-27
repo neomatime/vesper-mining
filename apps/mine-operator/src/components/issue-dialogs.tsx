@@ -9,16 +9,16 @@ import type { Action, IssueDependency, OperationalIssue } from "@vesper/api-cont
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { fromLocalInput, toLocalInput } from "@/lib/demo-clock";
-import { activeActions, type TransitionOption } from "@/lib/issue-rules";
-import { teams } from "@/lib/personas";
+import { fromLocalInput, toLocalInput } from "@core/lib/demo-clock";
+import { activeActions, type TransitionOption } from "@core/lib/issue-rules";
+import { teams } from "@core/lib/personas";
 import { useOwners } from "./use-directory";
 import type { ActionInput, DependencyInput, IssueDetailsInput } from "./use-issue-mutations";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { Select } from "./select";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import { DateTimeInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 type Option = { id: string; name: string };
 

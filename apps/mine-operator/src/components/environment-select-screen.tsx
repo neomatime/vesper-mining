@@ -3,7 +3,7 @@
  * Addresses come from lib/environments.ts. An environment with no address is shown disabled and is never routed anywhere else.
  */
 import { ArrowRight, Info, Layers, Server } from "lucide-react";
-import { environmentDetails, environmentIds, signInDestination, type EnvironmentId } from "@/lib/environments";
+import { environmentDetails, environmentIds, signInDestination, type EnvironmentId } from "@core/lib/environments";
 
 const icons: Record<EnvironmentId, typeof Layers> = { uat: Layers, production: Server };
 

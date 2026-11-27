@@ -1,0 +1,42 @@
+{
+  "name": "@vesper/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "VESPER Mobile: the field app for phones (My Shift, My Work, Report, Schedule, Notifications). Same accounts as Mining Operations, its own address.",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 3001",
+    "lint": "eslint . --max-warnings=0",
+    "start": "next start --port 3001",
+    "pretest:e2e": "next build",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.107.1",
+    "@vesper/api-contracts": "workspace:*",
+    "@vesper/core": "workspace:*",
+    "lucide-react": "1.71.0",
+    "msw": "2.15.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

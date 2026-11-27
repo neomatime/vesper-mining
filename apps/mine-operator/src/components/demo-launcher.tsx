@@ -5,13 +5,13 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { demoFetch } from "@/lib/api";
-import { tiers } from "@/lib/personas";
-import { useDemoContext } from "@/stores/demo-context";
-import { useAccount } from "@/stores/session";
-import { useToast } from "./toast-provider";
-import { Select } from "./select";
-import { Busy } from "./busy";
+import { demoFetch } from "@core/lib/api";
+import { tiers } from "@core/lib/personas";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useAccount } from "@core/stores/session";
+import { useToast } from "@core/components/toast-provider";
+import { Select } from "@core/components/select";
+import { Busy } from "@core/components/busy";
 
 /** Controls for HIMARK when presenting. Not linked from the product. */
 export function DemoLauncher() {

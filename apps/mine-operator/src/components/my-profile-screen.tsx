@@ -8,18 +8,18 @@ import { Check, KeyRound, Minus, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { passwordProblem, roleInfo } from "@/lib/organisation-rules";
-import { initials } from "@/lib/personas";
-import { levelLabels, rightsForRole } from "@/lib/rights";
-import { useDemoContext } from "@/stores/demo-context";
-import { useAccount } from "@/stores/session";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { LoadingState } from "./query-state";
-import { StatusBadge } from "./status-badge";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { passwordProblem, roleInfo } from "@core/lib/organisation-rules";
+import { initials } from "@core/lib/personas";
+import { levelLabels, rightsForRole } from "@core/lib/rights";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useAccount } from "@core/stores/session";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { LoadingState } from "@core/components/query-state";
+import { StatusBadge } from "@core/components/status-badge";
 import { useOrganisation, useOrganisationMutations } from "./use-organisation";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const passwordSchema = z
   .object({ current: z.string().min(1, "Enter your current password."), next: z.string(), confirm: z.string() })

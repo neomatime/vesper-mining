@@ -7,7 +7,7 @@
 import { MapPinned } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { formatCoordinates, formatDuration, formatKm, formatTonnes, loadFormLabels, locationSourceLabels, offloadingLabels, requiredDocumentLabels, routeSourceLabels, type SiteDetails } from "@/lib/trade-rules";
+import { formatCoordinates, formatDuration, formatKm, formatTonnes, loadFormLabels, locationSourceLabels, offloadingLabels, requiredDocumentLabels, routeSourceLabels, type SiteDetails } from "@core/lib/trade-rules";
 import type { DeliveryRow } from "../use-trade";
 
 const LocationMap = dynamic(() => import("./location-map").then((module) => module.LocationMap), {

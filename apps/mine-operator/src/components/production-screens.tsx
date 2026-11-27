@@ -12,9 +12,9 @@ import { AlertTriangle, ArrowLeft, Check, Info, Lock, Paperclip, Send, Save, Tre
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { toEvidence, type EvidenceFile } from "@/lib/evidence";
-import { formatDay, shiftTimes } from "@/lib/shift-format";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { toEvidence, type EvidenceFile } from "@core/lib/evidence";
+import { formatDay, shiftTimes } from "@core/lib/shift-format";
 import {
   basisLabels,
   canActOnShipments,
@@ -24,20 +24,20 @@ import {
   productionStateLabels,
   productionTone,
   shiftTargetTonnes,
-} from "@/lib/shipment-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
+} from "@core/lib/shipment-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
 import { ImpactCard } from "./impact-panels";
 import { ShiftControlTabs } from "./module-tabs";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { Select } from "./select";
-import { useShellData } from "./shell-data";
-import { StatusBadge } from "./status-badge";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
+import { useShellData } from "@core/components/shell-data";
+import { StatusBadge } from "@core/components/status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type StockpileView } from "./use-logistics";
 import { RegisterView, type Register } from "./workspace-screen";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const bases = ["estimate", "weighbridge", "survey", "other"] as const;
 

@@ -9,12 +9,12 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown, ChevronLeft, Ch
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
-import { formatPercent, formatRand } from "@/lib/trade-rules";
-import { PageHeader } from "../page-header";
+import { formatPercent, formatRand } from "@core/lib/trade-rules";
+import { PageHeader } from "@core/components/page-header";
 import { Tick } from "../tick";
-import { ErrorState, LoadingState, type LoadingVariant } from "../query-state";
-import { StatusBadge } from "../status-badge";
-import { useDismiss } from "../use-dismiss";
+import { ErrorState, LoadingState, type LoadingVariant } from "@core/components/query-state";
+import { StatusBadge } from "@core/components/status-badge";
+import { useDismiss } from "@core/components/use-dismiss";
 import { useTrade, type TradeView } from "../use-trade";
 
 /** Loads the Trade data once and hands it to the page; shows the shared loading and error states meanwhile. */

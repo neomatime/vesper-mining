@@ -8,15 +8,15 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BarChart3, Database, Info, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { demoFetch } from "@/lib/api";
-import { formatStatus } from "@/lib/calculations";
-import { canSeeReport } from "@/lib/entitlements";
-import type { ReportView } from "@/lib/reports";
-import { useDemoContext } from "@/stores/demo-context";
-import { EntitlementGate } from "./entitlement-gate";
-import { ErrorState, LoadingState } from "./query-state";
-import { PageHeader } from "./page-header";
-import { StatusBadge } from "./status-badge";
+import { demoFetch } from "@core/lib/api";
+import { formatStatus } from "@core/lib/calculations";
+import { canSeeReport } from "@core/lib/entitlements";
+import type { ReportView } from "@core/lib/reports";
+import { useDemoContext } from "@core/stores/demo-context";
+import { EntitlementGate } from "@core/components/entitlement-gate";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { PageHeader } from "@core/components/page-header";
+import { StatusBadge } from "@core/components/status-badge";
 import { useReducedMotion } from "./use-reduced-motion";
 
 function cellText(key: string, value: string | number | null) {

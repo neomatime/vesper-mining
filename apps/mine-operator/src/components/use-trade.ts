@@ -5,10 +5,10 @@
  * for roles allowed to see them. Every change refreshes Trade, notifications and the Overview counts.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { demoFetch, demoSend } from "@/lib/api";
-import type { TradeView } from "@/lib/trade-store";
-import { useDemoContext } from "@/stores/demo-context";
-import { useToast } from "./toast-provider";
+import { demoFetch, demoSend } from "@core/lib/api";
+import type { TradeView } from "@core/lib/trade-store";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useToast } from "@core/components/toast-provider";
 import { failureTitle } from "./use-logistics";
 
 export type { TradeView };

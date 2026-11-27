@@ -3,7 +3,7 @@
 /**
  * Unit tests (Vitest). Every corner in the stylesheets comes from the radius scale.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -19,13 +19,16 @@ const ROUND = [
 ];
 
 const app = join(__dirname, "..", "app");
+/** Design-system sheets live in the shared foundation (packages/core/src/styles); this app's own sheets in src/app. */
+const styles = join(__dirname, "..", "..", "..", "..", "packages", "core", "src", "styles");
+const sheetPath = (name: string) => (existsSync(join(app, name)) ? join(app, name) : join(styles, name));
 const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css", "delivery-map.css", "delivery-plan.css"];
 
 /** Every border-radius declaration with its selector, ignoring comments. */
 function radii() {
   const found: { sheet: string; selector: string; value: string }[] = [];
   for (const sheet of sheets) {
-    const css = readFileSync(join(app, sheet), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = readFileSync(sheetPath(sheet), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = (rule[1] ?? "").split(/\s+/).join(" ").trim();
       for (const decl of (rule[2] ?? "").matchAll(/(?<![\w-])border-radius:\s*([^;]+)/g)) found.push({ sheet, selector, value: (decl[1] ?? "").trim() });
@@ -52,7 +55,7 @@ describe("soft geometry, checked in the stylesheets", () => {
   });
 
   it("defines the radius scale once, as 4, 6, 8, 12 and 20 px", () => {
-    const css = readFileSync(join(app, "theme.css"), "utf8");
+    const css = readFileSync(sheetPath("theme.css"), "utf8");
     expect(css).toMatch(/:root \{ --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 20px; \}/);
   });
 });

@@ -21,10 +21,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { formatStatus } from "@/lib/calculations";
-import { formatDay, shiftTimes } from "@/lib/shift-format";
-import { rankRecords, type SearchKind, type SearchRecord } from "@/lib/search";
-import { useShellData } from "./shell-data";
+import { formatStatus } from "@core/lib/calculations";
+import { formatDay, shiftTimes } from "@core/lib/shift-format";
+import { rankRecords, type SearchKind, type SearchRecord } from "@core/lib/search";
+import { useShellData } from "@core/components/shell-data";
 
 const kindIcon: Record<SearchKind, LucideIcon> = {
   Issue: AlertTriangle,

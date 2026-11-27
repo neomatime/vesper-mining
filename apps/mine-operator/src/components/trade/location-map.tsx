@@ -9,8 +9,8 @@ import L from "leaflet";
 import { Minus, Plus, Scan } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { places } from "@/lib/tracking/network";
-import type { LatLngPair } from "@/lib/trade-rules";
+import { places } from "@core/lib/tracking/network";
+import type { LatLngPair } from "@core/lib/trade-rules";
 import { BaseMap, DetailLevel } from "./delivery-map";
 
 const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL;

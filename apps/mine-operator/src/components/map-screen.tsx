@@ -6,12 +6,12 @@
 import { useQuery } from "@tanstack/react-query";
 import type { MapArea } from "@vesper/api-contracts";
 import { Clock3, Info, Map, MapPin, ShieldAlert } from "lucide-react";
-import { demoFetch } from "@/lib/api";
-import { formatDemoTime } from "@/lib/demo-clock";
-import { ErrorState, LoadingState } from "./query-state";
+import { demoFetch } from "@core/lib/api";
+import { formatDemoTime } from "@core/lib/demo-clock";
+import { ErrorState, LoadingState } from "@core/components/query-state";
 import { OperationalMapClient } from "./operational-map-client";
-import { PageHeader } from "./page-header";
-import { StatusBadge } from "./status-badge";
+import { PageHeader } from "@core/components/page-header";
+import { StatusBadge } from "@core/components/status-badge";
 
 const legend = [
   { label: "On plan", color: "#16865B", meaning: "Current evidence supports the operating criteria." },

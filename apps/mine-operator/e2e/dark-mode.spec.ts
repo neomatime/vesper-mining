@@ -106,7 +106,7 @@ test.describe("on a device set to light", () => {
   test("the switch is on the phone too, and the choice carries to other screens", async ({ page }) => {
     await signIn(page, "Amina Patel");
     await chooseAppearance(page, "Dark");
-    for (const route of ["/overview", "/shifts", "/mobile/schedule"]) {
+    for (const route of ["/overview", "/shifts", "/shifts?view=calendar"]) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
       expect(await theme(page), route).toBe("dark");
     }

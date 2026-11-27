@@ -12,20 +12,24 @@ Requires Node.js 22 or later and pnpm (the version is pinned in `package.json`).
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:3000
+pnpm dev            # Mining Operations and Trade: http://localhost:3000
+pnpm dev:mobile     # VESPER Mobile: http://localhost:3001
 ```
 
 | Command | What it does |
 | --- | --- |
-| `pnpm typecheck` | Type-checks the shared contracts and the app |
+| `pnpm typecheck` | Type-checks the shared contracts, the shared foundation and both apps |
 | `pnpm lint` | ESLint with zero warnings allowed |
-| `pnpm test` | Unit tests (Vitest) |
-| `pnpm build` | Production build |
-| `pnpm test:e2e` | Builds, serves and runs the Playwright browser tests (desktop Chrome and a Pixel 7 phone) |
+| `pnpm test` | Unit tests (Vitest) for the shared foundation and Mining Operations |
+| `pnpm build` | Production builds of both apps |
+| `pnpm test:e2e` | Builds, serves and runs the Mining Operations browser tests (desktop Chrome and a Pixel 7 phone) |
+| `pnpm test:e2e:mobile` | Builds, serves and runs the VESPER Mobile browser tests (a Pixel 7 phone) |
 
-**Signing in.** The app starts at `/sign-in`. Six fictional accounts cover every role (Mine Manager, two Shift Supervisors, Maintenance Planner, Stores / Inventory Controller, Field Employee). Their emails and the demonstration password are in `apps/mine-operator/src/lib/accounts.ts`. Data is kept in the browser's local storage, so each browser has its own copy. Use the Administration area or `/demo` to reset it.
+**Signing in.** The app starts at `/sign-in`. Six fictional accounts cover every role (Mine Manager, two Shift Supervisors, Maintenance Planner, Stores / Inventory Controller, Field Employee). Their emails and the demonstration password are in `packages/core/src/lib/accounts.ts`; the same accounts sign in to both apps. Data is kept in the browser's local storage, so each browser (and each app's address) has its own copy.
 
-**Styles.** After editing `globals.css` or `theme.css`, regenerate the dark theme with `node apps/mine-operator/scripts/generate-dark-theme.mjs`. A unit test fails if the committed `dark.generated.css` is out of date. Hand-written dark rules belong in `dark.css`.
+**Two apps.** Mining Operations (with the Trade workspace) and VESPER Mobile are separate apps at separate addresses. Run locally, they link to each other on ports 3000 and 3001; a deployment sets `NEXT_PUBLIC_OPERATIONS_URL` and `NEXT_PUBLIC_MOBILE_URL` (see `.env.example` in each app), and without them the links between the apps are hidden. Use the Administration area or `/demo` to reset it.
+
+**Styles.** After editing `globals.css` or `theme.css`, regenerate the dark theme with `node apps/mine-operator/scripts/generate-dark-theme.mjs` (the shared style sheets are in `packages/core/src/styles/`). A unit test fails if the committed `dark.generated.css` is out of date. Hand-written dark rules belong in `dark.css`.
 
 **Do not run the app from inside a OneDrive-synced folder** for day-to-day development: `node_modules` and build output cause sync conflicts. Keep a local checkout and push to Git.
 
@@ -115,32 +119,39 @@ A persistent **`DEMO / SIMULATED DATA`** indicator must appear throughout a futu
 
 ## 4. Repository map
 
-The monorepo has two workspaces: the app and the shared contracts.
+The monorepo has two apps and two shared packages.
 
 ```text
 VESPER/
 ├── .github/workflows/        # CI: typecheck, lint, unit tests, build and browser tests
 ├── apps/
-│   └── mine-operator/        # The single VESPER frontend (Next.js App Router)
-│       ├── src/app/          # Routes, layouts and the style sheets
-│       ├── src/components/   # Screens, dialogs and shared UI
-│       ├── src/lib/          # Rules, selectors, reports and the mock domain store
-│       ├── src/mocks/        # MSW handlers: the in-browser mock API
-│       ├── e2e/              # Playwright tests
-│       └── public/           # Brand images, fonts and the fictional site plan
+│   ├── mine-operator/        # Mining Operations and the Trade workspace (Next.js App Router)
+│   │   ├── src/app/          # Routes, layouts and this app's own style sheets
+│   │   ├── src/components/   # Screens and dialogs for Mining Operations and Trade
+│   │   ├── e2e/              # Playwright tests
+│   │   └── public/           # Brand images, fonts and the fictional site plan
+│   └── mobile/               # VESPER Mobile: the field app for phones (Next.js App Router)
+│       ├── src/app/          # My Shift, My Work, Report, Schedule, Notifications, Profile, issue and shift pages
+│       ├── src/components/   # The phone shell and field screens
+│       └── e2e/              # Playwright tests on a phone
 ├── deployment/               # Client deployment template, README and checklist (no provisioning)
 ├── docs/                     # The five specifications and the reference image
 │   └── architecture/         # Current-state audit, subscription, database and deployment architecture
 ├── infrastructure/           # Placeholder only; not permission for live infrastructure
 ├── packages/
-│   └── api-contracts/        # Zod contracts and the cause lists shared by app and tests
+│   ├── api-contracts/        # Zod contracts and the cause lists shared by the apps and tests
+│   └── core/                 # The shared foundation, imported from source by both apps (@core/...)
+│       ├── src/lib/          # Rules, selectors, reports, accounts and the mock domain store
+│       ├── src/mocks/        # MSW handlers: the in-browser mock API
+│       ├── src/components/   # Sign-in, top-bar menus, notifications, dialogs and other shared UI
+│       └── src/styles/       # The design-system style sheets
 ├── tests/                    # Placeholder for cross-module acceptance tests
 ├── AGENTS.md                 # Mandatory rules for any implementation agent
 ├── CLAUDE.md                 # Atlas / Claude-specific work instructions
 └── README.md                 # This project orientation
 ```
 
-The versionless Backend Schema filename shown here reflects the completed v1.1 reconciliation. Verify actual files before relying on links; do not invent missing files. The folder `apps/mine-operator` is a location, **not** a distinct VESPER-branded product.
+The versionless Backend Schema filename shown here reflects the completed v1.1 reconciliation. Verify actual files before relying on links; do not invent missing files. The folder `apps/mine-operator` is a location, **not** a distinct VESPER-branded product; `apps/mobile` is VESPER Mobile.
 
 **Recorded technical placement (ADR-11 and ADR-12; technical-lead sign-off for ADR-11 still pending):** app routes, UI components, features, demo service, MSW fixtures and E2E screens belong in `apps/mine-operator/`; reusable business entity schemas and Zod contracts belong in `packages/api-contracts/`. Do not create a database or actual API server to populate these folders.
 

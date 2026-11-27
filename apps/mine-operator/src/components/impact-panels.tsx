@@ -11,15 +11,15 @@
 import { AlertTriangle, ArrowRight, Info, Lock, Pickaxe, RotateCcw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { GOLD, UNASSESSED, formatGrams, formatHours, outageScenarios } from "@/lib/impact-rules";
-import { formatMoney, formatTonnes } from "@/lib/shipment-rules";
-import { ConfirmDialog, Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { ErrorState, LoadingState } from "./query-state";
-import { StatusBadge } from "./status-badge";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { GOLD, UNASSESSED, formatGrams, formatHours, outageScenarios } from "@core/lib/impact-rules";
+import { formatMoney, formatTonnes } from "@core/lib/shipment-rules";
+import { ConfirmDialog, Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { StatusBadge } from "@core/components/status-badge";
 import { useImpact, useImpactAction, type ImpactView } from "./use-impact";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 export const GOLD_LABEL = "Gold delivery · forecast";
 

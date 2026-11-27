@@ -1,0 +1,16 @@
+/**
+ * The sign-in route. All the behaviour is in SignInScreen.
+ */
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { SignInScreen } from "@core/components/sign-in-screen";
+
+export const metadata: Metadata = { title: "Sign in" };
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInScreen />
+    </Suspense>
+  );
+}

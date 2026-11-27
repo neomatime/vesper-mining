@@ -3,9 +3,9 @@
  */
 import { ArrowRight, Clock3, Target, UsersRound } from "lucide-react";
 import Link from "next/link";
-import { formatDay } from "@/lib/shift-format";
-import type { HomeModel } from "@/lib/role-home";
-import { StatusBadge } from "./status-badge";
+import { formatDay } from "@core/lib/shift-format";
+import type { HomeModel } from "@core/lib/role-home";
+import { StatusBadge } from "@core/components/status-badge";
 
 /**
  * A home for one role: the one thing that needs them first, the next two, a row of figures that matter to that

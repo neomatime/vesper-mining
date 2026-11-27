@@ -3,23 +3,24 @@
  * demo API. The inline theme script in the head sets light or dark before the first paint, so there is no flash.
  */
 import type { Metadata, Viewport } from "next";
-import { DemoProviders } from "@/components/demo-providers";
-import { themeInitScript } from "@/lib/theme";
+import { AppProvider } from "@core/components/app-context";
+import { DemoProviders } from "@core/components/demo-providers";
+import { themeInitScript } from "@core/lib/theme";
 import "leaflet/dist/leaflet.css";
-import "./globals.css";
-import "./theme.css";
-import "./typography.css";
-import "./chrome.css";
-import "./dark.generated.css";
-import "./dark.css";
-import "./login.css";
+import "@core/styles/globals.css";
+import "@core/styles/theme.css";
+import "@core/styles/typography.css";
+import "@core/styles/chrome.css";
+import "@core/styles/dark.generated.css";
+import "@core/styles/dark.css";
+import "@core/styles/login.css";
 import "./allocation.css";
-import "./modules.css";
+import "@core/styles/modules.css";
 import "./trade.css";
 import "./delivery-map.css";
 import "./delivery-plan.css";
-import "./motion.css";
-import "./refinements.css";
+import "@core/styles/motion.css";
+import "@core/styles/refinements.css";
 
 export const metadata: Metadata = {
   title: {
@@ -43,7 +44,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <DemoProviders>{children}</DemoProviders>
+        <AppProvider app="operations">
+          <DemoProviders>{children}</DemoProviders>
+        </AppProvider>
       </body>
     </html>
   );

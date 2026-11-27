@@ -6,12 +6,12 @@
  * real time, so movement is visible; pausing freezes it. Nothing here writes to any record.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEMO_NOW } from "@/lib/demo-data";
-import { vehicleLoads } from "@/lib/tracking/fleet";
-import { readPositions, telematicsRegistry } from "@/lib/tracking/providers";
-import type { VehiclePosition } from "@/lib/tracking/telematics";
-import type { LatLng } from "@/lib/tracking/telematics";
-import { journeyPath, trackJourneys, type Journey, type TrackedDelivery } from "@/lib/tracking/tracking";
+import { DEMO_NOW } from "@core/lib/demo-data";
+import { vehicleLoads } from "@core/lib/tracking/fleet";
+import { readPositions, telematicsRegistry } from "@core/lib/tracking/providers";
+import type { VehiclePosition } from "@core/lib/tracking/telematics";
+import type { LatLng } from "@core/lib/tracking/telematics";
+import { journeyPath, trackJourneys, type Journey, type TrackedDelivery } from "@core/lib/tracking/tracking";
 
 const SPEED = 20;
 const INTERVAL_MS = 3000;

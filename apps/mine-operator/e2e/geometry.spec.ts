@@ -44,7 +44,7 @@ test.describe("soft geometry", () => {
     expect(await roundedCorners(page), "sign in").toEqual([]);
 
     await signIn(page, "John Dlamini");
-    for (const route of ["/overview", "/exceptions", "/exceptions/issue-riv-001", "/equipment", "/equipment/eq-crusher-c02", "/resources", "/shifts", "/shifts?view=calendar", "/reports", "/admin", "/profile", "/mobile/my-shift", "/mobile/notifications"]) {
+    for (const route of ["/overview", "/exceptions", "/exceptions/issue-riv-001", "/equipment", "/equipment/eq-crusher-c02", "/resources", "/shifts", "/shifts?view=calendar", "/reports", "/admin", "/profile", "/notifications"]) {
       await page.goto(route);
       await expect(page.locator("main")).toBeVisible();
       expect(await roundedCorners(page), route).toEqual([]);

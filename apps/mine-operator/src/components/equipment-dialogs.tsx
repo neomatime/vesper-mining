@@ -9,14 +9,14 @@ import type { DowntimeReason, MaintenancePlan } from "@vesper/api-contracts";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { fromLocalInput, toLocalInput } from "@/lib/demo-clock";
-import { assetKindOf, categoryLabels, conditionLabels, downtimeReasonLabels, downtimeReasons, equipmentCategories, infrastructureCategories, type AssetKind, type EquipmentView } from "@/lib/equipment-rules";
+import { fromLocalInput, toLocalInput } from "@core/lib/demo-clock";
+import { assetKindOf, categoryLabels, conditionLabels, downtimeReasonLabels, downtimeReasons, equipmentCategories, infrastructureCategories, type AssetKind, type EquipmentView } from "@core/lib/equipment-rules";
 import type { EquipmentFormInput, PlanInput, ServiceInput } from "./use-equipment-mutations";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { Select } from "./select";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import { DateTimeInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 type Option = { id: string; name: string };
 

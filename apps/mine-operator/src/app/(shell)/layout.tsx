@@ -3,7 +3,7 @@
  * bar, navigation and page frame around the screen.
  */
 import { AppShell } from "@/components/app-shell";
-import { RequireSession } from "@/components/require-session";
+import { RequireSession } from "@core/components/require-session";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
