@@ -152,10 +152,44 @@ test("offers month, week and day in the calendar, with touch-sized controls", as
 
 test("no page scrolls sideways", async ({ page }) => {
   await openAs(page, "/my-shift");
-  for (const route of ["/my-shift", "/my-work", "/report", "/my-reports", "/checks/eq-ex204", "/notifications", "/profile", "/schedule", "/shifts/shift-a-20250424"]) {
+  for (const route of ["/my-shift", "/my-work", "/report", "/my-reports", "/checks/eq-ex204", "/scan", "/machines/eq-ex204", "/notifications", "/profile", "/schedule", "/shifts/shift-a-20250424"]) {
     await page.goto(route);
     await expect(page.locator("main")).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, `${route} scrolls sideways`).toBeLessThanOrEqual(0);
   }
+});
+
+test("opens a machine by its fleet number, with its checks and open issues, and reports a fault on it", async ({ page }) => {
+  await openAs(page, "/my-shift");
+  await page.getByRole("link", { name: /Scan a machine/ }).click();
+  await expect(page).toHaveURL(/\/scan$/);
+  // The test browser has no camera: the page says so and offers the fleet number instead.
+  await expect(page.getByRole("status").filter({ hasText: /QR codes|camera/ })).toBeVisible();
+  await page.getByLabel("Fleet number").fill("ex 999");
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByText(/No machine matches/)).toBeVisible();
+  await page.getByLabel("Fleet number").fill("ex204");
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page).toHaveURL(/\/machines\/eq-ex204$/);
+  await expect(page.getByRole("heading", { name: "Hydraulic Excavator EX-204" })).toBeVisible();
+  await expect(page.getByText("Not done this shift")).toBeVisible();
+
+  await page.getByRole("link", { name: /Report a fault/ }).click();
+  await expect(page).toHaveURL(/\/report\?equipmentId=eq-ex204$/);
+  await expect(page.getByRole("combobox", { name: /^Equipment/ })).toContainText("Hydraulic Excavator EX-204");
+});
+
+test("confirms the briefing and the handover from the shift before", async ({ page }) => {
+  await openAs(page, "/my-shift");
+  const before = page.getByRole("region", { name: "Before you start" });
+  await expect(before).toContainText("Watch the North Pit haul road");
+  await expect(before).toContainText("Handover from Shift C");
+  await before.getByRole("button", { name: "I've read it" }).first().click();
+  await expect(before.getByText(/You confirmed at/)).toHaveCount(1);
+  await before.getByRole("button", { name: "I've read it" }).click();
+  await expect(before.getByText(/You confirmed at/)).toHaveCount(2);
+  await expect(before.getByRole("button", { name: "I've read it" })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Before you start" }).getByText(/You confirmed at/)).toHaveCount(2);
 });

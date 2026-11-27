@@ -2345,6 +2345,26 @@ export const demoDomain = {
     return presentShift(shift);
   },
 
+  /**
+   * A crew member (or the supervisor) confirms they have read the shift's briefing, or the handover from the shift before.
+   * Recorded once per person and kind; a second tap changes nothing.
+   */
+  confirmShiftRead(shiftId: string, input: Record<string, unknown>, actor: Actor) {
+    const shift = findShift(shiftId);
+    const kind = input.kind === "handover" ? "handover" : input.kind === "briefing" ? "briefing" : fail(400, "VALIDATION_ERROR", "Say whether you read the briefing or the handover.");
+    if (shift.state === "cancelled" || shift.state === "closed") fail(409, "READ_ONLY", "This shift has ended.");
+    if (shift.supervisor !== actor.name && !shift.crew.some((member) => member.name === actor.name)) fail(403, "FORBIDDEN", "Only the crew and the supervisor of this shift confirm its briefing and handover.");
+    if (kind === "briefing" && !shift.briefing) fail(409, "VALIDATION_ERROR", "This shift has no briefing yet.");
+    if (kind === "handover") {
+      const previous = presentShift(shift).previous;
+      const handover = previous ? findShift(previous.id).handover : null;
+      if (!handover || handover.state === "draft") fail(409, "VALIDATION_ERROR", "There is no published handover from the shift before.");
+    }
+    const list = shift.acknowledgements ?? [];
+    if (!list.some((entry) => entry.name === actor.name && entry.kind === kind)) shift.acknowledgements = [...list, { name: actor.name, kind, at: tick() }];
+    return presentShift(shift);
+  },
+
   acknowledgeHandover(shiftId: string, actor: Actor) {
     const shift = findShift(shiftId);
     const next = presentShift(shift).next;

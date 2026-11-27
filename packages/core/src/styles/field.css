@@ -78,3 +78,33 @@
 .prestart__radio.is-on { border-color: var(--brand-emerald); background: color-mix(in srgb, var(--brand-emerald) 8%, var(--surface-base)); }
 .prestart__footer { position: sticky; bottom: 88px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 10px 10px 10px 14px; background: var(--surface-base); box-shadow: var(--shadow-raised); font-size: 12.5px; }
 .prestart__footer .button { min-height: 44px; }
+
+/* Briefing and handover: "I've read it" on the phone, who has read it on the web */
+.read-card { align-items: flex-start; }
+.read-card > div { gap: 4px; }
+.read-card__text { color: var(--text-primary) !important; font-size: 13.5px !important; line-height: 1.5; }
+.read-card__confirm { justify-self: start; min-height: 44px; margin-top: 6px; }
+.read-card__done { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--brand-emerald-dark); font-size: 12.5px; font-weight: var(--weight-strong); }
+.read-card__done svg { width: 15px; height: 15px; }
+.read-card--done { border-color: color-mix(in srgb, var(--brand-emerald) 35%, var(--border-subtle)); }
+.read-receipts { display: grid; gap: 8px; margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px; font-size: 13px; }
+.read-receipts__summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; color: var(--text-secondary); }
+.read-receipts__summary strong { color: var(--text-primary); }
+.read-receipts ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.read-receipts li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.read-receipts li > span { min-width: 150px; font-weight: var(--weight-strong); }
+.read-receipts small { color: var(--status-warning); font-size: 12px; }
+.read-receipts small.is-read { color: var(--brand-emerald-dark); }
+
+/* Scan a machine */
+.scan__viewer { position: relative; overflow: hidden; aspect-ratio: 1; max-height: 52vh; width: 100%; margin: 0 auto 14px; border-radius: var(--radius-lg); background: #0d1412; }
+.scan__viewer video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.scan__viewer--unsupported video, .scan__viewer--denied video, .scan__viewer--starting video { visibility: hidden; }
+.scan__frame { position: absolute; inset: 18%; border: 3px solid rgba(255, 255, 255, 0.9); border-radius: var(--radius-lg); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); }
+.scan__state { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 24px; color: #e6ece8; font-size: 14px; text-align: center; }
+.scan__state svg { width: 34px; height: 34px; color: #7be0b0; }
+.scan__manual { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.scan__manual .button { min-height: 44px; }
+.scan__manual input { text-transform: uppercase; }
+.scan__manual input::placeholder { text-transform: none; }
+.scan__viewer--unsupported, .scan__viewer--denied { aspect-ratio: 16 / 9; }

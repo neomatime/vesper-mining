@@ -246,6 +246,10 @@ export const handlers = [
   http.post(`${API}/shifts/:id/handover/withdraw`, ({ params, request }) =>
     run(() => demoDomain.withdrawHandover(param(params, "id"), actorOf(request))),
   ),
+  http.post(`${API}/shifts/:id/read`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.confirmShiftRead(param(params, "id"), input, actorOf(request)));
+  }),
   http.post(`${API}/shifts/:id/acknowledgement`, ({ params, request }) =>
     run(() => demoDomain.acknowledgeHandover(param(params, "id"), actorOf(request))),
   ),

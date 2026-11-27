@@ -18,7 +18,7 @@ import { entitlementsFor } from "@core/lib/entitlements";
 import { useDemoContext } from "@core/stores/demo-context";
 
 const tabs = [
-  { label: "My Shift", href: "/my-shift", icon: HardHat, also: ["/schedule", "/shifts", "/checks"] },
+  { label: "My Shift", href: "/my-shift", icon: HardHat, also: ["/schedule", "/shifts", "/checks", "/scan", "/machines"] },
   { label: "My Work", href: "/my-work", icon: ClipboardCheck, also: [] },
   { label: "Report", href: "/report", icon: AlertTriangle, also: ["/my-reports", "/issues"] },
   { label: "Notifications", href: "/notifications", icon: Bell, also: [] },

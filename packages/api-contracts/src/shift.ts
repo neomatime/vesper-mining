@@ -72,6 +72,13 @@ export const shiftEventSchema = z.object({
   note: z.string().nullable(),
 });
 
+/** A crew member or supervisor confirming they have read the shift's briefing, or the handover from the shift before. */
+export const shiftAcknowledgementSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(["briefing", "handover"]),
+  at: timestamp,
+});
+
 export const shiftSchema = z.object({
   id: z.string().min(1),
   siteId: z.string().min(1),
@@ -88,6 +95,8 @@ export const shiftSchema = z.object({
   startedAt: timestamp.nullable(),
   closedAt: timestamp.nullable(),
   cancelledReason: z.string().nullable(),
+  /** Who has read the briefing and the incoming handover (records from before this field have none). */
+  acknowledgements: z.array(shiftAcknowledgementSchema).optional(),
   version: z.number().int().positive(),
   createdAt: timestamp,
 });
@@ -98,3 +107,4 @@ export type ShiftWork = z.infer<typeof shiftWorkSchema>;
 export type Handover = z.infer<typeof handoverSchema>;
 export type ShiftEvent = z.infer<typeof shiftEventSchema>;
 export type Shift = z.infer<typeof shiftSchema>;
+export type ShiftAcknowledgement = z.infer<typeof shiftAcknowledgementSchema>;

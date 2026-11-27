@@ -4,8 +4,8 @@
  * The phone's My Shift (crew, duty, equipment, briefing) and My Work (tasks owned by the person, with note and evidence on
  * completion).
  */
-import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, ListChecks, MapPin, TriangleAlert, Wrench } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, ListChecks, MapPin, MessageSquareText, Repeat2, ScanLine, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { formatDemoTime, formatDemoDateTime } from "@core/lib/demo-clock";
@@ -13,7 +13,8 @@ import { activeActions, isOpen } from "@core/lib/issue-rules";
 import { remaining, shiftTimes } from "@core/lib/shift-format";
 import { currentShiftFor, type ShiftView } from "@core/lib/shift-rules";
 import { useDemoContext } from "@core/stores/demo-context";
-import { demoFetch } from "@core/lib/api";
+import { demoFetch, demoSend } from "@core/lib/api";
+import { useToast } from "@core/components/toast-provider";
 import { latestCheck, prestartCategories, type PrestartCheck } from "@core/lib/prestart-rules";
 import type { EquipmentView } from "@core/lib/equipment-rules";
 import { LoadingState } from "@core/components/query-state";
@@ -92,13 +93,12 @@ export function MyShiftScreen() {
         {track}
       </section>
 
+      {shift.briefing || shift.previous ? <ReadCards shift={shift} /> : null}
+
       <section className="mobile-stack">
+        <Link className="mobile-card mobile-card--link" href="/scan"><ScanLine /><div><strong>Scan a machine</strong><p>Open a machine from its QR label or fleet number</p></div><ArrowRight /></Link>
         <Link className="mobile-card mobile-card--link" href="/schedule"><CalendarDays /><div><strong>Shift calendar</strong><p>See the shifts you are on, day by day</p></div><ArrowRight /></Link>
       </section>
-
-      {shift.briefing ? (
-        <section className="mobile-stack"><h2>From your supervisor</h2><article className="mobile-card"><div><p>{shift.briefing}</p></div></article></section>
-      ) : null}
     </div>
   );
 }
@@ -188,5 +188,55 @@ function PrestartCard({ unit, shiftId, now }: { unit: EquipmentView; shiftId: st
       <div><small>Pre-start check · {formatDemoTime(done.at)}</small><strong>{done.issueIds.length ? `${done.issueIds.length} fault${done.issueIds.length === 1 ? "" : "s"} reported on ${unit.code}` : `${unit.code} all clear`}</strong><p>{done.issueIds.length ? "Track them in My reports" : `Checked by ${done.by}`}</p></div>
       <ArrowRight />
     </Link>
+  );
+}
+
+/**
+ * The briefing for this shift and the handover from the shift before, each with "I've read it". The supervisor sees who has
+ * confirmed; confirming records the person and the time once.
+ */
+function ReadCards({ shift }: { shift: ShiftView }) {
+  const { context } = useDemoContext();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const previous = useQuery({ queryKey: ["shift", shift.previous?.id], queryFn: () => demoFetch<ShiftView>(`/shifts/${shift.previous!.id}`), enabled: Boolean(shift.previous) });
+  const confirm = useMutation({
+    mutationFn: (kind: "briefing" | "handover") => demoSend<ShiftView>(`/shifts/${shift.id}/read`, "POST", { kind }),
+    onSuccess: async (_, kind) => {
+      await queryClient.invalidateQueries({ queryKey: ["overview"] });
+      toast.push({ title: kind === "briefing" ? "Briefing confirmed" : "Handover confirmed", detail: "Your supervisor can see you have read it." });
+    },
+    onError: (error) => toast.push({ tone: "error", title: "Not recorded", detail: error instanceof Error ? error.message : undefined }),
+  });
+  const readAt = (kind: "briefing" | "handover") => (shift.acknowledgements ?? []).find((entry) => entry.name === context.persona && entry.kind === kind)?.at ?? null;
+  const handover = previous.data?.handover;
+  const showHandover = handover && handover.state !== "draft" && handover.notes;
+
+  const card = (kind: "briefing" | "handover", title: string, by: string | null, text: string) => {
+    const at = readAt(kind);
+    return (
+      <article className={`mobile-card read-card ${at ? "read-card--done" : ""}`}>
+        {kind === "briefing" ? <MessageSquareText /> : <Repeat2 />}
+        <div>
+          <small>{title}{by ? ` · ${by}` : ""}</small>
+          <p className="read-card__text">{text}</p>
+          {at ? (
+            <span className="read-card__done"><Check aria-hidden="true" /> You confirmed at {formatDemoTime(at)}</span>
+          ) : (
+            <button type="button" className="button button--primary read-card__confirm" disabled={confirm.isPending} onClick={() => confirm.mutate(kind)}>
+              <Check aria-hidden="true" /> I&apos;ve read it
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  };
+
+  return (
+    <section className="mobile-stack" aria-labelledby="read-cards">
+      <h2 id="read-cards">Before you start</h2>
+      {shift.briefing ? card("briefing", "Briefing from your supervisor", shift.supervisor, shift.briefing) : null}
+      {showHandover ? card("handover", `Handover from ${shift.previous?.name}`, handover.publishedBy, handover.notes) : null}
+    </section>
   );
 }
