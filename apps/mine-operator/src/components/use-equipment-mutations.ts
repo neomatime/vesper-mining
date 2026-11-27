@@ -7,9 +7,9 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ApiError, demoSend } from "@/lib/api";
-import type { EquipmentView } from "@/lib/equipment-rules";
-import { useToast } from "./toast-provider";
+import { ApiError, demoSend } from "@core/lib/api";
+import type { EquipmentView } from "@core/lib/equipment-rules";
+import { useToast } from "@core/components/toast-provider";
 
 function failureTitle(error: unknown) {
   if (!(error instanceof ApiError)) return "That did not work";

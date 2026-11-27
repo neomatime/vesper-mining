@@ -10,15 +10,15 @@
 import { ArrowRight, Check, ChartNoAxesColumn, ClipboardCheck, Send, Sparkles, Truck, Wrench, Box } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { answerQuestion, buildInsights, exampleQuestions, type Answer, type Insight, type IntelligenceInputs } from "@/lib/intelligence-rules";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { StatusBadge } from "./status-badge";
+import { answerQuestion, buildInsights, exampleQuestions, type Answer, type Insight, type IntelligenceInputs } from "@core/lib/intelligence-rules";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { StatusBadge } from "@core/components/status-badge";
 import { useBriefing, useBriefingAction, type BriefingView } from "./use-briefing";
 import { useImpact } from "./use-impact";
 import { useLogistics } from "./use-logistics";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const insightIcon = { production: ChartNoAxesColumn, shipment: Truck, equipment: Wrench, readiness: Box } as const;
 

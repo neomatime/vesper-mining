@@ -10,11 +10,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatTonnes } from "@/lib/trade-rules";
-import { freshnessLabels } from "@/lib/tracking/telematics";
-import { deliveryTrackingStatus, trackingStatusLabels, type Journey, type TrackingStatus } from "@/lib/tracking/tracking";
-import { places } from "@/lib/tracking/network";
-import { Select } from "../select";
+import { formatTonnes } from "@core/lib/trade-rules";
+import { freshnessLabels } from "@core/lib/tracking/telematics";
+import { deliveryTrackingStatus, trackingStatusLabels, type Journey, type TrackingStatus } from "@core/lib/tracking/tracking";
+import { places } from "@core/lib/tracking/network";
+import { Select } from "@core/components/select";
 import type { MapSelection } from "./delivery-map";
 
 const DeliveryMap = dynamic(() => import("./delivery-map").then((module) => module.DeliveryMap), {

@@ -9,14 +9,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useOwners, useSupervisors } from "./use-directory";
-import { crewDuties, type ShiftView } from "@/lib/shift-rules";
-import { toDateTimeParts } from "@/lib/shift-format";
-import type { CrewInput, ShiftFormInput, WorkInput } from "./use-shift-mutations";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { Select } from "./select";
+import { crewDuties, type ShiftView } from "@core/lib/shift-rules";
+import { toDateTimeParts } from "@core/lib/shift-format";
+import type { CrewInput, ShiftFormInput, WorkInput } from "@core/components/use-shift-mutations";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import { DateInput, TimeInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 type Option = { id: string; name: string };
 

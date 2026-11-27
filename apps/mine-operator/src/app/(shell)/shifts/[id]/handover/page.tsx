@@ -2,7 +2,7 @@
  * Route page. Renders the Handover tab for one shift. Needs shift_handover.
  * Routes only choose the screen and read the URL; the behaviour lives in the component.
  */
-import { FeatureGate } from "@/components/entitlement-gate";
+import { FeatureGate } from "@core/components/entitlement-gate";
 import { HandoverTabScreen } from "@/components/shift-control-screens";
 
 export default async function HandoverPage({ params }: { params: Promise<{ id: string }> }) {

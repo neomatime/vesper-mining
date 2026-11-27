@@ -8,14 +8,14 @@ import type { ServiceProvider } from "@vesper/api-contracts";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { categories, categoryLabels } from "@/lib/equipment-rules";
-import { isValidEmail } from "@/lib/organisation-rules";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { Select } from "./select";
+import { categories, categoryLabels } from "@core/lib/equipment-rules";
+import { isValidEmail } from "@core/lib/organisation-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import type { ProviderInput } from "./use-service";
 import { DateInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const providerSchema = z.object({
   name: z.string().trim().min(3, "Enter the company name."),

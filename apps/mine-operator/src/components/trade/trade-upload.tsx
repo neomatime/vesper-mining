@@ -6,13 +6,13 @@
  */
 import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
-import { documentKinds, folderLabels, formatSize, type Folder } from "@/lib/trade-rules";
-import { Dialog } from "../dialog";
-import { Field } from "../form-field";
-import { Select } from "../select";
+import { documentKinds, folderLabels, formatSize, type Folder } from "@core/lib/trade-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type TradeView } from "../use-trade";
-import { Busy } from "../busy";
+import { Busy } from "@core/components/busy";
 
 const MAX = 25 * 1_048_576;
 

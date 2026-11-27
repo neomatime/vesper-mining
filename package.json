@@ -4,12 +4,14 @@
   "private": true,
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "build": "pnpm --filter @vesper/mine-operator build",
+    "build": "pnpm --filter @vesper/mine-operator --filter @vesper/mobile build",
     "dev": "pnpm --filter @vesper/mine-operator dev",
-    "lint": "pnpm --filter @vesper/mine-operator lint",
-    "test": "pnpm --filter @vesper/mine-operator test",
+    "dev:mobile": "pnpm --filter @vesper/mobile dev",
+    "lint": "pnpm --filter @vesper/core --filter @vesper/mine-operator --filter @vesper/mobile lint",
+    "test": "pnpm --filter @vesper/core --filter @vesper/mine-operator test",
     "test:e2e": "pnpm --filter @vesper/mine-operator test:e2e",
-    "typecheck": "pnpm --filter @vesper/api-contracts typecheck && pnpm --filter @vesper/mine-operator typecheck"
+    "test:e2e:mobile": "pnpm --filter @vesper/mobile test:e2e",
+    "typecheck": "pnpm --filter @vesper/api-contracts typecheck && pnpm --filter @vesper/core typecheck && pnpm --filter @vesper/mine-operator typecheck && pnpm --filter @vesper/mobile typecheck"
   },
   "devDependencies": {
     "typescript": "5.9.3"

@@ -7,11 +7,11 @@
 import type { ServiceRequest } from "@vesper/api-contracts";
 import { ArrowLeft, Wrench } from "lucide-react";
 import Link from "next/link";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { requestStatusLabels, urgencyLabels } from "@/lib/service-rules";
-import { ErrorState, LoadingState } from "./query-state";
-import { useShellData } from "./shell-data";
-import { StatusBadge } from "./status-badge";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { requestStatusLabels, urgencyLabels } from "@core/lib/service-rules";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { useShellData } from "@core/components/shell-data";
+import { StatusBadge } from "@core/components/status-badge";
 import { useServiceRequests } from "./use-service";
 import { RegisterView, type Register } from "./workspace-screen";
 

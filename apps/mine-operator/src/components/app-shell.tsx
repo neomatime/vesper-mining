@@ -2,22 +2,19 @@
 
 /**
  * The frame around every signed-in page: the top bar (menu button, command search, site, notifications, profile), the collapsible
- * sidebar, the phone's bottom navigation and the page area.
+ * sidebar and the page area. Field work happens in VESPER Mobile, a separate app (apps/mobile).
  * Navigation is data (the arrays near the top). Each item can name a subscription `feature`; items whose feature the subscription
- * does not include are filtered out, so a plan change changes the menu without touching this file's markup. Pages under /mobile/
- * also show the phone navigation (My Shift, My Work, Report, Notifications).
+ * does not include are filtered out, so a plan change changes the menu without touching this file's markup.
  */
 import {
   AlertTriangle,
   BarChart3,
-  Bell,
   Boxes,
   CirclePlus,
   ClipboardCheck,
   Database,
   FileText,
   Files,
-  HardHat,
   Layers,
   LayoutDashboard,
   Link2,
@@ -37,17 +34,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { RouteProgress } from "./route-progress";
-import { ScrollHints } from "./scroll-hints";
+import { RouteProgress } from "@core/components/route-progress";
+import { ScrollHints } from "@core/components/scroll-hints";
 import { useEffect, useState } from "react";
 import type { FeatureCode } from "@vesper/api-contracts";
-import { can, entitlementsFor } from "@/lib/entitlements";
-import { useDemoContext } from "@/stores/demo-context";
+import { can } from "@core/lib/entitlements";
+import { useDemoContext } from "@core/stores/demo-context";
 import { CommandSearch } from "./command-search";
-import { EntitlementGate } from "./entitlement-gate";
-import { useShellData } from "./shell-data";
-import { NotificationMenu, ProfileMenu, SiteMenu } from "./topbar-menus";
-import { workspaceOf, workspaces } from "@/lib/workspaces";
+import { useShellData } from "@core/components/shell-data";
+import { NotificationMenu, ProfileMenu, SiteMenu } from "@core/components/topbar-menus";
+import { workspaceOf, workspaces } from "@core/lib/workspaces";
 
 type CountKey = "openIssues" | "awaitingDependency" | "readinessAttention";
 
@@ -130,14 +126,6 @@ const tradeSections: { label: string; secondary?: boolean; items: NavigationItem
   },
 ];
 
-/** The four tabs of the phone experience (pages under /mobile/). */
-const mobileNavigation: NavigationItem[] = [
-  { label: "My Shift", href: "/mobile/my-shift", icon: HardHat },
-  { label: "My Work", href: "/mobile/my-work", icon: ClipboardCheck },
-  { label: "Report", href: "/mobile/report", icon: AlertTriangle },
-  { label: "Notifications", href: "/mobile/notifications", icon: Bell },
-];
-
 /** True while the person is typing in a field, so a keyboard shortcut such as '/' does not steal the keystroke. */
 function isTypingTarget(target: EventTarget | null) {
   const element = target as HTMLElement | null;
@@ -151,11 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const { context, sidebarCollapsed, toggleSidebar } = useDemoContext();
   const { counts } = useShellData();
-  const isMobileExperience = pathname.startsWith("/mobile/");
   const workspace = workspaceOf(pathname);
   const sections = workspace === "trade" ? tradeSections : navigationSections;
   const home = workspaces[workspace].home;
-  const mobileLocked = isMobileExperience && !entitlementsFor(context.tier).mobile;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -204,68 +190,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>Search</span>
             <kbd>Ctrl K</kbd>
           </button>
-          {!isMobileExperience ? (
-            <Link className="topbar__report" href="/exceptions/new" aria-label="Report an issue">
-              <CirclePlus aria-hidden="true" />
-              <span>Report issue</span>
-            </Link>
-          ) : null}
+          <Link className="topbar__report" href="/exceptions/new" aria-label="Report an issue">
+            <CirclePlus aria-hidden="true" />
+            <span>Report issue</span>
+          </Link>
           <NotificationMenu />
-          <ProfileMenu inField={isMobileExperience} />
+          <ProfileMenu />
         </div>
       </header>
 
-      {!isMobileExperience ? (
-        <aside
-          className={`sidebar ${mobileOpen ? "sidebar--mobile-open" : ""}`}
-          onClick={(event) => {
-            if ((event.target as HTMLElement).closest("a")) setMobileOpen(false);
-          }}
-        >
-          <div className="sidebar__site-card">
-            <div className="mine-thumbnail" aria-hidden="true"><span /></div>
-            {!sidebarCollapsed ? (workspace === "trade" ? <div><strong>VESPER Trade</strong><small>{context.siteName}</small></div> : <div><strong>{context.siteName}</strong><small>Open pit</small></div>) : null}
-          </div>
-          <nav className="sidebar__nav" aria-label={workspace === "trade" ? "Trade navigation" : "Primary workspaces"}>
-            {sections.filter((section) => !(sidebarCollapsed && section.secondary)).map((section) => (
-              <div className={`sidebar__section ${section.secondary ? "sidebar__section--secondary" : ""}`} key={section.label}>
-                {!sidebarCollapsed ? <p className="sidebar__heading">{section.label}</p> : null}
-                {section.items.filter(included).map((item) => {
-                  const count = countFor(item);
-                  return (
-                    <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
-                      <item.icon aria-hidden="true" />
-                      {!sidebarCollapsed ? <span>{item.label}</span> : null}
-                      {!sidebarCollapsed && count ? <em aria-label={`${count} ${section.secondary ? "open" : "need attention"}`}>{count}</em> : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-          <button className="sidebar__collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-            {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-            {!sidebarCollapsed ? <span>Collapse navigation</span> : null}
-          </button>
-        </aside>
-      ) : null}
+      <aside
+        className={`sidebar ${mobileOpen ? "sidebar--mobile-open" : ""}`}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMobileOpen(false);
+        }}
+      >
+        <div className="sidebar__site-card">
+          <div className="mine-thumbnail" aria-hidden="true"><span /></div>
+          {!sidebarCollapsed ? (workspace === "trade" ? <div><strong>VESPER Trade</strong><small>{context.siteName}</small></div> : <div><strong>{context.siteName}</strong><small>Open pit</small></div>) : null}
+        </div>
+        <nav className="sidebar__nav" aria-label={workspace === "trade" ? "Trade navigation" : "Primary workspaces"}>
+          {sections.filter((section) => !(sidebarCollapsed && section.secondary)).map((section) => (
+            <div className={`sidebar__section ${section.secondary ? "sidebar__section--secondary" : ""}`} key={section.label}>
+              {!sidebarCollapsed ? <p className="sidebar__heading">{section.label}</p> : null}
+              {section.items.filter(included).map((item) => {
+                const count = countFor(item);
+                return (
+                  <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined} title={item.label}>
+                    <item.icon aria-hidden="true" />
+                    {!sidebarCollapsed ? <span>{item.label}</span> : null}
+                    {!sidebarCollapsed && count ? <em aria-label={`${count} ${section.secondary ? "open" : "need attention"}`}>{count}</em> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+        <button className="sidebar__collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+          {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          {!sidebarCollapsed ? <span>Collapse navigation</span> : null}
+        </button>
+      </aside>
 
       <RouteProgress />
       <ScrollHints />
-      <main className={`main-content ${isMobileExperience ? "main-content--mobile" : ""}`}>
-        {mobileLocked ? <EntitlementGate capability="mobile" /> : children}
-      </main>
-
-      {isMobileExperience && !mobileLocked ? (
-        <nav className="mobile-bottom-nav" aria-label="Field navigation">
-          {mobileNavigation.map((item) => (
-            <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""} aria-current={active(item.href) ? "page" : undefined}>
-              <item.icon aria-hidden="true" />
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <main className="main-content">{children}</main>
 
       <CommandSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>

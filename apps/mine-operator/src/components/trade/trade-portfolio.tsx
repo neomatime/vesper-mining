@@ -8,16 +8,16 @@ import { Building2, CirclePlus, FileText, Globe, Layers, Mail, MapPin, Phone, Ta
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { clientSegments, formatTonnes } from "@/lib/trade-rules";
-import { Dialog } from "../dialog";
-import { Field } from "../form-field";
-import { EmptyState } from "../query-state";
-import { Select } from "../select";
+import { clientSegments, formatTonnes } from "@core/lib/trade-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { EmptyState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
 import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type ClientRow, type TradeView } from "../use-trade";
 import { AgreementStatus, ApprovalStatus, ClientStatus, DeliveryStatus, DocumentStatus, EnquiryStage, Readiness, SettlementStatus } from "./trade-status";
 import { ActionMenu, CellMain, Crumbs, dayLabel, KpiTiles, Money, Progress, RailCard, RailList, Register, TabBar, TradeData, TradeHeader } from "./trade-ui";
-import { Busy } from "../busy";
+import { Busy } from "@core/components/busy";
 
 export function PortfolioScreen() {
   return <TradeData label="Loading the portfolio">{(data) => <Portfolio data={data} />}</TradeData>;

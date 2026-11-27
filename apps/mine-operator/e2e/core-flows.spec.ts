@@ -3,6 +3,7 @@
  * Runs against a production build; see playwright.config.ts and scripts/run-e2e.mjs.
  */
 import { expect, test } from "@playwright/test";
+import { FIXTURE_PASSWORD } from "../../../packages/core/src/lib/accounts";
 import { openAs, signIn, signInHere } from "./support";
 
 test("signs in, shows no prototype labels, and lands on the command centre", async ({ page }) => {
@@ -50,11 +51,16 @@ test("signs out from the account menu and protects the app afterwards", async ({
 
 test("starts each role where their work is", async ({ page, isMobile }) => {
   test.skip(isMobile, "Exercised on the desktop layout.");
-  await signIn(page, "Thabo Molefe");
-  await expect(page).toHaveURL(/\/mobile\/my-shift$/);
-  await expect(page.getByRole("heading", { name: /Good morning, Thabo/ })).toBeVisible();
-  await page.getByRole("button", { name: /Account menu for Thabo Molefe/ }).click();
-  await page.getByRole("button", { name: /Sign out/ }).click();
+  // A field employee works in VESPER Mobile, a separate app: signing in on the web sends them there.
+  await page.route("http://127.0.0.1:3001/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>VESPER Mobile</h1>" }));
+  await page.goto("/sign-in");
+  await page.getByLabel("Email address").fill("thabo.molefe@riverside.example");
+  await page.getByLabel("Password").fill(FIXTURE_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3001/my-shift");
+  // Back on the web (the presenter page needs no session), end Thabo's session there and sign in as an office role.
+  await page.goto("/demo");
+  await page.evaluate(() => window.localStorage.clear());
   await signIn(page, "Naledi Khoza");
   await expect(page).toHaveURL(/\/overview$/);
   await expect(page.getByLabel("Summary").getByText("Readiness risks")).toBeVisible();
@@ -87,16 +93,6 @@ test("shows an actionable empty state when search finds nothing", async ({ page,
   await expect(page.getByText(/Nothing matches/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Search VESPER" })).toBeHidden();
-});
-
-test("shows the field report as pending while offline", async ({ page }) => {
-  await openAs(page, "/mobile/report");
-  await page.getByRole("button", { name: "Work offline" }).click();
-  await page.getByLabel("Issue title").fill("Hydraulic leak observed");
-  await page.getByLabel("Observed condition").fill("A small hydraulic leak was observed during the pre-start inspection.");
-  await page.getByRole("button", { name: "Save pending report" }).click();
-  await expect(page.getByText("Pending Synchronisation")).toBeVisible();
-  await expect(page.getByText(/has not been received centrally/)).toBeVisible();
 });
 
 test("continues with Microsoft using a work address, and explains when the address is not known", async ({ page }) => {

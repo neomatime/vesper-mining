@@ -56,13 +56,13 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByText("Indicative trend data. Not measured delay")).toBeVisible();
   });
 
-  test("includes VESPER Mobile in every subscription, Core included", async ({ page }) => {
+  test("includes VESPER Mobile in every subscription, Core included, and links to it from the account menu", async ({ page }) => {
     await signIn(page);
     for (const plan of ["Core", "Operations — Single Site", "Operations", "Enterprise", "Group"]) {
       await setPlan(page, plan);
-      await page.goto("/mobile/my-shift");
-      await expect(page.getByRole("heading", { name: /Good morning/ }), plan).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Field navigation" }), plan).toBeVisible();
+      await page.goto("/overview");
+      await page.getByRole("button", { name: /Account menu/ }).click();
+      await expect(page.getByRole("link", { name: /Open VESPER Mobile/ }), plan).toHaveAttribute("href", "http://127.0.0.1:3001/my-shift");
     }
   });
 

@@ -25,24 +25,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { demoFetch } from "@/lib/api";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { openDependencies } from "@/lib/issue-rules";
-import { formatDay, remaining, shiftTimes } from "@/lib/shift-format";
-import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@/lib/shift-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { ConfirmDialog } from "./dialog";
+import { demoFetch } from "@core/lib/api";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { openDependencies } from "@core/lib/issue-rules";
+import { formatDay, remaining, shiftTimes } from "@core/lib/shift-format";
+import { canActOnShift, handoverLabels, shiftStateLabels, type ShiftView } from "@core/lib/shift-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { ConfirmDialog } from "@core/components/dialog";
 import { MoreMenu } from "./more-menu";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
 import { CancelShiftDialog, CrewDialog, ShiftFormDialog, WorkDialog } from "./shift-dialogs";
-import { useShellData } from "./shell-data";
-import { StatusBadge } from "./status-badge";
-import { TaskCompletionDialog, TaskCompletionNote } from "./task-completion";
-import { useShiftMutations } from "./use-shift-mutations";
+import { useShellData } from "@core/components/shell-data";
+import { StatusBadge } from "@core/components/status-badge";
+import { TaskCompletionDialog, TaskCompletionNote } from "@core/components/task-completion";
+import { useShiftMutations } from "@core/components/use-shift-mutations";
 import { ImpactCard } from "./impact-panels";
 import { useFeature } from "./use-entitlements";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 export function ShiftDetailScreen({ id }: { id: string }) {
   const query = useQuery({

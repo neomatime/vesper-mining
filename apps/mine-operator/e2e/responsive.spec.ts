@@ -10,7 +10,7 @@ test.describe("phone layout", () => {
 
   test("no page scrolls sideways", async ({ page }) => {
     await openAs(page, "/overview", "John Dlamini");
-    for (const route of ["/overview", "/exceptions", "/equipment", "/shifts", "/shifts?view=calendar", "/admin", "/profile", "/mobile/my-shift", "/mobile/schedule"]) {
+    for (const route of ["/overview", "/exceptions", "/equipment", "/shifts", "/shifts?view=calendar", "/admin", "/profile", "/notifications"]) {
       await page.goto(route);
       await expect(page.locator("main")).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -50,7 +50,7 @@ test.describe("phone layout", () => {
   });
 
   test("gives touch controls a comfortable size", async ({ page }) => {
-    await openAs(page, "/mobile/schedule", "Amina Patel");
+    await openAs(page, "/shifts?view=calendar", "Amina Patel");
     for (const name of ["Previous month", "Next month"]) {
       const box = await page.getByRole("button", { name }).boundingBox();
       expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);

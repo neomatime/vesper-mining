@@ -7,12 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import { reportingLevelLabels } from "@vesper/api-contracts";
 import { BarChart3, Gauge, Layers3, LineChart, Lock, PackageCheck, Repeat2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { demoFetch } from "@/lib/api";
-import { canSeeReport, entitlementsFor } from "@/lib/entitlements";
-import type { ReportKey, ReportSummary } from "@/lib/reports";
-import { useDemoContext } from "@/stores/demo-context";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
+import { demoFetch } from "@core/lib/api";
+import { canSeeReport, entitlementsFor } from "@core/lib/entitlements";
+import type { ReportKey, ReportSummary } from "@core/lib/reports";
+import { useDemoContext } from "@core/stores/demo-context";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
 
 const icons: Record<ReportKey, typeof BarChart3> = {
   "production-vs-plan": Gauge,

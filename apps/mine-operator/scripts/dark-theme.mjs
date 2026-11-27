@@ -13,7 +13,7 @@
  * Rules are re-emitted even when a colour does not change, so the order and weight of rules that override one another
  * stays the same as in the light theme.
  *
- * The output is committed as `src/app/dark.generated.css`. Regenerate it after editing `globals.css` or `theme.css`:
+ * The output is committed as `packages/core/src/styles/dark.generated.css`. Regenerate it after editing `globals.css` or `theme.css`:
  *   node scripts/generate-dark-theme.mjs
  * A unit test fails when the committed file is out of date.
  */

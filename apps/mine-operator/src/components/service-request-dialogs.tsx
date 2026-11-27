@@ -6,10 +6,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
 import { DateInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 function Footer({ pending, onClose, form, label }: { pending: boolean; onClose: () => void; form: string; label: string }) {
   return (

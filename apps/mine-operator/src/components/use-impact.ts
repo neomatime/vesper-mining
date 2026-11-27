@@ -5,10 +5,10 @@
  * readiness and shipment pages and the Overview), and every change refreshes all of them, so they cannot show different figures.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import type { demoDomain } from "@/lib/demo-store";
-import { useDemoContext } from "@/stores/demo-context";
-import { useToast } from "./toast-provider";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import type { demoDomain } from "@core/lib/demo-store";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useToast } from "@core/components/toast-provider";
 
 export type ImpactView = ReturnType<typeof demoDomain.impact>;
 

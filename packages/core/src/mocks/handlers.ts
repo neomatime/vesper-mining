@@ -1,0 +1,627 @@
+/**
+ * The demo API: every route the screens call, as MSW request handlers under /_demo/api/v1.
+ * Handlers stay thin: read the actor header, parse the body, call a function in demo-store.ts, and wrap the result in the standard
+ * { data, meta } envelope (or a DemoError in an error envelope). Business rules never live here; put them in demo-store.ts or the
+ * *-rules.ts files so they are shared and tested. To add an endpoint: add the store function, add the handler, call it from a hook.
+ */
+import { http, HttpResponse } from "msw";
+import { ACTOR_HEADER } from "../lib/api";
+import { workspaceContent } from "../lib/demo-data";
+import { DemoError, demoDomain } from "../lib/demo-store";
+import type { Actor } from "../lib/issue-rules";
+import { buildReport, reportCatalogue } from "../lib/reports";
+import { assertTradeAccess, tradeDomain } from "../lib/trade-store";
+
+const API = "/_demo/api/v1";
+
+/** Every response has the same shape: { data, meta }. A real backend should keep this shape so screens need no change. */
+function envelope<T>(data: T, status = 200) {
+  return HttpResponse.json(
+    { data, meta: { demo: true, generatedAt: demoDomain.now() } },
+    { status },
+  );
+}
+
+/** Who is making the request, from the actor header the client always sends (see lib/api.ts). Defaults to the demo manager. */
+function actorOf(request: Request): Actor {
+  const header = request.headers.get(ACTOR_HEADER);
+  if (header) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(header)) as Partial<Actor>;
+      if (parsed.name && parsed.role) return { name: parsed.name, role: parsed.role };
+    } catch {
+      // Fall through to the default persona.
+    }
+  }
+  return { name: "John Dlamini", role: "Mine Manager" };
+}
+
+/** The JSON body, or an empty object when there is none, so handlers can read fields without checking first. */
+async function bodyOf<T = Record<string, unknown>>(request: Request): Promise<T> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
+/** Runs a domain operation and turns its failures into the demo error envelope. */
+function run<T>(operation: () => T, status = 200) {
+  try {
+    const result = operation();
+    demoDomain.save();
+    return envelope(result, status);
+  } catch (error) {
+    if (error instanceof DemoError) demoDomain.save();
+    if (error instanceof DemoError) {
+      return envelope({ code: error.code, message: error.message }, error.status);
+    }
+    throw error;
+  }
+}
+
+type Params = Record<string, string | readonly string[] | undefined>;
+const param = (params: Params, key: string) => String(params[key]);
+
+/**
+ * One handler per endpoint under /_demo/api/v1, grouped by area. The pattern: read the actor and the body, call a
+ * demoDomain method inside run(), and let run() turn the result or the DemoError into the response and save the state.
+ */
+export const handlers = [
+  http.get(`${API}/bootstrap`, () => envelope(demoDomain.get().context)),
+
+  http.get(`${API}/overview`, () => {
+    const state = demoDomain.get();
+    const issues = demoDomain.listIssues();
+    const priority = issues.find((issue) => issue.id === "issue-riv-001") ?? issues[0];
+    return envelope({
+      context: state.context,
+      priorityIssue: priority,
+      issues,
+      areas: state.areas,
+      equipment: demoDomain.listEquipment(),
+      readiness: state.readiness,
+      shifts: demoDomain.listShifts(),
+      members: state.members,
+      now: demoDomain.now(),
+    });
+  }),
+
+  // ---- Issues ------------------------------------------------------------------------------
+  http.get(`${API}/issues`, () => envelope(demoDomain.listIssues())),
+  http.get(`${API}/issues/:id`, ({ params }) => run(() => demoDomain.getIssue(param(params, "id")))),
+  http.post(`${API}/issues`, async ({ request }) => {
+    const input = await bodyOf<{ pendingSync?: boolean } & Record<string, unknown>>(request);
+    if (input.pendingSync) {
+      return envelope({
+        id: "local-pending-001",
+        state: "pending_sync",
+        message: "Saved on this device. This report has not been received centrally.",
+      });
+    }
+    return run(() => demoDomain.createIssue(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/issues/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateIssue(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/issues/:id/transition`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.transitionIssue(param(params, "id"), input, actorOf(request)));
+  }),
+
+  http.post(`${API}/issues/:id/actions`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addAction(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/issues/:id/actions/:actionId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateAction(param(params, "id"), param(params, "actionId"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/issues/:id/actions/:actionId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removeAction(param(params, "id"), param(params, "actionId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/issues/:id/actions/:actionId/restore`, ({ params, request }) =>
+    run(() => demoDomain.restoreAction(param(params, "id"), param(params, "actionId"), actorOf(request))),
+  ),
+
+  http.post(`${API}/issues/:id/dependencies`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addDependency(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/issues/:id/dependencies/:dependencyId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateDependency(param(params, "id"), param(params, "dependencyId"), input, actorOf(request)));
+  }),
+
+  http.post(`${API}/issues/:id/comments`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addComment(param(params, "id"), input, actorOf(request)), 201);
+  }),
+
+  // ---- Areas, equipment ---------------------------------------------------------------------
+  http.get(`${API}/areas`, () => envelope(demoDomain.get().areas)),
+  http.get(`${API}/equipment`, () => envelope(demoDomain.listEquipment())),
+  http.get(`${API}/equipment/:id`, ({ params }) => run(() => demoDomain.getEquipment(param(params, "id")))),
+  http.post(`${API}/equipment`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createEquipment(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/equipment/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateEquipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/equipment/:id`, ({ params, request }) => run(() => demoDomain.deleteEquipment(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/equipment/:id/retire`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.retireEquipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/restore`, ({ params, request }) => run(() => demoDomain.restoreEquipment(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/equipment/:id/state`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setEquipmentState(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/readings`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordReading(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/equipment/:id/plans`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addPlan(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/equipment/:id/plans/:planId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updatePlan(param(params, "id"), param(params, "planId"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/equipment/:id/plans/:planId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removePlan(param(params, "id"), param(params, "planId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/equipment/:id/services`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.logService(param(params, "id"), input, actorOf(request)), 201);
+  }),
+
+  // ---- Readiness ------------------------------------------------------------------------------
+  http.get(`${API}/readiness`, () => envelope(demoDomain.get().readiness)),
+  http.get(`${API}/readiness/:id`, ({ params }) => {
+    const activity = demoDomain.get().readiness.find((item) => item.id === params.id);
+    return activity ? envelope(activity) : envelope({ code: "NOT_FOUND", message: "This readiness activity could not be found." }, 404);
+  }),
+  http.post(`${API}/readiness/:id/reviews`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addReview(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/readiness/:id/parts/:partId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updatePart(param(params, "id"), param(params, "partId"), input, actorOf(request)));
+  }),
+
+  // ---- Shifts and handover ------------------------------------------------------------------
+  http.get(`${API}/shifts`, () => envelope(demoDomain.listShifts())),
+  http.get(`${API}/shifts/:id`, ({ params }) => run(() => demoDomain.shiftView(param(params, "id")))),
+  http.post(`${API}/shifts`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createShift(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shifts/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateShift(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/shifts/:id`, ({ params, request }) => run(() => demoDomain.deleteShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/start`, ({ params, request }) => run(() => demoDomain.startShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/close`, ({ params, request }) => run(() => demoDomain.closeShift(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/shifts/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.cancelShift(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shifts/:id/crew`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addCrew(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.delete(`${API}/shifts/:id/crew/:crewId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removeCrew(param(params, "id"), param(params, "crewId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shifts/:id/work`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addWork(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shifts/:id/work/:workId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateWork(param(params, "id"), param(params, "workId"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/shifts/:id/work/:workId`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.removeWork(param(params, "id"), param(params, "workId"), input, actorOf(request)));
+  }),
+  http.put(`${API}/shifts/:id/handover`, async ({ params, request }) => {
+    const input = await bodyOf<{ notes?: string }>(request);
+    return run(() => demoDomain.saveHandoverNotes(param(params, "id"), input.notes, actorOf(request)));
+  }),
+  http.post(`${API}/shifts/:id/handover/publish`, ({ params, request }) =>
+    run(() => demoDomain.publishHandover(param(params, "id"), actorOf(request))),
+  ),
+  http.post(`${API}/shifts/:id/handover/withdraw`, ({ params, request }) =>
+    run(() => demoDomain.withdrawHandover(param(params, "id"), actorOf(request))),
+  ),
+  http.post(`${API}/shifts/:id/acknowledgement`, ({ params, request }) =>
+    run(() => demoDomain.acknowledgeHandover(param(params, "id"), actorOf(request))),
+  ),
+
+  // ---- Sign-in and organisation ---------------------------------------------------------------
+  http.post(`${API}/session`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; password?: string }>(request);
+    return run(() => demoDomain.authenticate(String(input.email ?? ""), String(input.password ?? "")));
+  }),
+  http.post(`${API}/session/sso`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string }>(request);
+    return run(() => demoDomain.authenticateSso(String(input.email ?? "")));
+  }),
+  http.post(`${API}/session/password`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
+    return run(() => demoDomain.changePassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));
+  }),
+  http.post(`${API}/session/change-password`, async ({ request }) => {
+    const input = await bodyOf<{ email?: string; current?: string; next?: string }>(request);
+    return run(() => demoDomain.changeOwnPassword(String(input.email ?? ""), String(input.current ?? ""), String(input.next ?? "")));
+  }),
+  http.patch(`${API}/me`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateOwnDetails(input, actorOf(request)));
+  }),
+  http.get(`${API}/organisation`, () => envelope(demoDomain.organisation())),
+  http.post(`${API}/members`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addMember(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/members/:id`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateMember(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/members/:id`, ({ params, request }) => run(() => demoDomain.deleteMember(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/members/:id/access`, async ({ params, request }) => {
+    const input = await bodyOf<{ access?: string }>(request);
+    return run(() => demoDomain.setMemberAccess(param(params, "id"), input.access === "on" ? "on" : "off", actorOf(request)));
+  }),
+  http.post(`${API}/members/:id/password-reset`, ({ params, request }) => run(() => demoDomain.resetPassword(param(params, "id"), actorOf(request)))),
+  http.patch(`${API}/organisation/company`, async ({ request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateCompany(input, actorOf(request)));
+  }),
+  http.patch(`${API}/organisation/site`, async ({ request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateSite(input, actorOf(request)));
+  }),
+
+  // ---- Service providers and requests ----------------------------------------------------------
+  http.get(`${API}/providers`, () => envelope(demoDomain.listProviders())),
+  http.post(`${API}/providers`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createProvider(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/providers/:id`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.updateProvider(param(params, "id"), input, actorOf(request)));
+  }),
+  http.get(`${API}/providers/:id/detail`, ({ params }) => run(() => demoDomain.providerDetail(param(params, "id")))),
+  http.post(`${API}/providers/:id/approval`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setProviderApproval(param(params, "id"), input, actorOf(request)));
+  }),
+  http.delete(`${API}/providers/:id`, ({ params, request }) => run(() => demoDomain.deleteProvider(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/providers/:id/active`, async ({ params, request }) => {
+    const input = await bodyOf<{ active?: boolean }>(request);
+    return run(() => demoDomain.setProviderActive(param(params, "id"), Boolean(input.active), actorOf(request)));
+  }),
+  http.get(`${API}/service-requests`, ({ request }) => {
+    const equipmentId = new URL(request.url).searchParams.get("equipmentId") ?? undefined;
+    return envelope(demoDomain.listServiceRequests(equipmentId));
+  }),
+  http.get(`${API}/service-requests/:id`, ({ params }) => run(() => demoDomain.getServiceRequest(param(params, "id")))),
+  http.post(`${API}/service-requests`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createServiceRequest(input, actorOf(request)), 201);
+  }),
+  http.get(`${API}/provider-response/:token`, ({ params }) => run(() => demoDomain.providerView(param(params, "token")))),
+  http.post(`${API}/provider-response/:token`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.providerRespond(param(params, "token"), input));
+  }),
+  http.post(`${API}/service-requests/:id/invites/:inviteId/award`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.awardInvite(param(params, "id"), param(params, "inviteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/schedule`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.scheduleRequest(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/complete`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.completeRequest(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/service-requests/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf<Record<string, unknown> & { version?: number }>(request);
+    return run(() => demoDomain.cancelRequest(param(params, "id"), input, actorOf(request)));
+  }),
+
+  // ---- Notifications ------------------------------------------------------------------------
+  // ---- Production, inventory and shipments (demo and UAT scope) ----
+  http.get(`${API}/logistics`, ({ request }) => envelope(demoDomain.logistics(actorOf(request)))),
+  http.get(`${API}/transport`, ({ request }) => envelope(demoDomain.transport(actorOf(request)))),
+  http.post(`${API}/transport-providers`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addTransportProvider(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/transport-providers/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateTransportProvider(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/quote-requests`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createQuoteRequest(input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/quote-requests/:id/sent`, ({ params, request }) => run(() => demoDomain.recordRequestSent(param(params, "id"), actorOf(request)))),
+  http.post(`${API}/quote-requests/:id/quotes/:quoteId`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordTransportQuote(param(params, "id"), param(params, "quoteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/quote-requests/:id/quotes/:quoteId/decision`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.decideTransportQuote(param(params, "id"), param(params, "quoteId"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createAgreement(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/agreements/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/confirm`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.confirmAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/end`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.endAgreement(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/agreements/:id/charges`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordCharge(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/shipments/:id/pricing-agreement`, async ({ params, request }) => {
+    const input = await bodyOf<{ agreementId?: string }>(request);
+    return run(() => demoDomain.applyAgreement(param(params, "id"), String(input.agreementId), input, actorOf(request)));
+  }),
+  // Shift briefing review: read the generated briefing, save corrections, approve, or reopen.
+  http.get(`${API}/briefing`, ({ request }) => envelope(demoDomain.briefing(actorOf(request)))),
+  http.post(`${API}/briefing/save`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.saveBriefing(input, actorOf(request)));
+  }),
+  http.post(`${API}/briefing/approve`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.approveBriefing(input, actorOf(request)));
+  }),
+  http.post(`${API}/briefing/reopen`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.reopenBriefing(input, actorOf(request)));
+  }),
+  // Automations: the seven notification rules, their settings and their runs.
+  http.get(`${API}/automations`, ({ request }) => envelope(demoDomain.automations(actorOf(request)))),
+  http.patch(`${API}/automations/:key`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateAutomation(param(params, "key"), input, actorOf(request)));
+  }),
+  http.post(`${API}/automations/run`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.runAutomations(input, actorOf(request)));
+  }),
+  http.get(`${API}/impact`, ({ request }) => envelope(demoDomain.impact(actorOf(request)))),
+  http.post(`${API}/impact/estimate`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateImpact(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/repair-complete`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.completeRepair(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/recovery`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordRecovery(input, actorOf(request)));
+  }),
+  http.post(`${API}/impact/reset`, ({ request }) => run(() => demoDomain.resetImpact(actorOf(request)))),
+  http.post(`${API}/prices`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setPrice(input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/production`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordProduction(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/production/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/production/:id/check`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.checkProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/production/:id/send-back`, async ({ params, request }) => {
+    const input = await bodyOf<{ reason?: unknown; version?: number }>(request);
+    return run(() => demoDomain.sendBackProduction(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.createShipment(input, actorOf(request)), 201);
+  }),
+  http.patch(`${API}/shipments/:id`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateShipment(param(params, "id"), input, actorOf(request)));
+  }),
+  // Own fleet: who moves the shipment, which vehicles and drivers, and the coordinator's confirmation.
+  http.post(`${API}/shipments/:id/transport-mode`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.setTransportMode(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/fleet-loads`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.addFleetLoad(param(params, "id"), input, actorOf(request)), 201);
+  }),
+  http.post(`${API}/shipments/:id/fleet-loads/:loadId/remove`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.removeFleetLoad(param(params, "id"), param(params, "loadId"), input, actorOf(request)));
+  }),
+  http.patch(`${API}/shipments/:id/fleet`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.updateFleetPlan(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/fleet-confirm`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.confirmFleetSchedule(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/ready`, async ({ params, request }) => {
+    const input = await bodyOf<{ version?: number }>(request);
+    return run(() => demoDomain.markShipmentReady(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/dispatch`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordDispatch(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/delivery`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.recordDelivery(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/cancel`, async ({ params, request }) => {
+    const input = await bodyOf<{ reason?: unknown; version?: number }>(request);
+    return run(() => demoDomain.cancelShipment(param(params, "id"), input, actorOf(request)));
+  }),
+  http.post(`${API}/shipments/:id/deliveries/:deliveryId/review`, ({ params, request }) =>
+    run(() => demoDomain.reviewDifference(param(params, "id"), param(params, "deliveryId"), actorOf(request))),
+  ),
+  http.post(`${API}/collection-requests/:id/reminder`, ({ params, request }) => run(() => demoDomain.sendReminder(param(params, "id"), actorOf(request)))),
+  http.get(`${API}/transport-response/:token`, ({ params }) => run(() => demoDomain.transportView(param(params, "token")))),
+  http.post(`${API}/transport-response/:token`, async ({ params, request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.transporterRespond(param(params, "token"), input));
+  }),
+  http.get(`${API}/notifications`, ({ request }) => envelope(demoDomain.listNotifications(actorOf(request)))),
+  http.post(`${API}/notifications/read-all`, ({ request }) => run(() => demoDomain.readAllNotifications(actorOf(request)))),
+  http.patch(`${API}/notifications/:id`, async ({ params, request }) => {
+    const input = await bodyOf<{ read?: boolean; dismissed?: boolean }>(request);
+    const body = input.read === undefined && input.dismissed === undefined ? { read: true } : input;
+    return run(() => demoDomain.updateNotification(param(params, "id"), body));
+  }),
+
+  // ---- Reports and workspaces ----------------------------------------------------------------
+  http.get(`${API}/reports`, () => envelope(reportCatalogue)),
+  http.get(`${API}/reports/:key`, ({ params }) => {
+    const report = buildReport(String(params.key), {
+      issues: demoDomain.listIssues(),
+      readiness: demoDomain.get().readiness,
+      now: demoDomain.now(),
+    });
+    return report ? envelope(report) : envelope({ code: "NOT_FOUND", message: "This report could not be found." }, 404);
+  }),
+
+  http.get(`${API}/workspaces/:key`, ({ params }) => {
+    const key = String(params.key) as keyof typeof workspaceContent;
+    const content = workspaceContent[key];
+    if (!content) return envelope({ code: "NOT_FOUND", message: "This workspace could not be found." }, 404);
+    const state = demoDomain.get();
+    const records =
+      key === "exceptions"
+        ? demoDomain.listIssues()
+        : key === "equipment"
+          ? demoDomain.listEquipment()
+          : key === "resources"
+            ? state.readiness
+            : key === "shifts"
+              ? demoDomain.listShifts()
+              : key === "admin"
+                ? [
+                    { id: "cfg-site", title: "Site configuration", detail: "Riverside Mine · Open pit" },
+                    { id: "cfg-users", title: "Users & roles", detail: "People and roles" },
+                    { id: "cfg-entitlements", title: "Subscription", detail: "Operations — Single Site" },
+                    { id: "cfg-integrations", title: "Integration boundaries", detail: "No live systems connected" },
+                  ]
+                : [
+                    { id: "rep-production", title: "Production vs plan", detail: "Reported shift comparison" },
+                    { id: "rep-exceptions", title: "Operational exceptions", detail: "Evidence-linked issue summary" },
+                    { id: "rep-downtime", title: "Equipment delay stages", detail: "Reported events, not financial loss" },
+                    { id: "rep-readiness", title: "Resource readiness", detail: "Upcoming work and uncertain inputs" },
+                  ];
+    return envelope({ ...content, records });
+  }),
+
+  http.post(`${API}/scenario/reset`, () => {
+    tradeDomain.reset();
+    return envelope(demoDomain.reset());
+  }),
+
+  // ---- Trade -------------------------------------------------------------------------------------------------------------
+  // Every Trade route first checks that the person works in Trade. Changes save both stores, because approvals notify people.
+  http.get(`${API}/trade`, ({ request }) => tradeRun(request, (actor) => tradeDomain.view(actor))),
+  ...tradeWrites([
+    ["post", "/trade/clients", (actor, body) => tradeDomain.createClient(body, actor)],
+    ["patch", "/trade/clients/:id", (actor, body, id) => tradeDomain.updateClient(id, body, actor)],
+    ["post", "/trade/clients/:id/status", (actor, body, id) => tradeDomain.setClientStatus(id, body, actor)],
+    ["post", "/trade/clients/:id/contacts", (actor, body, id) => tradeDomain.addContact(id, body, actor)],
+    ["delete", "/trade/clients/:id/contacts/:contactId", (actor, _body, id, contactId) => tradeDomain.removeContact(id, contactId, actor)],
+    ["post", "/trade/enquiries", (actor, body) => tradeDomain.createEnquiry(body, actor)],
+    ["post", "/trade/enquiries/:id/stage", (actor, body, id) => tradeDomain.advanceEnquiry(id, body, actor)],
+    ["post", "/trade/agreements", (actor, body) => tradeDomain.createAgreement(body, actor)],
+    ["post", "/trade/agreements/:id/submit", (actor, body, id) => tradeDomain.submitAgreement(id, body, actor)],
+    ["post", "/trade/agreements/:id/amendments", (actor, body, id) => tradeDomain.amendAgreement(id, body, actor)],
+    ["post", "/trade/agreements/:id/status", (actor, body, id) => tradeDomain.setAgreementStatus(id, body, actor)],
+    ["post", "/trade/deliveries", (actor, body) => tradeDomain.createDelivery(body, actor)],
+    ["patch", "/trade/deliveries/:id/plan", (actor, body, id) => tradeDomain.updateDeliveryPlan(id, body, actor)],
+    ["post", "/trade/locations", (actor, body) => tradeDomain.saveLocation(body, actor)],
+    ["delete", "/trade/locations/:id", (actor, _body, id) => tradeDomain.removeLocation(id, actor)],
+    ["post", "/trade/deliveries/:id/reschedule", (actor, body, id) => tradeDomain.rescheduleDelivery(id, body, actor)],
+    ["post", "/trade/deliveries/:id/shipment", (actor, body, id) => tradeDomain.linkShipment(id, body, actor)],
+    ["post", "/trade/deliveries/:id/acceptance", (actor, body, id) => tradeDomain.recordAcceptance(id, body, actor)],
+    ["post", "/trade/deliveries/:id/discrepancy", (actor, body, id) => tradeDomain.raiseDiscrepancy(id, body, actor)],
+    ["post", "/trade/deliveries/:id/discrepancy/resolve", (actor, body, id) => tradeDomain.resolveDiscrepancy(id, body, actor)],
+    ["post", "/trade/deliveries/:id/cancel", (actor, body, id) => tradeDomain.cancelDelivery(id, body, actor)],
+    ["post", "/trade/settlements", (actor, body) => tradeDomain.createInvoice(body, actor)],
+    ["post", "/trade/settlements/:id/payments", (actor, body, id) => tradeDomain.recordPayment(id, body, actor)],
+    ["post", "/trade/settlements/:id/dispute", (actor, body, id) => tradeDomain.disputeSettlement(id, body, actor)],
+    ["post", "/trade/settlements/:id/resolve", (actor, body, id) => tradeDomain.resolveSettlement(id, body, actor)],
+    ["post", "/trade/approvals/:id/decision", (actor, body, id) => tradeDomain.decideApproval(id, body, actor)],
+    ["post", "/trade/documents", (actor, body) => tradeDomain.uploadDocument(body, actor)],
+    ["post", "/trade/documents/:id/status", (actor, body, id) => tradeDomain.setDocumentStatus(id, body, actor)],
+    ["delete", "/trade/documents/:id", (actor, _body, id) => tradeDomain.deleteDocument(id, actor)],
+    ["post", "/trade/links", (actor, body) => tradeDomain.createLink(body, actor)],
+    ["delete", "/trade/links/:id", (actor, _body, id) => tradeDomain.removeLink(id, actor)],
+    ["post", "/trade/reports", (actor, body) => tradeDomain.createReport(body, actor)],
+    ["post", "/trade/reports/:id/run", (actor, _body, id) => tradeDomain.runReport(id, actor)],
+    ["delete", "/trade/reports/:id", (actor, _body, id) => tradeDomain.deleteReport(id, actor)],
+  ]),
+];
+
+/** Runs a Trade operation for the requesting person, after checking they work in Trade. */
+function tradeRun<T>(request: Request, operation: (actor: Actor) => T, status = 200) {
+  const actor = actorOf(request);
+  return run(() => {
+    assertTradeAccess(actor);
+    const result = operation(actor);
+    tradeDomain.save();
+    return result;
+  }, status);
+}
+
+type TradeWrite = [method: "post" | "patch" | "delete", path: string, operation: (actor: Actor, body: Record<string, unknown>, id: string, second: string) => unknown];
+
+function tradeWrites(routes: TradeWrite[]) {
+  return routes.map(([method, path, operation]) =>
+    http[method](`${API}${path}`, async ({ request, params }) => {
+      const body = method === "delete" ? {} : await bodyOf(request);
+      const id = typeof params.id === "string" ? params.id : "";
+      const second = typeof params.contactId === "string" ? params.contactId : "";
+      return tradeRun(request, (actor) => operation(actor, body, id, second), method === "post" && !id ? 201 : 200);
+    }),
+  );
+}

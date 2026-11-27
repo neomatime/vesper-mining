@@ -7,16 +7,16 @@ import { ArrowLeft, Check, KeyRound, Lock, Minus, Pencil, ShieldCheck } from "lu
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { canManageOrganisation, memberStatusLabels, roleInfo } from "@/lib/organisation-rules";
-import { initials } from "@/lib/personas";
-import { levelLabels, rightsForRole } from "@/lib/rights";
-import { useDemoContext } from "@/stores/demo-context";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { canManageOrganisation, memberStatusLabels, roleInfo } from "@core/lib/organisation-rules";
+import { initials } from "@core/lib/personas";
+import { levelLabels, rightsForRole } from "@core/lib/rights";
+import { useDemoContext } from "@core/stores/demo-context";
 import { ChangeRoleDialog, MemberDialog, TemporaryPasswordDialog } from "./admin-dialogs";
-import { ConfirmDialog } from "./dialog";
+import { ConfirmDialog } from "@core/components/dialog";
 import { MoreMenu } from "./more-menu";
-import { LoadingState } from "./query-state";
-import { StatusBadge } from "./status-badge";
+import { LoadingState } from "@core/components/query-state";
+import { StatusBadge } from "@core/components/status-badge";
 import { useOrganisation, useOrganisationMutations } from "./use-organisation";
 
 const statusTone = { active: "complete", invited: "pending", deactivated: "unknown" } as const;

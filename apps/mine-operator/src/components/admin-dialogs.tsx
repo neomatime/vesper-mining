@@ -9,13 +9,13 @@ import type { Company, Member, SiteDetails } from "@vesper/api-contracts";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { isValidEmail, roleCatalogue, timezones } from "@/lib/organisation-rules";
-import { levelLabels, rightsMatrix } from "@/lib/rights";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
+import { isValidEmail, roleCatalogue, timezones } from "@core/lib/organisation-rules";
+import { levelLabels, rightsMatrix } from "@core/lib/rights";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
 import type { MemberInput } from "./use-organisation";
-import { Select } from "./select";
-import { Busy } from "./busy";
+import { Select } from "@core/components/select";
+import { Busy } from "@core/components/busy";
 
 type Footer = { pending: boolean; onClose: () => void; form: string; label: string };
 

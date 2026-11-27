@@ -6,8 +6,8 @@
  */
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import { canUseTrade } from "@/lib/workspaces";
-import { useDemoContext } from "@/stores/demo-context";
+import { canUseTrade } from "@core/lib/workspaces";
+import { useDemoContext } from "@core/stores/demo-context";
 
 export default function TradeLayout({ children }: { children: React.ReactNode }) {
   const { context } = useDemoContext();

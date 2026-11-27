@@ -6,9 +6,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ServiceProvider, ServiceRequest } from "@vesper/api-contracts";
 import { useRouter } from "next/navigation";
-import type { demoDomain, ProviderRequestView } from "@/lib/demo-store";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import { useToast } from "./toast-provider";
+import type { demoDomain, ProviderRequestView } from "@core/lib/demo-store";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import { useToast } from "@core/components/toast-provider";
 
 export type ProviderInput = {
   name: string;

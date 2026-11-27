@@ -12,15 +12,15 @@ import type { Shipment } from "@vesper/api-contracts";
 import { AlertTriangle, CheckCircle2, Info, Plus, Truck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { assignedTonnes, transportModeLabels, type FleetVehicle } from "@/lib/fleet-rules";
-import { formatMoney, formatTonnes } from "@/lib/shipment-rules";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { Select } from "./select";
-import { StatusBadge } from "./status-badge";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { assignedTonnes, transportModeLabels, type FleetVehicle } from "@core/lib/fleet-rules";
+import { formatMoney, formatTonnes } from "@core/lib/shipment-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
+import { StatusBadge } from "@core/components/status-badge";
 import { useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 /** Two buttons, one choice. Used on the create form (controlled) and on the shipment page (it asks the server to switch). */
 export function TransportModeChoice({ value, onChange, disabled = false }: { value: "provider" | "own_fleet"; onChange: (mode: "provider" | "own_fleet") => void; disabled?: boolean }) {

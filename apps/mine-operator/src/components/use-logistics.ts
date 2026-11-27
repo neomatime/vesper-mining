@@ -6,10 +6,10 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import type { demoDomain } from "@/lib/demo-store";
-import { useDemoContext } from "@/stores/demo-context";
-import { useToast } from "./toast-provider";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import type { demoDomain } from "@core/lib/demo-store";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useToast } from "@core/components/toast-provider";
 
 export type Logistics = ReturnType<typeof demoDomain.logistics>;
 export type StockpileView = Logistics["stockpiles"][number];

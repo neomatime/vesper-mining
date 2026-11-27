@@ -6,8 +6,8 @@
  */
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock3 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { DEMO_NOW } from "@/lib/demo-data";
-import { FloatingPanel } from "./floating-panel";
+import { DEMO_NOW } from "@core/lib/demo-data";
+import { FloatingPanel } from "@core/components/floating-panel";
 
 // ---- Helpers ---------------------------------------------------------------------------------------
 

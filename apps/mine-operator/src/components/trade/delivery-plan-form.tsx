@@ -11,8 +11,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { locationService, type PlaceSuggestion } from "@/lib/geo/location-service";
-import { placeForDestination } from "@/lib/tracking/network";
+import { locationService, type PlaceSuggestion } from "@core/lib/geo/location-service";
+import { placeForDestination } from "@core/lib/tracking/network";
 import {
   addDays,
   formatCoordinates,
@@ -33,10 +33,10 @@ import {
   type DeliveryVehicle,
   type LatLngPair,
   type RequiredDocument,
-} from "@/lib/trade-rules";
-import { Busy } from "../busy";
-import { EmptyState } from "../query-state";
-import { Select } from "../select";
+} from "@core/lib/trade-rules";
+import { Busy } from "@core/components/busy";
+import { EmptyState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
 import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type DeliveryRow, type TradeView } from "../use-trade";
 import type { PointKey } from "./location-map";

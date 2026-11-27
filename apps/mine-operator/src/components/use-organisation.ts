@@ -5,10 +5,10 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Company, Member, SiteDetails } from "@vesper/api-contracts";
-import { ApiError, demoFetch, demoSend } from "@/lib/api";
-import type { OrganisationView } from "@/lib/demo-store";
-import { useDemoContext } from "@/stores/demo-context";
-import { useToast } from "./toast-provider";
+import { ApiError, demoFetch, demoSend } from "@core/lib/api";
+import type { OrganisationView } from "@core/lib/demo-store";
+import { useDemoContext } from "@core/stores/demo-context";
+import { useToast } from "@core/components/toast-provider";
 
 export type MemberInput = { name: string; email: string; role: string; phone: string; employeeNumber: string };
 

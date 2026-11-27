@@ -2,7 +2,7 @@
  * Helpers shared by the browser tests: signing in as a named demo person (signIn, openAs, actAs), choosing from custom dropdowns (pick) and switching subscription (setPlan).
  */
 import { expect, type Locator, type Page } from "@playwright/test";
-import { accounts, FIXTURE_PASSWORD } from "../src/lib/accounts";
+import { accounts, FIXTURE_PASSWORD } from "../../../packages/core/src/lib/accounts";
 
 export type Person = "John Dlamini" | "Amina Patel" | "Sipho Nkosi" | "Lebo Maseko" | "Naledi Khoza" | "Thabo Molefe" | "Zinhle Mahlangu";
 

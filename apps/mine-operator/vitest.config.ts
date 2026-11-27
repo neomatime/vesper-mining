@@ -1,5 +1,5 @@
 /**
- * Unit test configuration: jsdom, the @ alias for src, and the shared setup file.
+ * Unit test configuration: jsdom, the @ alias for src, @core for the shared foundation (packages/core), and the setup file.
  */
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
+      "@core": path.resolve(import.meta.dirname, "../../packages/core/src"),
     },
   },
   test: {

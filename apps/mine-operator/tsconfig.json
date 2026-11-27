@@ -6,7 +6,8 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@core/*": ["../../packages/core/src/*"]
     }
   },
   "include": ["next-env.d.ts", ".next/types/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],

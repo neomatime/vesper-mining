@@ -10,21 +10,21 @@ import { ArrowLeft, CalendarCheck, CheckCircle2, Send, Wrench, XCircle } from "l
 import Link from "next/link";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { demoFetch } from "@/lib/api";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { categoryLabels, type EquipmentView } from "@/lib/equipment-rules";
-import { approvalLabel, canManageProviders, canRequestService, eligibleProviders, formatMoney, inviteStateLabels, requestStatusLabels, responseLabel, urgencyLabels } from "@/lib/service-rules";
-import { useDemoContext } from "@/stores/demo-context";
+import { demoFetch } from "@core/lib/api";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { categoryLabels, type EquipmentView } from "@core/lib/equipment-rules";
+import { approvalLabel, canManageProviders, canRequestService, eligibleProviders, formatMoney, inviteStateLabels, requestStatusLabels, responseLabel, urgencyLabels } from "@core/lib/service-rules";
+import { useDemoContext } from "@core/stores/demo-context";
 import { CancelRequestDialog, CompleteDialog, ScheduleDialog } from "./service-request-dialogs";
-import { Field } from "./form-field";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { useShellData } from "./shell-data";
-import { StatusBadge } from "./status-badge";
+import { Field } from "@core/components/form-field";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { useShellData } from "@core/components/shell-data";
+import { StatusBadge } from "@core/components/status-badge";
 import { useCreateServiceRequest, useProviders, useRequestMutations, useServiceRequest } from "./use-service";
-import { Select } from "./select";
+import { Select } from "@core/components/select";
 import { DateInput } from "./date-fields";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 function useEquipment(id: string) {
   return useQuery({ queryKey: ["equipment", id], queryFn: () => demoFetch<EquipmentView>(`/equipment/${id}`) });

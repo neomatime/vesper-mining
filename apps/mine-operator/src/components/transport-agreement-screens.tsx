@@ -15,8 +15,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useTransportBase } from "./use-transport-base";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { formatTonnes, shortDate } from "@/lib/shipment-rules";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { formatTonnes, shortDate } from "@core/lib/shipment-rules";
 import {
   agreementPricingMethods,
   agreementStatus,
@@ -43,18 +43,18 @@ import {
   type Attachment,
   type Billing,
   type FeePeriod,
-} from "@/lib/transport-rules";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { Select } from "./select";
-import { StatusBadge } from "./status-badge";
+} from "@core/lib/transport-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
+import { StatusBadge } from "@core/components/status-badge";
 import { useLogistics, useSubmissionId } from "./use-logistics";
 import { DemoPeriodNote, ProviderTabs, providerName } from "./transport-screens";
 import { useTransport, useTransportAction, type Transport } from "./use-transport";
 import { RegisterView, type Register } from "./workspace-screen";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const number = (value: number) => new Intl.NumberFormat("en-GB").format(value);
 

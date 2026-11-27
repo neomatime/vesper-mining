@@ -13,8 +13,8 @@ import { AlertTriangle, ArrowLeft, Check, CheckCircle2, Download, ExternalLink, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { downloadCsv } from "@/lib/csv";
-import { formatDemoDateTime } from "@/lib/demo-clock";
+import { downloadCsv } from "@core/lib/csv";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
 import {
   canActOnShipments,
   blockerOf,
@@ -36,23 +36,23 @@ import {
   shortDate,
   valueStatusLabels,
   valueSummary,
-} from "@/lib/shipment-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
+} from "@core/lib/shipment-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
 import { GoldDeliveryCard } from "./impact-panels";
 import { ShipmentTabs } from "./module-tabs";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { Select } from "./select";
-import { StatusBadge } from "./status-badge";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
+import { StatusBadge } from "@core/components/status-badge";
 import { useLogistics, useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
-import { OWN_FLEET_ID, OWN_FLEET_NAME, fleetProblems } from "@/lib/fleet-rules";
+import { OWN_FLEET_ID, OWN_FLEET_NAME, fleetProblems } from "@core/lib/fleet-rules";
 import { FleetSection, TransportModeChoice, TransportModeSwitch } from "./fleet-panels";
 import { TransportPricingSection } from "./transport-agreement-screens";
 import { ValueCell, ValueSection, shipmentValuesOf } from "./value-panels";
 import { RegisterView, type Register } from "./workspace-screen";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 const useActor = () => {
   const { context } = useDemoContext();

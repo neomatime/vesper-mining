@@ -4,7 +4,7 @@
  */
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { IssueReportForm } from "@/components/issue-report-form";
+import { IssueReportForm } from "@core/components/issue-report-form";
 
 export const metadata: Metadata = { title: "Report Issue" };
 

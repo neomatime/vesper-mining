@@ -9,16 +9,16 @@ import { BadgeCheck, CircleX, ClipboardCheck, Download, ExternalLink, FileText, 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { approvalTypeLabels, folderLabels, formatSize, formatTonnes, type ApprovalType, type Folder as FolderKey } from "@/lib/trade-rules";
-import { ConfirmDialog, Dialog } from "../dialog";
-import { Field } from "../form-field";
-import { Select } from "../select";
+import { approvalTypeLabels, folderLabels, formatSize, formatTonnes, type ApprovalType, type Folder as FolderKey } from "@core/lib/trade-rules";
+import { ConfirmDialog, Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { Select } from "@core/components/select";
 import { useSubmissionId } from "../use-logistics";
 import { useTradeAction, type ApprovalRow, type DocumentRow, type LinkRow, type TradeView } from "../use-trade";
 import { ApprovalStatus, DocumentStatus, Readiness, readinessLabels } from "./trade-status";
 import { UploadDialog } from "./trade-upload";
 import { ActionMenu, CellMain, dateTimeLabel, dayLabel, Donut, exportCsv, KpiTiles, Money, Progress, RailCard, RailList, Register, TradeData, TradeHeader } from "./trade-ui";
-import { Busy } from "../busy";
+import { Busy } from "@core/components/busy";
 
 // ---- Approvals -------------------------------------------------------------------------------------------------------------
 

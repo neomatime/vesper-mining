@@ -2,7 +2,7 @@
 
 import { Ellipsis } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { useDismiss } from "./use-dismiss";
+import { useDismiss } from "@core/components/use-dismiss";
 
 /** A "More" button that opens a short menu of secondary actions. */
 export function MoreMenu({ children }: { children: (close: () => void) => React.ReactNode }) {

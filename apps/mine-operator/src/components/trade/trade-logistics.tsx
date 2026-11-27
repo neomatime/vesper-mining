@@ -9,10 +9,10 @@ import { CalendarClock, CirclePlus, Clock, Download, FileText, Network, Truck, B
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { agreementStatus, agreementStatusWords, approvalLabels, type Agreement, type QuoteRequest } from "@/lib/transport-rules";
+import { agreementStatus, agreementStatusWords, approvalLabels, type Agreement, type QuoteRequest } from "@core/lib/transport-rules";
 import type { Transporter } from "@vesper/api-contracts";
-import { ErrorState, LoadingState } from "../query-state";
-import { Select } from "../select";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
 import { priceOf } from "../transport-agreement-screens";
 import { AddProviderDialog } from "../transport-screens";
 import { useLogistics } from "../use-logistics";

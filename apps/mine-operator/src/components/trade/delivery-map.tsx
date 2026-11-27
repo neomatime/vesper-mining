@@ -10,10 +10,10 @@ import L from "leaflet";
 import { Maximize2, Minimize2, Minus, Plus, LocateFixed } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { CircleMarker, MapContainer, Marker, Pane, Polygon, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import { areaLabels, borders, eswatini, kruger, lesotho, nationalRoads, ocean, townLabels } from "@/lib/tracking/basemap";
-import { places, routes } from "@/lib/tracking/network";
-import type { LatLng } from "@/lib/tracking/telematics";
-import { deliveryTrackingStatus, type Journey } from "@/lib/tracking/tracking";
+import { areaLabels, borders, eswatini, kruger, lesotho, nationalRoads, ocean, townLabels } from "@core/lib/tracking/basemap";
+import { places, routes } from "@core/lib/tracking/network";
+import type { LatLng } from "@core/lib/tracking/telematics";
+import { deliveryTrackingStatus, type Journey } from "@core/lib/tracking/tracking";
 
 const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL;
 const TILE_ATTRIBUTION = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ?? "";

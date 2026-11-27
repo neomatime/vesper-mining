@@ -8,8 +8,8 @@
 import { ArrowRight, Boxes, CalendarDays, CircleCheck, Circle, CircleDot, ClipboardCheck, Database, FileText, Layers, Mail, MessageCircle, Network, Send, Sparkles, Target, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { addDays, daysBetween, formatRand, formatTonnes } from "@/lib/trade-rules";
-import { useDemoContext } from "@/stores/demo-context";
+import { addDays, daysBetween, formatRand, formatTonnes } from "@core/lib/trade-rules";
+import { useDemoContext } from "@core/stores/demo-context";
 import type { TradeView } from "../use-trade";
 import { agreementState } from "./trade-status";
 import { dayLabel, KpiTiles, Money, RailCard, RailList, TradeData } from "./trade-ui";

@@ -11,21 +11,21 @@ import { ArrowLeft, ChevronLeft, ChevronRight, CirclePlus, Ellipsis, Filter, Pen
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import { categoryLabels } from "@/lib/equipment-rules";
-import { approvalLabel, approvalStatusLabels, approvalStatusTone, canApproveProviders, canManageProviders, isApproved, requestStatusLabels, responseLabel } from "@/lib/service-rules";
-import { useDemoContext } from "@/stores/demo-context";
-import { ConfirmDialog, Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { PageHeader } from "./page-header";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import { categoryLabels } from "@core/lib/equipment-rules";
+import { approvalLabel, approvalStatusLabels, approvalStatusTone, canApproveProviders, canManageProviders, isApproved, requestStatusLabels, responseLabel } from "@core/lib/service-rules";
+import { useDemoContext } from "@core/stores/demo-context";
+import { ConfirmDialog, Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { PageHeader } from "@core/components/page-header";
 import { ProviderDialog } from "./provider-dialogs";
-import { ErrorState, LoadingState } from "./query-state";
-import { Select } from "./select";
-import { StatusBadge } from "./status-badge";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
+import { StatusBadge } from "@core/components/status-badge";
 import { useProviderDetail, useProviderMutations, useProviders, type ProviderDetail, type ProviderInput } from "./use-service";
-import { useDismiss } from "./use-dismiss";
-import { useShellData } from "./shell-data";
-import { Busy } from "./busy";
+import { useDismiss } from "@core/components/use-dismiss";
+import { useShellData } from "@core/components/shell-data";
+import { Busy } from "@core/components/busy";
 
 const PAGE_SIZE = 5;
 

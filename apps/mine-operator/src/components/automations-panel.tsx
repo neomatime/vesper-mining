@@ -6,13 +6,13 @@
  * approve or send anything, and tell nobody outside VESPER. A rule announces a record once until the problem has cleared.
  */
 import { Info, Play } from "lucide-react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
-import type { AutomationRecipient } from "@/lib/automation-rules";
-import { ErrorState, LoadingState } from "./query-state";
-import { Select } from "./select";
-import { StatusBadge } from "./status-badge";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
+import type { AutomationRecipient } from "@core/lib/automation-rules";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { Select } from "@core/components/select";
+import { StatusBadge } from "@core/components/status-badge";
 import { useAutomationMutations, useAutomations, type AutomationsView } from "./use-automations";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 export function AutomationsPanel() {
   const query = useAutomations();

@@ -24,9 +24,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { demoFetch } from "@/lib/api";
-import { formatStatus, recoverySummary } from "@/lib/calculations";
-import { formatDemoDateTime } from "@/lib/demo-clock";
+import { demoFetch } from "@core/lib/api";
+import { formatStatus, recoverySummary } from "@core/lib/calculations";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
 import {
   activeActions,
   canAct,
@@ -40,10 +40,10 @@ import {
   transitionOptions,
   type Actor,
   type TransitionOption,
-} from "@/lib/issue-rules";
-import { attachmentKind, sizeLabel } from "@/lib/evidence";
-import { initials } from "@/lib/personas";
-import { useDemoContext } from "@/stores/demo-context";
+} from "@core/lib/issue-rules";
+import { attachmentKind, sizeLabel } from "@core/lib/evidence";
+import { initials } from "@core/lib/personas";
+import { useDemoContext } from "@core/stores/demo-context";
 import {
   ActionDialog,
   DependencyDialog,
@@ -52,13 +52,13 @@ import {
   TransitionDialog,
   dependencyKindLabel,
 } from "./issue-dialogs";
-import { PageHeader } from "./page-header";
-import { ErrorState, LoadingState } from "./query-state";
-import { useShellData } from "./shell-data";
+import { PageHeader } from "@core/components/page-header";
+import { ErrorState, LoadingState } from "@core/components/query-state";
+import { useShellData } from "@core/components/shell-data";
 import { WaitSection } from "./impact-panels";
-import { StatusBadge } from "./status-badge";
+import { StatusBadge } from "@core/components/status-badge";
 import { useIssueMutations } from "./use-issue-mutations";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 import { ActionMenu } from "./trade/trade-ui";
 
 type DialogState =

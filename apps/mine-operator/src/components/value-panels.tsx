@@ -11,7 +11,7 @@
 import type { Shipment } from "@vesper/api-contracts";
 import { AlertTriangle, Info, Tag } from "lucide-react";
 import { useState } from "react";
-import { formatDemoDateTime } from "@/lib/demo-clock";
+import { formatDemoDateTime } from "@core/lib/demo-clock";
 import {
   CURRENCY,
   PRICE_BASIS,
@@ -25,12 +25,12 @@ import {
   valueStatusLabels,
   valueTone,
   type ShipmentValue,
-} from "@/lib/shipment-rules";
-import { Dialog } from "./dialog";
-import { Field } from "./form-field";
-import { StatusBadge } from "./status-badge";
+} from "@core/lib/shipment-rules";
+import { Dialog } from "@core/components/dialog";
+import { Field } from "@core/components/form-field";
+import { StatusBadge } from "@core/components/status-badge";
 import { useLogisticsAction, useSubmissionId, type Logistics } from "./use-logistics";
-import { Busy } from "./busy";
+import { Busy } from "@core/components/busy";
 
 /** Everything a screen needs to show values, worked out from one set of records so every page shows the same figure. */
 export function shipmentValuesOf(data: Logistics) {
