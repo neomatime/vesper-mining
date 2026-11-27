@@ -27,7 +27,9 @@ export function appUrl(app: VesperApp, path: string): string | null {
   return base ? `${base}${path}` : null;
 }
 
-const MOBILE_ROUTES = ["/my-shift", "/my-work", "/report", "/notifications", "/profile", "/schedule", "/sign-in"];
+const MOBILE_ROUTES = ["/my-shift", "/my-work", "/report", "/my-reports", "/notifications", "/profile", "/schedule", "/sign-in"];
+/** Pages for one record that only VESPER Mobile has (an issue and a shift are also on the web, at /exceptions and /shifts). */
+const MOBILE_RECORDS = ["/checks/", "/issues/"];
 
 /**
  * Turns a link written by a shared screen into the right address for the app showing it. Null means there is nowhere to go from
@@ -40,7 +42,7 @@ export function linkFor(app: VesperApp, href: string): string | null {
   const legacy = path.startsWith("/mobile/") ? path.slice("/mobile".length) : null;
   if (app === "mobile") {
     if (legacy) return legacy + suffix;
-    if (path === "/" || MOBILE_ROUTES.includes(path)) return href;
+    if (path === "/" || MOBILE_ROUTES.includes(path) || MOBILE_RECORDS.some((prefix) => path.startsWith(prefix))) return href;
     if (path === "/exceptions/new") return "/report";
     const issue = /^\/exceptions\/([^/]+)$/.exec(path);
     if (issue) return `/issues/${issue[1]}`;
@@ -50,6 +52,6 @@ export function linkFor(app: VesperApp, href: string): string | null {
     return appUrl("operations", href);
   }
   if (legacy) return appUrl("mobile", legacy + suffix);
-  if (MOBILE_ROUTES.includes(path) && path !== "/notifications" && path !== "/profile" && path !== "/sign-in") return appUrl("mobile", href);
+  if ((MOBILE_ROUTES.includes(path) && path !== "/notifications" && path !== "/profile" && path !== "/sign-in") || path.startsWith("/checks/")) return appUrl("mobile", href);
   return href;
 }

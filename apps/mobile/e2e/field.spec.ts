@@ -1,6 +1,7 @@
 /**
  * Browser test (Playwright, a Pixel 7 phone). VESPER Mobile on its own: signing in lands on My Shift, the four tabs, My Work with
- * task completion, an offline report kept as Pending Synchronisation, the shift calendar, and issue and shift pages inside the app.
+ * task completion, the outbox for offline reports, photos and location on a report, My reports, the equipment pre-start check,
+ * the shift calendar, and issue and shift pages inside the app.
  */
 import { expect, test } from "@playwright/test";
 import { openAs, signIn } from "./support";
@@ -37,16 +38,75 @@ test("shows a field employee their own shift and tasks, and lets them reopen a t
   await expect(page.getByRole("button", { name: /Mark done: North Pit pre-start observation/ })).toBeVisible();
 });
 
-test("keeps a report made offline as Pending Synchronisation", async ({ page }) => {
+test("keeps a report made offline in the outbox, then sends it on reconnecting", async ({ page }) => {
   await openAs(page, "/report");
   await page.getByRole("button", { name: "Work offline" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Offline" })).toBeVisible();
   await page.getByLabel("Issue title").fill("Hydraulic leak observed");
   await page.getByLabel("Observed condition").fill("A small hydraulic leak was observed during the pre-start inspection.");
   await page.getByRole("button", { name: "Save pending report" }).click();
   await expect(page.getByText("Pending Synchronisation")).toBeVisible();
   await expect(page.getByText(/has not been received centrally/)).toBeVisible();
-  await page.getByRole("link", { name: "Return to My Shift" }).click();
-  await expect(page).toHaveURL(/\/my-shift$/);
+
+  // It waits on the phone, survives a reload, and is not received centrally until the phone is back online.
+  await page.getByRole("link", { name: "See My reports" }).click();
+  await expect(page).toHaveURL(/\/my-reports$/);
+  const outbox = page.getByRole("region", { name: /Waiting to send/ });
+  await expect(outbox).toContainText("Hydraulic leak observed");
+  await page.reload();
+  await expect(page.getByRole("region", { name: /Waiting to send \(1\)/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Open/ })).not.toContainText("Hydraulic leak observed");
+  await page.getByRole("button", { name: "Back online and send" }).click();
+  await expect(page.getByRole("region", { name: /Waiting to send/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: /^Open/ }).getByRole("link", { name: /Hydraulic leak observed/ })).toBeVisible();
+});
+
+test("adds photos and the phone's location to a report, and shows them on the issue", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: -24.6612, longitude: 30.0601, accuracy: 9 });
+  await openAs(page, "/report");
+  await page.getByLabel("Issue title").fill("Cracked step on EX-204");
+  await page.getByLabel("Observed condition").fill("The lower access step on the left side is cracked through.");
+  // A tiny PNG stands in for a camera photo.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==", "base64");
+  await page.getByLabel("Take or add photos").setInputFiles({ name: "step.png", mimeType: "image/png", buffer: png });
+  await expect(page.getByRole("img", { name: "Photo 1 of the issue" })).toBeVisible();
+  await page.getByRole("button", { name: "Add my location" }).click();
+  await expect(page.getByText("-24.66120, 30.06010")).toBeVisible();
+  await page.getByRole("button", { name: "Record issue" }).click();
+  await expect(page).toHaveURL(/\/issues\/[^/]+$/);
+  await expect(page.getByRole("img", { name: "Photo 1 with the report" })).toBeVisible();
+  await expect(page.getByText(/Reporter's location, accurate to about 9 m/)).toBeVisible();
+
+  await page.getByRole("link", { name: "My reports" }).click();
+  const card = page.getByRole("link", { name: /Cracked step on EX-204/ });
+  await expect(card).toContainText("Received, waiting for review");
+  await expect(card).toContainText("1 photo");
+});
+
+test("does the pre-start check for my machine, raising a failed item as a fault", async ({ page }) => {
+  await openAs(page, "/my-shift");
+  await page.getByRole("link", { name: /Pre-start check for EX-204/ }).click();
+  await expect(page).toHaveURL(/\/checks\/eq-ex204$/);
+  await expect(page.getByRole("heading", { name: "Hydraulic Excavator EX-204" })).toBeVisible();
+
+  // Nothing answered yet: it says so.
+  await page.getByRole("button", { name: "Record check" }).click();
+  await expect(page.getByText(/Answer every item/)).toBeVisible();
+
+  const groups = page.getByRole("radiogroup");
+  const count = await groups.count();
+  for (let index = 0; index < count; index += 1) await groups.nth(index).getByRole("radio", { name: "Pass" }).click();
+  await page.getByRole("radiogroup", { name: "Hoses and fittings" }).getByRole("radio", { name: "Fail" }).click();
+  await page.getByLabel("What is wrong with Hoses and fittings").fill("Hose weeping at the boom foot");
+  await page.getByText("Only with a restriction").click();
+  await page.getByRole("button", { name: "Record check" }).click();
+  await expect(page.getByRole("heading", { name: "1 fault reported" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Track the faults" }).click();
+  await expect(page.getByRole("link", { name: /Hydraulic Excavator EX-204: Hoses and fittings failed pre-start/ })).toBeVisible();
+  await page.getByRole("navigation", { name: "Field navigation" }).getByRole("link", { name: "My Shift" }).click();
+  await expect(page.getByRole("link", { name: /1 fault reported on EX-204/ })).toBeVisible();
 });
 
 test("reports an issue online and follows it on its own page in the app", async ({ page }) => {
@@ -92,7 +152,7 @@ test("offers month, week and day in the calendar, with touch-sized controls", as
 
 test("no page scrolls sideways", async ({ page }) => {
   await openAs(page, "/my-shift");
-  for (const route of ["/my-shift", "/my-work", "/report", "/notifications", "/profile", "/schedule", "/shifts/shift-a-20250424"]) {
+  for (const route of ["/my-shift", "/my-work", "/report", "/my-reports", "/checks/eq-ex204", "/notifications", "/profile", "/schedule", "/shifts/shift-a-20250424"]) {
     await page.goto(route);
     await expect(page.locator("main")).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

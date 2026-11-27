@@ -13,7 +13,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { useShellData } from "./shell-data";
 import { z } from "zod";
-import type { OperationalIssue } from "@vesper/api-contracts";
+import type { IssuePhoto, OperationalIssue, ReportedLocation } from "@vesper/api-contracts";
+import { useState } from "react";
+import { useOutbox } from "../stores/outbox";
+import { LocationShare, PhotoPicker } from "./report-evidence";
 import { demoSend } from "../lib/api";
 import { causeGroups, secondariesOf } from "@vesper/api-contracts";
 import { defectOperabilities, defectOperabilityLabels } from "../lib/issue-rules";
@@ -40,6 +43,7 @@ const reportSchema = z.object({
 
 type ReportInput = z.infer<typeof reportSchema>;
 
+/** A report kept in the outbox while offline: on this phone only, not received centrally. */
 type PendingResult = { id: string; state: "pending_sync"; message: string };
 
 export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
@@ -47,7 +51,10 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   const appLink = useAppLink();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { connectivity, setConnectivity } = useDemoContext();
+  const { connectivity, setConnectivity, context } = useDemoContext();
+  const addToOutbox = useOutbox((state) => state.add);
+  const [photos, setPhotos] = useState<IssuePhoto[]>([]);
+  const [location, setLocation] = useState<ReportedLocation | null>(null);
   const { data: shell } = useShellData();
   const requestedEquipment = useSearchParams().get("equipmentId") ?? "";
   const equipmentOptions = (shell?.equipment ?? []).filter((item) => !item.retiredAt);
@@ -68,16 +75,24 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   const chosenPrimary = useWatch({ control: form.control, name: "symptom" });
   const secondaryOptions = chosenPrimary ? secondariesOf(chosenPrimary) : [];
   const mutation = useMutation({
-    mutationFn: (input: ReportInput) =>
-      demoSend<OperationalIssue | PendingResult>("/issues", "POST", {
+    mutationFn: async (input: ReportInput): Promise<OperationalIssue | PendingResult> => {
+      const body = {
         title: input.title,
         description: input.description,
         equipmentId: input.equipmentId,
         areaId: input.areaId,
         priority: input.priority,
         defect: input.equipmentId && input.symptom ? { symptom: input.symptom, secondary: input.secondary || null, operability: input.operability || "unsure" } : undefined,
-        pendingSync: connectivity === "offline",
-      }),
+        attachments: photos,
+        reportedLocation: location,
+      };
+      // Offline: keep it in the outbox on this phone. It is sent, and only then received centrally, once back online.
+      if (connectivity === "offline") {
+        const item = addToOutbox({ kind: "report", title: input.title, path: "/issues", body, by: context.persona });
+        return { id: item.id, state: "pending_sync", message: "Saved on this device. This report has not been received centrally. It is sent when you are back online." };
+      }
+      return demoSend<OperationalIssue>("/issues", "POST", body);
+    },
     onSuccess: async (result) => {
       if ("state" in result) return;
       await queryClient.invalidateQueries({ queryKey: ["workspace", "exceptions"] });
@@ -96,6 +111,7 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
         <p>{mutation.data.message}</p>
         <div className="button-row">
           <button className="button button--primary" onClick={() => setConnectivity("online")}>Reconnect</button>
+          {mobile ? <Link className="button button--quiet" href="/my-reports">See My reports</Link> : null}
           <Link className="button button--quiet" href="/my-shift">Return to My Shift</Link>
         </div>
       </section>
@@ -190,6 +206,14 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
             <textarea rows={5} placeholder="Describe the condition and any immediate operational context." {...form.register("description")} aria-invalid={Boolean(form.formState.errors.description)} />
             {form.formState.errors.description ? <small className="field-error">{form.formState.errors.description.message}</small> : null}
           </label>
+          <div className="form-field form-field--wide">
+            <PhotoPicker photos={photos} onChange={setPhotos} />
+          </div>
+          {mobile ? (
+            <div className="form-field form-field--wide">
+              <LocationShare location={location} onChange={setLocation} />
+            </div>
+          ) : null}
         </div>
         {mutation.isError ? <div className="inline-error" role="alert">{mutation.error.message} Your entered information has been preserved.</div> : null}
         <div className="form-footer">

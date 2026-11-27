@@ -15,14 +15,14 @@ import { describe, expect, it } from "vitest";
 const ROUND = [
   ".status-badge__dot", ".notification-dot", ".context-pills__freshness", ".demo-pill > span", ".demo-launcher__label span",
   ".priority::before", ".cal__dot", ".lifecycle__dot", ".progress-orbit", ".spinner", ".brand-loader__halo", 
-  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle", ".lp-dot", ".lp-pin", ".dp-section__index", ".dp-vehicle-index", ".lp-search__busy",
+  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle", ".lp-dot", ".lp-pin", ".dp-section__index", ".dp-vehicle-index", ".lp-search__busy", ".prestart__label > span",
 ];
 
 const app = join(__dirname, "..", "app");
 /** Design-system sheets live in the shared foundation (packages/core/src/styles); this app's own sheets in src/app. */
 const styles = join(__dirname, "..", "..", "..", "..", "packages", "core", "src", "styles");
 const sheetPath = (name: string) => (existsSync(join(app, name)) ? join(app, name) : join(styles, name));
-const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css", "delivery-map.css", "delivery-plan.css"];
+const sheets = ["globals.css", "theme.css", "typography.css", "chrome.css", "login.css", "allocation.css", "dark.css", "trade.css", "motion.css", "refinements.css", "delivery-map.css", "delivery-plan.css", "field.css"];
 
 /** Every border-radius declaration with its selector, ignoring comments. */
 function radii() {

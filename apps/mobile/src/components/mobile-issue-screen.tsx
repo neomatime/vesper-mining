@@ -9,6 +9,7 @@ import { ArrowLeft, CheckCircle2, Circle, Clock3, MapPin, UserRound, Wrench } fr
 import Link from "next/link";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import { ErrorState, LoadingState } from "@core/components/query-state";
+import { ReportEvidence } from "@core/components/report-evidence";
 import { useShellData } from "@core/components/shell-data";
 import { StatusBadge } from "@core/components/status-badge";
 import { demoFetch } from "@core/lib/api";
@@ -32,13 +33,14 @@ export function MobileIssueScreen({ id }: { id: string }) {
 
   return (
     <div className="mobile-task-page">
-      <Link href="/my-work" className="back-link"><ArrowLeft /> Back</Link>
+      <Link href="/my-reports" className="back-link"><ArrowLeft /> My reports</Link>
       <div className="mobile-page-header">
         <span className="eyebrow">{issue.issueNumber} · {stateLabels[issue.workflowState]}</span>
         <h1>{issue.title}</h1>
         <p>{issue.description}</p>
         <StatusBadge value={issue.operationalStatus} />
       </div>
+      <ReportEvidence photos={issue.attachments} location={issue.reportedLocation} />
 
       <section className="mobile-stack" aria-label="Issue details">
         <article className="mobile-card"><MapPin /><div><small>Where</small><strong>{[area, equipment].filter(Boolean).join(" · ") || "Not recorded"}</strong></div></article>

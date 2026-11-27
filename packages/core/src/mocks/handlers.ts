@@ -91,16 +91,16 @@ export const handlers = [
   http.get(`${API}/issues`, () => envelope(demoDomain.listIssues())),
   http.get(`${API}/issues/:id`, ({ params }) => run(() => demoDomain.getIssue(param(params, "id")))),
   http.post(`${API}/issues`, async ({ request }) => {
-    const input = await bodyOf<{ pendingSync?: boolean } & Record<string, unknown>>(request);
-    if (input.pendingSync) {
-      return envelope({
-        id: "local-pending-001",
-        state: "pending_sync",
-        message: "Saved on this device. This report has not been received centrally.",
-      });
-    }
+    const input = await bodyOf(request);
     return run(() => demoDomain.createIssue(input, actorOf(request)), 201);
   }),
+  // ---- Equipment pre-start checks -----------------------------------------------------------
+  http.get(`${API}/prestart-checks`, ({ request }) => envelope(demoDomain.listPrestartChecks(new URL(request.url).searchParams.get("equipmentId")))),
+  http.post(`${API}/prestart-checks`, async ({ request }) => {
+    const input = await bodyOf(request);
+    return run(() => demoDomain.submitPrestartCheck(input, actorOf(request)), 201);
+  }),
+
   http.patch(`${API}/issues/:id`, async ({ params, request }) => {
     const input = await bodyOf(request);
     return run(() => demoDomain.updateIssue(param(params, "id"), input, actorOf(request)));

@@ -4,7 +4,8 @@
  * The phone's My Shift (crew, duty, equipment, briefing) and My Work (tasks owned by the person, with note and evidence on
  * completion).
  */
-import { AlertTriangle, ArrowRight, Bell, CalendarDays, Check, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, ListChecks, MapPin, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { formatDemoTime, formatDemoDateTime } from "@core/lib/demo-clock";
@@ -12,8 +13,10 @@ import { activeActions, isOpen } from "@core/lib/issue-rules";
 import { remaining, shiftTimes } from "@core/lib/shift-format";
 import { currentShiftFor, type ShiftView } from "@core/lib/shift-rules";
 import { useDemoContext } from "@core/stores/demo-context";
+import { demoFetch } from "@core/lib/api";
+import { latestCheck, prestartCategories, type PrestartCheck } from "@core/lib/prestart-rules";
+import type { EquipmentView } from "@core/lib/equipment-rules";
 import { LoadingState } from "@core/components/query-state";
-import { useNotifications } from "@core/components/notification-list";
 import { useShellData } from "@core/components/shell-data";
 import { StatusBadge } from "@core/components/status-badge";
 import { useShiftMutations } from "@core/components/use-shift-mutations";
@@ -29,11 +32,13 @@ function greeting(now: string) {
 export function MyShiftScreen() {
   const { context } = useDemoContext();
   const { data } = useShellData();
-  const notifications = useNotifications();
   if (!data) return <LoadingState variant="panel" />;
 
   const shift = currentShiftFor(data.shifts, context.persona);
   const first = context.persona.split(" ")[0];
+  // The person's own reports that are still open, for the Track shortcut.
+  const myOpenReports = data.issues.filter((issue) => issue.events.some((event) => event.type === "reported" && event.actor === context.persona) && !["verified", "closed", "cancelled", "duplicate"].includes(issue.workflowState)).length;
+  const track = <Link href="/my-reports"><ClipboardList /><span><strong>Track</strong><small>{myOpenReports} open {myOpenReports === 1 ? "report" : "reports"}</small></span></Link>;
 
   if (!shift) {
     return (
@@ -46,7 +51,7 @@ export function MyShiftScreen() {
         </section>
         <section className="mobile-actions mobile-actions--two">
           <Link href="/report"><AlertTriangle /><span><strong>Report</strong><small>Record an issue</small></span></Link>
-          <Link href="/notifications"><Bell /><span><strong>Track</strong><small>{notifications.unread} unread {notifications.unread === 1 ? "alert" : "alerts"}</small></span></Link>
+          {track}
         </section>
         <section className="mobile-stack">
           <Link className="mobile-card mobile-card--link" href="/schedule"><CalendarDays /><div><strong>Shift calendar</strong><p>See the shifts you are on, day by day</p></div><ArrowRight /></Link>
@@ -72,6 +77,8 @@ export function MyShiftScreen() {
         </div>
       </section>
 
+      {unit && prestartCategories.includes(unit.category) ? <PrestartCard unit={unit} shiftId={shift.id} now={data.now} /> : null}
+
       {priority ? (
         <section className="mobile-priority">
           <div><AlertTriangle /><span><small>Needs attention</small><strong>{priority.title}</strong><p>{priority.description}</p></span></div>
@@ -82,7 +89,7 @@ export function MyShiftScreen() {
       <section className="mobile-actions">
         <Link href="/report"><AlertTriangle /><span><strong>Report</strong><small>Record an issue</small></span></Link>
         <Link href="/my-work"><Wrench /><span><strong>Act</strong><small>{myOpenTasks} open {myOpenTasks === 1 ? "task" : "tasks"}</small></span></Link>
-        <Link href="/notifications"><Bell /><span><strong>Track</strong><small>{notifications.unread} unread {notifications.unread === 1 ? "alert" : "alerts"}</small></span></Link>
+        {track}
       </section>
 
       <section className="mobile-stack">
@@ -158,5 +165,28 @@ export function MyWorkScreen() {
         ) : null}
       </section>
     </div>
+  );
+}
+
+/** Today's pre-start check for the machine the person is on: still to do, all clear, or faults reported. */
+function PrestartCard({ unit, shiftId, now }: { unit: EquipmentView; shiftId: string; now: string }) {
+  const history = useQuery({ queryKey: ["prestart", unit.id], queryFn: () => demoFetch<PrestartCheck[]>(`/prestart-checks?equipmentId=${encodeURIComponent(unit.id)}`), staleTime: 0 });
+  const done = latestCheck(history.data ?? [], unit.id, shiftId, now);
+  if (history.isPending) return null;
+  if (!done) {
+    return (
+      <Link className="mobile-card mobile-card--link prestart-card prestart-card--due" href={`/checks/${unit.id}`}>
+        <ListChecks />
+        <div><small>Before you start</small><strong>Pre-start check for {unit.code}</strong><p>Not done yet this shift · about 3 minutes</p></div>
+        <ArrowRight />
+      </Link>
+    );
+  }
+  return (
+    <Link className={`mobile-card mobile-card--link prestart-card ${done.issueIds.length ? "prestart-card--faults" : "prestart-card--clear"}`} href={done.issueIds.length ? "/my-reports" : `/checks/${unit.id}`}>
+      {done.issueIds.length ? <TriangleAlert /> : <ClipboardCheck />}
+      <div><small>Pre-start check · {formatDemoTime(done.at)}</small><strong>{done.issueIds.length ? `${done.issueIds.length} fault${done.issueIds.length === 1 ? "" : "s"} reported on ${unit.code}` : `${unit.code} all clear`}</strong><p>{done.issueIds.length ? "Track them in My reports" : `Checked by ${done.by}`}</p></div>
+      <ArrowRight />
+    </Link>
   );
 }

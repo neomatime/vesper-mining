@@ -142,6 +142,23 @@ export const primaryCauseSchema = z.enum(primaryCauseIds);
 export const defectOperabilitySchema = z.enum(["operating", "limited", "stopped", "unsure"]);
 export const issueDefectSchema = z.object({ symptom: primaryCauseSchema, secondary: z.string().nullish(), operability: defectOperabilitySchema });
 
+/** A photo taken with a report. In this build a small compressed copy is kept with the record (no file store). */
+export const issueAttachmentSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  kind: z.literal("photo"),
+  sizeLabel: z.string(),
+  dataUrl: z.string().startsWith("data:image/"),
+  takenAt: timestampSchema,
+});
+
+/** Where the reporter was when they reported, from the phone's location, when they chose to share it. */
+export const reportedLocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  accuracyM: z.number().nonnegative(),
+});
+
 export const operationalIssueSchema = z.object({
   id: z.string().min(1),
   organisationId: z.string().min(1),
@@ -167,6 +184,9 @@ export const operationalIssueSchema = z.object({
   comments: z.array(commentSchema).default([]),
   verifications: z.array(verificationSchema).default([]),
   events: z.array(issueEventSchema).default([]),
+  /** Photos taken with the report (records from before this field have none). */
+  attachments: z.array(issueAttachmentSchema).optional(),
+  reportedLocation: reportedLocationSchema.nullish(),
 });
 
 export const mapAreaSchema = z.object({
@@ -262,6 +282,8 @@ export type OperationalIssue = z.infer<typeof operationalIssueSchema>;
 export type PrimaryCauseId = z.infer<typeof primaryCauseSchema>;
 export type DefectOperability = z.infer<typeof defectOperabilitySchema>;
 export type IssueDefect = z.infer<typeof issueDefectSchema>;
+export type IssuePhoto = z.infer<typeof issueAttachmentSchema>;
+export type ReportedLocation = z.infer<typeof reportedLocationSchema>;
 export type MapArea = z.infer<typeof mapAreaSchema>;
 export type ReadinessActivity = z.infer<typeof readinessActivitySchema>;
 export type DemoContext = z.infer<typeof demoContextSchema>;

@@ -38,6 +38,7 @@ import { RouteProgress } from "@core/components/route-progress";
 import { ScrollHints } from "@core/components/scroll-hints";
 import { useEffect, useState } from "react";
 import type { FeatureCode } from "@vesper/api-contracts";
+import { useOutboxSync } from "@core/components/use-outbox-sync";
 import { can } from "@core/lib/entitlements";
 import { useDemoContext } from "@core/stores/demo-context";
 import { CommandSearch } from "./command-search";
@@ -134,6 +135,8 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Reports saved while offline are sent from here once back online.
+  useOutboxSync();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
