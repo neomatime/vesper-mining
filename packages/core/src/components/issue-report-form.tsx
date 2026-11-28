@@ -75,6 +75,8 @@ export function IssueReportForm({ mobile = false }: { mobile?: boolean }) {
   const chosenPrimary = useWatch({ control: form.control, name: "symptom" });
   const secondaryOptions = chosenPrimary ? secondariesOf(chosenPrimary) : [];
   const mutation = useMutation({
+    // Runs without signal too: offline, the report goes to the outbox instead of the API (the default would wait for signal).
+    networkMode: "always",
     mutationFn: async (input: ReportInput): Promise<OperationalIssue | PendingResult> => {
       const body = {
         title: input.title,

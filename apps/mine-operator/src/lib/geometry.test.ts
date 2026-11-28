@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 const ROUND = [
   ".status-badge__dot", ".notification-dot", ".context-pills__freshness", ".demo-pill > span", ".demo-launcher__label span",
   ".priority::before", ".cal__dot", ".lifecycle__dot", ".progress-orbit", ".spinner", ".brand-loader__halo", 
-  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle", ".lp-dot", ".lp-pin", ".dp-section__index", ".dp-vehicle-index", ".lp-search__busy", ".prestart__label > span",
+  "::-webkit-scrollbar-thumb", ".check", ".action-row__marker", ".recovery-step >", ".stage-timeline", ".timeline-card li", ".avatar", "__dot", ".busy-spinner", ".dm-dot", "__dot {", ".dm-mine", ".dm-vehicle", ".lp-dot", ".lp-pin", ".dp-section__index", ".dp-vehicle-index", ".lp-search__busy", ".prestart__label > span", ".site-switch__track span",
 ];
 
 const app = join(__dirname, "..", "app");

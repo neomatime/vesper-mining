@@ -6,6 +6,7 @@ import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@core/components/app-context";
 import { DemoProviders } from "@core/components/demo-providers";
 import { themeInitScript } from "@core/lib/theme";
+import { fieldDisplayInitScript } from "@/lib/field-display-script";
 import "@core/styles/globals.css";
 import "@core/styles/theme.css";
 import "@core/styles/typography.css";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <link rel="preload" href="/fonts/Inter-Variable-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: fieldDisplayInitScript }} />
       </head>
       <body>
         <AppProvider app="mobile">

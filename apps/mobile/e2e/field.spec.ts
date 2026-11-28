@@ -193,3 +193,36 @@ test("confirms the briefing and the handover from the shift before", async ({ pa
   await page.reload();
   await expect(page.getByRole("region", { name: "Before you start" }).getByText(/You confirmed at/)).toHaveCount(2);
 });
+
+test("switches on gloves and sunlight modes, kept on this phone", async ({ page }) => {
+  await openAs(page, "/profile");
+  const gloves = page.getByRole("switch", { name: /Gloves mode/ });
+  const sunlight = page.getByRole("switch", { name: /Sunlight mode/ });
+  await expect(gloves).toHaveAttribute("aria-checked", "false");
+  await gloves.click();
+  await sunlight.click();
+  await expect(page.locator("html")).toHaveAttribute("data-gloves", "on");
+  await expect(page.locator("html")).toHaveAttribute("data-contrast", "high");
+  await page.goto("/report");
+  const record = await page.getByRole("button", { name: "Record issue" }).boundingBox();
+  expect(record?.height ?? 0).toBeGreaterThanOrEqual(56);
+  // Set before the first paint on the next visit.
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-gloves", "on");
+  await page.goto("/profile");
+  await page.getByRole("switch", { name: /Gloves mode/ }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gloves", "on");
+});
+
+test("goes offline when the phone loses signal, and sends what waited when it comes back", async ({ page, context }) => {
+  await openAs(page, "/report");
+  await context.setOffline(true);
+  await expect(page.getByRole("status").filter({ hasText: "Offline" })).toBeVisible();
+  await page.getByLabel("Issue title").fill("Diesel smell at the fuel bay");
+  await page.getByLabel("Observed condition").fill("Strong diesel smell near pump 2 at the fuel bay.");
+  await page.getByRole("button", { name: "Save pending report" }).click();
+  await expect(page.getByText("Pending Synchronisation")).toBeVisible();
+  await context.setOffline(false);
+  await expect(page.getByRole("status").filter({ hasText: "Offline" })).toHaveCount(0);
+  await expect(page.getByText(/1 waiting record sent/)).toBeVisible();
+});

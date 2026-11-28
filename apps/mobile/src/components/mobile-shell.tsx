@@ -9,6 +9,7 @@
 import { AlertTriangle, Bell, ClipboardCheck, CloudOff, HardHat } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { EntitlementGate } from "@core/components/entitlement-gate";
 import { RouteProgress } from "@core/components/route-progress";
 import { NotificationMenu, ProfileMenu, SiteMenu } from "@core/components/topbar-menus";
@@ -30,6 +31,19 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const included = entitlementsFor(context.tier).mobile;
   const waiting = useOutbox((state) => state.items.filter((item) => item.by === context.persona).length);
   useOutboxSync();
+
+  // Follow the phone's real signal: losing it switches to offline (what is recorded waits in the outbox); getting it back sends.
+  useEffect(() => {
+    const lost = () => setConnectivity("offline");
+    const back = () => setConnectivity("online");
+    window.addEventListener("offline", lost);
+    window.addEventListener("online", back);
+    if (!navigator.onLine) lost();
+    return () => {
+      window.removeEventListener("offline", lost);
+      window.removeEventListener("online", back);
+    };
+  }, [setConnectivity]);
   const active = (tab: (typeof tabs)[number]) => [tab.href, ...tab.also].some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   return (

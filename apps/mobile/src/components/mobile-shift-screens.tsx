@@ -15,6 +15,7 @@ import { currentShiftFor, type ShiftView } from "@core/lib/shift-rules";
 import { useDemoContext } from "@core/stores/demo-context";
 import { demoFetch, demoSend } from "@core/lib/api";
 import { useToast } from "@core/components/toast-provider";
+import { InstallCard } from "./site-settings";
 import { latestCheck, prestartCategories, type PrestartCheck } from "@core/lib/prestart-rules";
 import type { EquipmentView } from "@core/lib/equipment-rules";
 import { LoadingState } from "@core/components/query-state";
@@ -78,6 +79,7 @@ export function MyShiftScreen() {
         </div>
       </section>
 
+      <InstallCard />
       {unit && prestartCategories.includes(unit.category) ? <PrestartCard unit={unit} shiftId={shift.id} now={data.now} /> : null}
 
       {priority ? (

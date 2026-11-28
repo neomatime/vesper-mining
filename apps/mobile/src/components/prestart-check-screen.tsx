@@ -43,6 +43,8 @@ export function PrestartCheckScreen({ equipmentId }: { equipmentId: string }) {
   const answered = items.filter((entry) => answers[entry.id]?.result).length;
 
   const submit = useMutation({
+    // Runs without signal too: offline, the check goes to the outbox instead of the API.
+    networkMode: "always",
     mutationFn: async (): Promise<Saved> => {
       const body = { equipmentId, shiftId: shift?.id ?? null, answers, operability: failed.length ? operability : "yes", hoursReading: hours.trim() === "" ? null : Number(hours) };
       if (connectivity === "offline") {
