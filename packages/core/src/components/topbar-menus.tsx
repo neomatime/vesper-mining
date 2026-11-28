@@ -3,14 +3,14 @@
 /**
  * The three menus in the top bar: site, notifications and profile.
  */
-import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Pickaxe, Settings2, Smartphone, Network } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronRight, Download, HardHat, LogOut, Pickaxe, Settings2, Network } from "lucide-react";
 // Links follow the app showing the menu (Mining Operations or VESPER Mobile); see app-context.tsx.
-import { AppLink as Link, useApp, useAppLink } from "./app-context";
+import { AppLink as Link, useApp } from "./app-context";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { entitlementsFor } from "../lib/entitlements";
 import { canManageOrganisation } from "../lib/organisation-rules";
-import { initials, tierLabel } from "../lib/personas";
+import { initials } from "../lib/personas";
 import { workspaceOf, workspacesFor } from "../lib/workspaces";
 import { useDemoContext } from "../stores/demo-context";
 import { useSession } from "../stores/session";
@@ -113,16 +113,13 @@ export function NotificationMenu() {
   );
 }
 
-/** The account menu. In Mining Operations it offers the workspaces and VESPER Mobile; VESPER Mobile keeps to the field app. */
+/** The account menu: profile, workspaces and administration on the web; VESPER Mobile keeps to the field app. Each app is opened at its own address, not from here. */
 export function ProfileMenu() {
   const { open, setOpen, close, ref } = useMenu();
   const inField = useApp() === "mobile";
-  const appLink = useAppLink();
-  const mobileApp = appLink("/my-shift");
   const router = useRouter();
   const { context } = useDemoContext();
   const signOut = useSession((state) => state.signOut);
-  const mobileIncluded = entitlementsFor(context.tier).mobile;
   const pathname = usePathname();
   const current = workspaceOf(pathname);
   // Only the workspaces this role may open. Switching keeps the session, the site and the role; it only opens that workspace's Overview.
@@ -191,29 +188,14 @@ export function ProfileMenu() {
             </div>
           ) : null}
 
-          {/* VESPER Mobile keeps to field work, so this section (other apps, administration) is web-only. */}
-          {!inField ? (
-          <div className="menu-section">
-            {mobileIncluded ? (
-              mobileApp ? (
-                <Link className="menu-item" href="/my-shift" onClick={close}>
-                  <span className="menu-item__icon"><Smartphone size={16} /></span>
-                  <span className="menu-item__copy"><strong>Open VESPER Mobile</strong><small>The field app for phones</small></span>
-                </Link>
-              ) : null
-            ) : (
-              <div className="menu-item menu-item--off" aria-disabled="true">
-                <span className="menu-item__icon"><Smartphone size={16} /></span>
-                <span className="menu-item__copy"><strong>VESPER Mobile</strong><small>Not included in {tierLabel(context.tier)}</small></span>
-              </div>
-            )}
-            {canAdminister ? (
+          {/* Administration is on the web only; VESPER Mobile keeps to field work. */}
+          {canAdminister && !inField ? (
+            <div className="menu-section">
               <Link className="menu-item" href="/admin" onClick={close}>
                 <span className="menu-item__icon"><Settings2 size={16} /></span>
                 <span className="menu-item__copy"><strong>Administration</strong><small>People, rights, site and plan</small></span>
               </Link>
-            ) : null}
-          </div>
+            </div>
           ) : null}
 
           <div className="menu-section">
