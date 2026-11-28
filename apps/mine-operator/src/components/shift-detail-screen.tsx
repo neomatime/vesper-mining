@@ -132,6 +132,7 @@ function ShiftDetail({ shift }: { shift: ShiftView }) {
           <article className="card detail-card">
             <header className="card__header"><div><span className="eyebrow">Before the shift starts</span><h2>Briefing</h2></div>{live && canManage ? <button className="button button--quiet button--small" onClick={() => setDialog({ kind: "edit" })}><Pencil /> Edit</button> : null}</header>
             {shift.briefing ? <p className="prose">{shift.briefing}</p> : <div className="empty-inline"><strong>No briefing yet</strong><span>{live && canManage ? "Add what the crew should know before they start." : "The supervisor adds the briefing for the crew."}</span></div>}
+            {shift.crew.length && (shift.briefing || shift.previous) ? <ReadReceipts shift={shift} /> : null}
           </article>
 
           <article className="card detail-card">
@@ -263,3 +264,27 @@ function shiftNow(now: string | undefined) {
   return now ?? new Date().toISOString();
 }
 
+/** Who in the crew has confirmed, in VESPER Mobile, that they read the briefing and the handover from the shift before. */
+function ReadReceipts({ shift }: { shift: ShiftView }) {
+  const receipts = shift.acknowledgements ?? [];
+  const at = (name: string, kind: "briefing" | "handover") => receipts.find((entry) => entry.name === name && entry.kind === kind)?.at ?? null;
+  const people = shift.crew.filter((member) => member.duty !== "Contractor" || receipts.some((entry) => entry.name === member.name));
+  const read = (kind: "briefing" | "handover") => people.filter((member) => at(member.name, kind)).length;
+  return (
+    <div className="read-receipts" aria-label="Read by the crew">
+      <p className="read-receipts__summary">
+        {shift.briefing ? <span>Briefing read by <strong>{read("briefing")} of {people.length}</strong></span> : null}
+        {shift.previous ? <span>Handover from {shift.previous.name} read by <strong>{read("handover")} of {people.length}</strong></span> : null}
+      </p>
+      <ul>
+        {people.map((member) => (
+          <li key={member.id}>
+            <span>{member.name}</span>
+            {shift.briefing ? <small className={at(member.name, "briefing") ? "is-read" : ""}>Briefing: {at(member.name, "briefing") ? formatDemoDateTime(at(member.name, "briefing")!) : "not yet"}</small> : null}
+            {shift.previous ? <small className={at(member.name, "handover") ? "is-read" : ""}>Handover: {at(member.name, "handover") ? formatDemoDateTime(at(member.name, "handover")!) : "not yet"}</small> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

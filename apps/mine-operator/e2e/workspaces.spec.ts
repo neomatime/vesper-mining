@@ -56,14 +56,13 @@ test.describe("workspaces and subscriptions", () => {
     await expect(page.getByText("Indicative trend data. Not measured delay")).toBeVisible();
   });
 
-  test("includes VESPER Mobile in every subscription, Core included, and links to it from the account menu", async ({ page }) => {
+  test("keeps the account menu to the web app: workspaces and administration, no link out to VESPER Mobile", async ({ page }) => {
     await signIn(page);
-    for (const plan of ["Core", "Operations — Single Site", "Operations", "Enterprise", "Group"]) {
-      await setPlan(page, plan);
-      await page.goto("/overview");
-      await page.getByRole("button", { name: /Account menu/ }).click();
-      await expect(page.getByRole("link", { name: /Open VESPER Mobile/ }), plan).toHaveAttribute("href", "http://127.0.0.1:3001/my-shift");
-    }
+    await page.goto("/overview");
+    await page.getByRole("button", { name: /Account menu/ }).click();
+    const menu = page.getByRole("group", { name: "Account menu" });
+    await expect(menu.getByRole("link", { name: /Administration/ })).toBeVisible();
+    await expect(menu.getByText(/VESPER Mobile/)).toHaveCount(0);
   });
 
   test("shows each subscription's site allowance from the central plans, with Group from its contract", async ({ page }) => {

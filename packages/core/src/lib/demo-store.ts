@@ -38,7 +38,8 @@ import type {
   ShiftEvent,
   ShiftWork,
 } from "@vesper/api-contracts";
-import { downtimeReasonSchema, isSecondaryOf, issueDefectSchema } from "@vesper/api-contracts";
+import { downtimeReasonSchema, isSecondaryOf, issueAttachmentSchema, issueDefectSchema, reportedLocationSchema } from "@vesper/api-contracts";
+import { checklistFor, checkProblem, prestartCategories, prestartOperabilityLabels, type PrestartCheck, type PrestartOperability, type PrestartResult } from "./prestart-rules";
 import {
   areas,
   defaultContext,
@@ -190,6 +191,8 @@ const initialState = {
   impact: seedImpactScenario,
   impactHistory: [] as ImpactChange[],
   briefings: [] as BriefingRecord[],
+  /** Equipment pre-start checks recorded by operators (see prestart-rules.ts). */
+  prestartChecks: [] as PrestartCheck[],
   automations: defaultRules() as AutomationRule[],
   automationRuns: [] as AutomationRun[],
   /** Every version of every price, and every value a shipment has had. Nothing here is ever overwritten. */
@@ -215,10 +218,33 @@ function loadState(): DemoDomainState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DemoDomainState>;
     const valid = Array.isArray(parsed.issues) && typeof parsed.clock === "number" && Array.isArray(parsed.equipment) && parsed.equipment.every((item) => Array.isArray(item.plans)) && Array.isArray(parsed.shifts) && parsed.shifts.every((item) => Array.isArray(item.crew)) && Array.isArray(parsed.members) && Array.isArray(parsed.providers) && Array.isArray(parsed.serviceRequests) && Boolean(parsed.credentials) && parsed.members.every((item) => typeof item.phone === "string") && Boolean(parsed.company) && Boolean(parsed.site) && Array.isArray(parsed.briefings) && Array.isArray(parsed.automations) && Array.isArray(parsed.automationRuns) && Array.isArray(parsed.shipments) && parsed.shipments.every((item) => Boolean(item.fleet)) && Array.isArray(parsed.production) && Array.isArray(parsed.movements) && Array.isArray(parsed.requests) && Array.isArray(parsed.transporters) && Array.isArray(parsed.stockpiles) && Array.isArray(parsed.submissions) && Array.isArray(parsed.prices) && Array.isArray(parsed.finance) && Array.isArray(parsed.valueHistory) && Boolean(parsed.impact) && Array.isArray(parsed.impactHistory) && Array.isArray(parsed.quoteRequests) && Array.isArray(parsed.agreements) && Array.isArray(parsed.charges);
-    return valid ? (parsed as DemoDomainState) : null;
+    if (!valid) return null;
+    // Saved before pre-start checks existed: start with none, keep everything else.
+    if (!Array.isArray(parsed.prestartChecks)) parsed.prestartChecks = [];
+    return parsed as DemoDomainState;
   } catch {
     return null;
   }
+}
+
+/** Photos sent with a report: at most four small compressed copies (the phone compresses them before sending). */
+function readPhotos(value: unknown): NonNullable<OperationalIssue["attachments"]> {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) fail(400, "VALIDATION_ERROR", "Photos could not be read. Take them again.");
+  if (value.length > 4) fail(400, "VALIDATION_ERROR", "Add at most four photos to one report.");
+  return value.map((entry) => {
+    const parsed = issueAttachmentSchema.safeParse(entry);
+    if (!parsed.success) fail(400, "VALIDATION_ERROR", "A photo could not be read. Take it again.");
+    if (parsed.data.dataUrl.length > 600_000) fail(400, "VALIDATION_ERROR", "A photo is too large. Take it again at a lower resolution.");
+    return parsed.data;
+  });
+}
+
+function readLocation(value: unknown): OperationalIssue["reportedLocation"] {
+  if (value === undefined || value === null) return null;
+  const parsed = reportedLocationSchema.safeParse(value);
+  if (!parsed.success) fail(400, "VALIDATION_ERROR", "The location could not be read. Share it again or leave it out.");
+  return { lat: Math.round(parsed.data.lat * 1e6) / 1e6, lng: Math.round(parsed.data.lng * 1e6) / 1e6, accuracyM: Math.round(parsed.data.accuracyM) };
 }
 
 function saveState() {
@@ -1285,6 +1311,68 @@ export const demoDomain = {
 
   // ---- Issues ----------------------------------------------------------------------------
   listIssues: () => state.issues.map(present),
+
+  /** Pre-start checks, newest first; for one machine when equipmentId is given. */
+  listPrestartChecks(equipmentId?: string | null) {
+    return state.prestartChecks.filter((check) => !equipmentId || check.equipmentId === equipmentId).sort((a, b) => b.at.localeCompare(a.at));
+  },
+
+  /**
+   * Records a pre-start check. Every item must be answered and every failed item explained; each failed item is raised as an
+   * issue against the machine (a report: it does not take the machine out of service by itself).
+   */
+  submitPrestartCheck(input: Record<string, unknown>, actor: Actor) {
+    const equipmentId = typeof input.equipmentId === "string" ? input.equipmentId : "";
+    const unit = state.equipment.find((item) => item.id === equipmentId) ?? fail(404, "NOT_FOUND", "That machine could not be found.");
+    if (!prestartCategories.includes(unit.category)) fail(400, "VALIDATION_ERROR", `${unit.name} is inspected on its own plan, not with a pre-start check.`);
+    const items = checklistFor(unit.category);
+    const raw = (input.answers && typeof input.answers === "object" ? input.answers : {}) as Record<string, { result?: unknown; note?: unknown }>;
+    const answers: Record<string, { result?: PrestartResult; note?: string }> = {};
+    for (const entry of items) {
+      const value = raw[entry.id] ?? {};
+      const result = ["pass", "fail", "na"].includes(String(value.result)) ? (value.result as PrestartResult) : undefined;
+      answers[entry.id] = { result, note: typeof value.note === "string" ? value.note.trim().slice(0, 500) : "" };
+    }
+    const operability = ["yes", "limited", "no"].includes(String(input.operability)) ? (input.operability as PrestartOperability) : null;
+    const problem = checkProblem(items, answers, operability);
+    if (problem) fail(400, "VALIDATION_ERROR", problem);
+    const hours = input.hoursReading === null || input.hoursReading === undefined || input.hoursReading === "" ? null : Number(input.hoursReading);
+    if (hours !== null && (!Number.isFinite(hours) || hours < 0 || hours > 200_000)) fail(400, "VALIDATION_ERROR", "Enter the hour meter reading as a number, or leave it empty.");
+    const shiftId = typeof input.shiftId === "string" && state.shifts.some((shift) => shift.id === input.shiftId) ? input.shiftId : null;
+
+    const failed = items.filter((entry) => answers[entry.id].result === "fail");
+    const issueIds = failed.map((entry) => {
+      const created = demoDomain.createIssue({
+        title: `${unit.name}: ${entry.label} failed pre-start`,
+        description: `Pre-start check by ${actor.name}: ${answers[entry.id].note}`,
+        equipmentId: unit.id,
+        areaId: unit.areaId ?? undefined,
+        priority: operability === "no" ? "high" : "medium",
+        defect: { symptom: entry.cause, secondary: null, operability: operability === "no" ? "stopped" : operability === "limited" ? "limited" : "operating" },
+      }, actor);
+      return created.id;
+    });
+    const check: PrestartCheck = {
+      id: `chk-${state.prestartChecks.length + 1}-${state.clock}`,
+      equipmentId: unit.id,
+      shiftId,
+      by: actor.name,
+      role: actor.role,
+      at: tick(),
+      hoursReading: hours,
+      results: items.map((entry) => ({ itemId: entry.id, label: entry.label, result: answers[entry.id].result!, note: answers[entry.id].note ?? "" })),
+      operability: failed.length ? operability : "yes",
+      issueIds,
+    };
+    state.prestartChecks = [check, ...state.prestartChecks];
+    if (failed.length) {
+      // Tell the shift's supervisor (or every supervisor when the check was done outside a shift).
+      const supervisor = state.shifts.find((shift) => shift.id === shiftId)?.supervisor;
+      const recipients = supervisor ? [supervisor] : state.members.filter((member) => member.status !== "deactivated" && member.role === "Shift Supervisor").map((member) => member.name);
+      for (const recipient of recipients) notify(recipient, `${unit.name} failed its pre-start check`, `${failed.length} item${failed.length === 1 ? "" : "s"} failed · ${prestartOperabilityLabels[check.operability ?? "yes"]} (${actor.name})`, `/exceptions/${issueIds[0]}`, "Pre-start");
+    }
+    return check;
+  },
   getIssue: (id: string) => present(findIssue(id)),
 
   createIssue(input: Record<string, unknown>, actor: Actor) {
@@ -1295,6 +1383,8 @@ export const demoDomain = {
       : "medium";
     const equipmentId = typeof input.equipmentId === "string" && input.equipmentId ? input.equipmentId : null;
     const defect = readDefect(input.defect, equipmentId);
+    const attachments = readPhotos(input.attachments);
+    const reportedLocation = readLocation(input.reportedLocation);
     const at = tick();
     state.counters.issue += 1;
     const issue: OperationalIssue = {
@@ -1322,6 +1412,8 @@ export const demoDomain = {
       comments: [],
       verifications: [],
       events: [],
+      attachments,
+      reportedLocation,
     };
     issue.events = [
       {
@@ -2250,6 +2342,26 @@ export const demoDomain = {
     shift.handover.publishedBy = null;
     shift.handover.publishedAt = null;
     recordShift(shift, actor, { type: "handover_withdrawn", summary: "Handover withdrawn" });
+    return presentShift(shift);
+  },
+
+  /**
+   * A crew member (or the supervisor) confirms they have read the shift's briefing, or the handover from the shift before.
+   * Recorded once per person and kind; a second tap changes nothing.
+   */
+  confirmShiftRead(shiftId: string, input: Record<string, unknown>, actor: Actor) {
+    const shift = findShift(shiftId);
+    const kind = input.kind === "handover" ? "handover" : input.kind === "briefing" ? "briefing" : fail(400, "VALIDATION_ERROR", "Say whether you read the briefing or the handover.");
+    if (shift.state === "cancelled" || shift.state === "closed") fail(409, "READ_ONLY", "This shift has ended.");
+    if (shift.supervisor !== actor.name && !shift.crew.some((member) => member.name === actor.name)) fail(403, "FORBIDDEN", "Only the crew and the supervisor of this shift confirm its briefing and handover.");
+    if (kind === "briefing" && !shift.briefing) fail(409, "VALIDATION_ERROR", "This shift has no briefing yet.");
+    if (kind === "handover") {
+      const previous = presentShift(shift).previous;
+      const handover = previous ? findShift(previous.id).handover : null;
+      if (!handover || handover.state === "draft") fail(409, "VALIDATION_ERROR", "There is no published handover from the shift before.");
+    }
+    const list = shift.acknowledgements ?? [];
+    if (!list.some((entry) => entry.name === actor.name && entry.kind === kind)) shift.acknowledgements = [...list, { name: actor.name, kind, at: tick() }];
     return presentShift(shift);
   },
 

@@ -6,6 +6,7 @@
  * it is refused.
  */
 import { useQuery } from "@tanstack/react-query";
+import { ReportEvidence } from "@core/components/report-evidence";
 import type { Action, IssueDependency, OperationalIssue } from "@vesper/api-contracts";
 import {
   ArrowLeft,
@@ -132,6 +133,8 @@ function IssueDetail({ issue }: { issue: OperationalIssue }) {
           </div>
         }
       />
+
+      <ReportEvidence photos={issue.attachments} location={issue.reportedLocation} />
 
       {finished ? (
         <div className="readonly-banner" role="note">

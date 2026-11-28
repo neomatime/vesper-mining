@@ -11,6 +11,7 @@ import { useSession } from "@core/stores/session";
 import { MyShiftScreen, MyWorkScreen } from "./mobile-shift-screens";
 import { NotificationList, useNotifications } from "@core/components/notification-list";
 import { ErrorState, LoadingState } from "@core/components/query-state";
+import { SiteDisplaySettings } from "./site-settings";
 
 type Kind = "my-shift" | "my-work" | "notifications" | "profile";
 
@@ -32,6 +33,7 @@ export function MobileFieldScreen({ kind }: { kind: Kind }) {
           <article className="mobile-card"><ShieldAlert /><div><small>Subscription</small><strong>{tierLabel(context.tier)}</strong><p>Role, site and entitlement guards apply</p></div></article>
           <article className="mobile-card"><CheckCircle2 /><div><small>Connection</small><strong>{connectivity === "online" ? "Online" : "Offline"}</strong><p>Your reports are saved on this device until they are received</p></div></article>
         </section>
+        <SiteDisplaySettings />
         <button className="button button--quiet button--wide" onClick={() => { signOut(); router.replace("/sign-in"); }}>Sign out</button>
       </div>
     );

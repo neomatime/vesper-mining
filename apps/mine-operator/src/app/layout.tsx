@@ -19,6 +19,7 @@ import "@core/styles/modules.css";
 import "./trade.css";
 import "./delivery-map.css";
 import "./delivery-plan.css";
+import "@core/styles/field.css";
 import "@core/styles/motion.css";
 import "@core/styles/refinements.css";
 

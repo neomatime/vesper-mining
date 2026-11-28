@@ -2,17 +2,17 @@
 
 /**
  * An issue as the field sees it on the phone: what was reported, where, its state, the actions on it and the latest updates.
- * Read-only: reviewing, assigning and verifying happen in Mining Operations, linked at the bottom when its address is known.
+ * Read-only: reviewing, assigning and verifying happen in Mining Operations.
  */
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, CheckCircle2, Circle, Clock3, MapPin, UserRound, Wrench } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Clock3, MapPin, UserRound, Wrench } from "lucide-react";
 import Link from "next/link";
 import type { OperationalIssue } from "@vesper/api-contracts";
 import { ErrorState, LoadingState } from "@core/components/query-state";
+import { ReportEvidence } from "@core/components/report-evidence";
 import { useShellData } from "@core/components/shell-data";
 import { StatusBadge } from "@core/components/status-badge";
 import { demoFetch } from "@core/lib/api";
-import { appUrl } from "@core/lib/app-links";
 import { formatDemoDateTime } from "@core/lib/demo-clock";
 import { activeActions, stateLabels } from "@core/lib/issue-rules";
 
@@ -30,17 +30,17 @@ export function MobileIssueScreen({ id }: { id: string }) {
   const equipment = shell?.equipment.find((item) => item.id === issue.equipmentId)?.name;
   const actions = activeActions(issue);
   const updates = [...issue.events].reverse().slice(0, 5);
-  const onWeb = appUrl("operations", `/exceptions/${issue.id}`);
 
   return (
     <div className="mobile-task-page">
-      <Link href="/my-work" className="back-link"><ArrowLeft /> Back</Link>
+      <Link href="/my-reports" className="back-link"><ArrowLeft /> My reports</Link>
       <div className="mobile-page-header">
         <span className="eyebrow">{issue.issueNumber} · {stateLabels[issue.workflowState]}</span>
         <h1>{issue.title}</h1>
         <p>{issue.description}</p>
         <StatusBadge value={issue.operationalStatus} />
       </div>
+      <ReportEvidence photos={issue.attachments} location={issue.reportedLocation} />
 
       <section className="mobile-stack" aria-label="Issue details">
         <article className="mobile-card"><MapPin /><div><small>Where</small><strong>{[area, equipment].filter(Boolean).join(" · ") || "Not recorded"}</strong></div></article>
@@ -68,7 +68,6 @@ export function MobileIssueScreen({ id }: { id: string }) {
         ))}
       </section>
 
-      {onWeb ? <a className="button button--quiet button--wide" href={onWeb}>Open the full record on the web <ArrowUpRight aria-hidden="true" /></a> : null}
     </div>
   );
 }
